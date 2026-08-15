@@ -1208,8 +1208,14 @@ function sanityChecks(inp) {
           ? 'You spend about ' + fmt$(liveOn) + '/mo today' + (debtMo ? ' including loan payments' : '')
           : 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo of it into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today')) +
         '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement' + (debtMo ? ' (including loan payments)' : '') + ' — <b>more than that</b>. That can be right (no commute, no TSP coming out), but if it\'s just a guess, try the number you actually live on now.');
-  } else if (inp.salary > 0 && inp.otherContrib + inp.salary * Math.min(inp.empPct, 1) > inp.salary * 0.4) {
-    notes.push('TSP plus other savings add up to more than 40% of your pay — double-check the "put away last year" number. (Enter your monthly take-home in step 1 and we can check this more closely.)');
+  } else if (inp.salary > 0) {
+    // No take-home entered — use our ballpark so big spending + big savings still gets caught.
+    const bp = ballparkTakeHome(inp);
+    const outgo = (inp.spendNow > 0 ? inp.spendNow : 0) + saveMo + debtMo;
+    if (inp.spendNow > 0 && bp > 0 && outgo > bp * 1.15)
+      notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo, but ' + fmt$(inp.salary) + ' a year usually takes home only about ' + fmt$(bp) + '/mo. Something doesn\'t add up — double-check those numbers, or enter your real take-home in step 1.');
+    else if (inp.otherContrib + inp.salary * Math.min(inp.empPct, 1) > inp.salary * 0.4)
+      notes.push('TSP plus other savings add up to more than 40% of your pay — double-check the "put away last year" number. (Enter your monthly take-home in step 1 and we can check this more closely.)');
   }
   return notes;
 }
@@ -1599,6 +1605,10 @@ function livingComparison(inp) {
   const liveOn = inp.spendNow > 0 ? inp.spendNow + debtMo : Math.max(0, th - saveMo);
   const firstSpend = inp.spendMo + debtMo;
   if (!(inp.spendNow > 0 || th > 0) || !(inp.spendMo > 0)) return '';
+  if (inp.spendNow > 0) {   // don't call it "comfortable" while the today-numbers themselves don't add up
+    const ref = th > 0 ? th : (inp.salary > 0 ? ballparkTakeHome(inp) : 0);
+    if (ref > 0 && inp.spendNow + saveMo + debtMo > ref * (th > 0 ? 1.1 : 1.15)) return '';
+  }
   const base = (inp.spendNow > 0
       ? 'You spend about ' + fmt$(liveOn) + '/mo today' + (debtMo ? ' including loan payments' : '')
       : 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today')) +
