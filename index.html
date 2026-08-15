@@ -185,6 +185,9 @@
     .purchgrid input[id$="What"] { grid-column: 1 / -1; }
   }
   h3.subhead { font-size: 18px; margin: 6px 0 8px; color: var(--ink-2); }
+  .pathbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -6px 0 14px; }
+  .pathbtn { font: 600 14.5px system-ui, sans-serif; color: var(--ink-2); background: var(--surface-2); border: 1.5px solid var(--hairline); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+  .pathbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .infobtn {
     display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 8px;
     border-radius: 50%; border: 1.5px solid var(--accent); background: none; color: var(--accent);
@@ -409,29 +412,59 @@
   <section class="card">
     <h2><span class="stepnum">1</span>About you <button type="button" class="infobtn" data-info="about" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Your basic USPS work history. Your High-3 salary is on your latest annuity estimate from LiteBlue or HR.</p>
+    <div class="pathbar">
+      <span class="help" style="margin:0">Which are you?</span>
+      <button type="button" class="pathbtn" id="pathWorking" aria-pressed="true">Working toward retirement</button>
+      <button type="button" class="pathbtn" id="pathNotCareer" aria-pressed="false">Not career yet</button>
+      <button type="button" class="pathbtn" id="pathRetired" aria-pressed="false">Already retired from USPS</button>
+    </div>
+    <div class="anchor" id="notCareerNote" hidden>
+      <b>Not career yet? Here's how to fill this in.</b> Enter the year you expect to convert to career in step 1 — your FERS years and TSP both start then. Use the pay you'll earn as a career employee (or your pay now). Leave High-3 blank; we'll grow your pay to retirement for you. In step 2, TSP is $0 for now — and this is exactly the moment a Roth IRA earns its keep: enter what you can put in each year (the IRS max if possible) and set up an automatic transfer. Then run the plan and watch what the early start does. The rest of the form works the same.
+    </div>
+    <div class="fields" id="retiredFields" hidden>
+      <div class="field">
+        <label for="retYear">Year you retired</label>
+        <div class="inputrow"><input id="retYear" type="text" inputmode="numeric" placeholder="2024"></div>
+      </div>
+      <div class="field">
+        <label for="penNow">Your FERS pension now, per month</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="penNow" type="text" inputmode="numeric" placeholder="1,850"></div>
+        <div class="help">The gross monthly annuity on your OPM statement (before health insurance and taxes, after any survivor reduction).</div>
+      </div>
+      <div class="field">
+        <label for="suppNow">FERS supplement now, per month (0 if none)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="suppNow" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Paid until 62 to those who retired at MRA+30 or 60+20. Shown separately on your OPM statement.</div>
+      </div>
+      <div class="field">
+        <label for="ssNow">Social Security now, per month (blank if not started)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="ssNow" type="text" inputmode="numeric" placeholder="not started"></div>
+        <div class="help">If you haven't started, leave this blank and fill in your estimates in step 3 — the plan compares your possible start ages.</div>
+      </div>
+    </div>
     <div class="fields">
       <div class="field">
         <label for="curAge">Your age today</label>
         <div class="inputrow"><input id="curAge" type="text" inputmode="numeric" placeholder="60"><span class="suffix">years</span></div>
       </div>
-      <div class="field">
+      <div class="field work-only">
         <label for="poStart">The year you became a <b>career</b> USPS employee (or expect to)</label>
         <div class="inputrow"><input id="poStart" type="text" inputmode="numeric" placeholder="1998"></div>
         <div class="help">Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn't add to your years. It's on your SF-50 or in LiteBlue. Not career yet? Enter the year you expect to convert; TSP contributions will start then too. If you bought back military time, move the year back by those years.</div>
       </div>
-      <div class="field">
+      <div class="field work-only">
         <label for="salary">Current annual pay (before taxes)</label>
         <div class="inputrow"><span class="prefix">$</span><input id="salary" type="text" inputmode="numeric" placeholder="68,000"></div>
       </div>
-      <div class="field">
+      <div class="field work-only">
         <label for="takeHome">Take-home pay per month, on average (optional)</label>
         <div class="inputrow"><span class="prefix">$</span><input id="takeHome" type="text" inputmode="numeric" placeholder="3,800"></div>
         <div class="help" id="takeHomeHelp">What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.</div>
       </div>
-      <div class="field">
+      <div class="field work-only">
         <label for="high3">High-3 average salary</label>
         <div class="inputrow"><span class="prefix">$</span><input id="high3" type="text" inputmode="numeric" placeholder="65,000"></div>
-        <div class="help">The average of your highest-paid 3 years in a row — usually your last 3. Not sure? Use your current pay; it's close.</div>
+        <div class="help">The average of your highest-paid 3 years in a row — usually your last 3. Not sure, or not career yet? Leave it blank: we use your current pay and grow it by the yearly-raise rate (advanced settings, 2%) to your retirement year — a reasonable guess for a steady career.</div>
       </div>
     </div>
   </section>
@@ -1120,12 +1153,15 @@ function loanMonthly(P, r, n) {
 }
 
 function readInputs() {
+  const retired = $('pathRetired').getAttribute('aria-pressed') === 'true';
   const out = {
+    retired,
+    retYear: numOr('retYear', CUR_YEAR), penNow: numOr('penNow', 0), suppNow: numOr('suppNow', 0), ssNow: num('ssNow'),
     curAge: num('curAge'),
-    yos: CUR_YEAR - num('poStart'),
-    salary: num('salary'),
+    yos: retired ? Math.max(0, numOr('retYear', CUR_YEAR) - numOr('poStart', numOr('retYear', CUR_YEAR) - 20)) + (CUR_YEAR - numOr('retYear', CUR_YEAR)) : CUR_YEAR - num('poStart'),
+    salary: retired ? 0 : num('salary'),
     takeHome: num('takeHome'),   // NaN when blank
-    high3: numOr('high3', num('salary')),
+    high3: retired ? 0 : numOr('high3', num('salary')),
     tspBal: numOr('tspBal', 0), empPct: numOr('tspPct', 5) / 100,
     tspStart: numOr('tspStart', num('poStart') > CUR_YEAR ? num('poStart') : 0),   // year TSP contributions begin (blank = already, or career start if that's in the future)
     otherBal: numOr('otherBal', 0), otherContrib: numOr('otherContrib', 0),
@@ -1239,6 +1275,11 @@ function spSSMonthlyAt(inp, claimAge) {
 }
 
 function pensionInfo(inp, retireAge) {
+  if (inp.retired) {
+    // already retired: the pension is what it is (entered), supplement as entered until 62
+    return { yosR: inp.yos, high3R: 0, mult: 0, gross: inp.penNow * 12, net: inp.penNow * 12, eligible: true,
+             suppEligible: inp.suppNow > 0, suppMo: inp.suppNow, retired: true };
+  }
   const yosR = inp.yos + (retireAge - inp.curAge);
   const high3R = inp.high3 * Math.pow(1 + inp.salGrowth, Math.max(0, retireAge - inp.curAge));
   const mult = (retireAge >= 62 && yosR >= 20) ? 0.011 : 0.01;
@@ -1283,7 +1324,7 @@ function simulate(inp, retireAge, claimAge, order) {
   for (let age = inp.curAge; age <= inp.horizon; age++) {
     const t = age - inp.curAge;
     const year = CUR_YEAR + t; yearNow = year;
-    const working = age < retireAge;
+    const working = !inp.retired && age < retireAge;
     const spouseAge = inp.spAge + t;
 
     // guaranteed income (retirement years)
@@ -1294,8 +1335,10 @@ function simulate(inp, retireAge, claimAge, order) {
     const earnLimit = 23400 * Math.pow(1 + inp.inflation, t);
     let earnCut = (!working && age < FRA && spInc > earnLimit) ? (spInc - earnLimit) / 2 : 0;
     let supp = (!working && pen.suppEligible && age < 62) ? pen.suppMo * 12 : 0;
-    const pension = !working ? pen.net * Math.pow(1 + inp.fersCola, Math.max(0, age - 62)) : 0;
-    let mySS = age >= claimAge ? ssAnnualAtClaim * Math.pow(1 + inp.ssCola, age - claimAge) : 0;
+    // (already retired: pension already reflects past COLAs, so raises count only from now, and only from 62)
+    const pension = !working ? pen.net * Math.pow(1 + inp.fersCola, Math.max(0, age - Math.max(62, inp.retired ? inp.curAge : 0))) : 0;
+    let mySS = (inp.retired && inp.ssNow > 0) ? inp.ssNow * 12 * Math.pow(1 + inp.ssCola, t)
+             : age >= claimAge ? ssAnnualAtClaim * Math.pow(1 + inp.ssCola, age - claimAge) : 0;
     if (earnCut > 0) { const c1 = Math.min(supp, earnCut); supp -= c1; earnCut -= c1; const c2 = Math.min(mySS, earnCut); mySS -= c2; earnCut -= c2; }
     const spDrawing = inp.hasSpouse && spouseAge >= inp.spSSStart;
     const spColaYears = Math.max(0, t - Math.max(0, inp.spSSStart - inp.spAge));
@@ -1481,9 +1524,12 @@ function simulate(inp, retireAge, claimAge, order) {
 let INP = null, GRID = null, SEL = null;
 
 function buildGrid(inp) {
-  const retStart = Math.max(inp.curAge, 55);
-  const retEnd = Math.max(70, inp.curAge + 2);
-  const claimAges = []; for (let c = Math.max(62, inp.curAge); c <= 70; c++) claimAges.push(c);
+  const retStart = inp.retired ? inp.curAge : Math.max(inp.curAge, 55);
+  const retEnd = inp.retired ? inp.curAge : Math.max(70, inp.curAge + 2);
+  const claimAges = [];
+  if (inp.retired && inp.ssNow > 0) claimAges.push(inp.curAge);   // already drawing — nothing to choose
+  else for (let c = Math.max(62, inp.curAge); c <= 70; c++) claimAges.push(c);
+  if (!claimAges.length) claimAges.push(inp.curAge);
   const rows = [];
   for (let r = retStart; r <= retEnd; r++) {
     const pen = pensionInfo(inp, r);
@@ -1529,7 +1575,7 @@ function renderGrid(grid) {
   for (const c of grid.claimAges) { const th = document.createElement('th'); th.textContent = c; head.appendChild(th); }
   for (const row of grid.rows) {
     const tr = t.insertRow();
-    const th = document.createElement('th'); th.className = 'rowhead'; th.textContent = row.retireAge; tr.appendChild(th);
+    const th = document.createElement('th'); th.className = 'rowhead'; th.textContent = INP.retired ? 'Retired (age ' + row.retireAge + ')' : row.retireAge; tr.appendChild(th);
     row.cols.forEach((cell, i) => {
       const td = tr.insertCell();
       const b = document.createElement('button');
@@ -1679,7 +1725,7 @@ function hustleHtml(inp, fix, lead, sayNo) {
 // What the automatic Roth IRA habit is worth in the selected/best plan (vs. not doing it), or a nudge to start one.
 function rothImpactHtml(best) {
   const i = INP;
-  if (!best) return '';
+  if (!best || i.retired) return '';
   if (i.rothIRA > 0) {
     const without = simulate(Object.assign({}, i, { rothIRA: 0, saveYr: i.otherContrib + i.spRothContrib }), best.retireAge, best.claimAge, best.order);
     const atRet = best.rows.find(r => !r.working), atRetW = without.rows.find(r => !r.working);
@@ -1711,8 +1757,10 @@ function renderVerdict(best) {
     ? '<div class="checks"><b>Worth a second look:</b><ul>' + checks.map(n => '<li>' + n + '</li>').join('') + '</ul></div>' : '');
   if (best && best.ok) {
     v.innerHTML = '<h2>Good news — the numbers can work. ✓</h2>' +
-      '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
-      '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ' +
+      (INP.retired
+        ? '<p class="big">With your pension as it is' + (INP.ssNow > 0 ? ' and Social Security already started' : ', <b>starting Social Security at ' + best.claimAge + '</b> works best') + '. Your money lasts past age '
+        : '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
+      '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ') +
       INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings.</p>' +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
       '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
@@ -1735,7 +1783,9 @@ function selectScenario(cell) {
   if (SEL && SEL._btn) SEL._btn.classList.remove('sel');
   SEL = cell; cell._btn.classList.add('sel');
   cell._btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  $('scnTitle').textContent = 'Retire at ' + cell.retireAge + ' · Social Security at ' + cell.claimAge;
+  $('scnTitle').textContent = INP.retired
+    ? 'Already retired' + (INP.ssNow > 0 ? ' · Social Security started' : ' · Social Security at ' + cell.claimAge)
+    : 'Retire at ' + cell.retireAge + ' · Social Security at ' + cell.claimAge;
   const pen = cell.pen;
   const bits = ['Pension ' + fmt$(pen.net) + '/yr' + (pen.mult === 0.011 ? ' (1.1% bonus rate ✓)' : ''),
                 'Social Security ' + fmt$(ssMonthlyAt(INP, cell.claimAge)) + '/mo at ' + cell.claimAge];
@@ -1995,7 +2045,9 @@ function renderTable(cell) {
   if (hasSp && INP.spTakeHome > 0 && INP.spRetireAge > INP.spAge) spRetYear = CUR_YEAR + (INP.spRetireAge - INP.spAge);
   for (const r of cell.rows) {
     if (spRetYear !== null && !spMarked && r.year >= spRetYear) { spMarked = true; html += milestone('▶ Your ' + spName + ' stops working (' + spRetYear + ', their age ' + INP.spRetireAge + ')'); }
-    if (!r.working && !retMarked) { retMarked = true; html += milestone('▶ You retire — ' + r.year + ', age ' + r.age + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')); }
+    if (!r.working && !retMarked) { retMarked = true; html += milestone(INP.retired
+      ? '▶ Already retired — the plan starts ' + r.year + ', age ' + r.age + (INP.ssNow > 0 ? ' · Social Security already started' : cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')
+      : '▶ You retire — ' + r.year + ', age ' + r.age + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')); }
     const spAgeTxt = hasSp ? ' <small>(' + (INP.spAge + r.age - INP.curAge) + ')</small>' : '';
     html += '<tr class="' + (r.working ? 'work' : '') + (r.shortfall > 1 ? ' short' : '') + '"><td>' + r.year + '</td><td>' + r.age + spAgeTxt + '</td><td>' +
       fmt$(r.pension + r.supp) + '</td><td>' + fmt$(r.mySS + r.spSS) + '</td><td>' + fmt$(r.spInc) + '</td><td>' +
@@ -2010,6 +2062,7 @@ function renderTable(cell) {
 function renderAssumptions(cell) {
   const p = cell.pen, i = INP;
   const items = [
+    p.retired ? 'FERS pension as entered: ' + fmt$(p.net) + '/yr' + (p.suppEligible ? ' plus the supplement of ' + fmt$(p.suppMo) + '/mo until 62' : '') + '. COLA ' + (i.fersCola*100).toFixed(1) + '%/yr from here on (from 62 if you\'re younger).' :
     'FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' (High-3 at retirement) × ' + p.yosR.toFixed(1) +
       ' years = ' + fmt$(p.gross) + '/yr gross; ' + fmt$(p.net) + '/yr after the survivor benefit you chose. COLA ' + (i.fersCola*100).toFixed(1) + '%/yr starting at 62.',
     p.suppEligible
@@ -2098,7 +2151,7 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','takeHome','high3','spendNow','rothIRA','rothBal','spRothContrib','fehbMo','qcdYr','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','spendNow','penNow','suppNow','ssNow','rothIRA','rothBal','spRothContrib','fehbMo','qcdYr','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
@@ -2108,13 +2161,14 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
                   'p1What','p1Amt','p1Year','p1How','p2What','p2Amt','p2Year','p2How',
                   'p3What','p3Amt','p3Year','p3How','p4What','p4Amt','p4Year','p4How','borrowRate',
-                  'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource',
+                  'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource','retYear','penNow','suppNow','ssNow',
                   'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spRothContrib','spRothStart','spPenMo','spPenWhen','spPenAge','spPenCola',
                   'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
                   'drawOrder','fehbMo','partB','qcdYr'];
 function saveForm() {
-  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows };
+  const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
+  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, path };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
   for (let n = 5; n <= purchRows; n++)
     ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
@@ -2142,6 +2196,7 @@ function loadForm() {
     $('taxFields').style.display = o.taxOn ? '' : 'none';
     $('pen2TaxFree').checked = !!o.pen2TaxFree;
     $('fehbOn').checked = !!o.fehbOn;
+    if (o.path) setPath(o.path);
     if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend;
     document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none');
   } catch (e) {}
@@ -2198,23 +2253,30 @@ function renderSummary() {
   const need = '(needed)';
   const ok = v => typeof v === 'number' && !isNaN(v) && v > 0;
   row('Age today', ok(inp.curAge) ? inp.curAge : need, !ok(inp.curAge));
+  if (inp.retired) {
+    row('Retired in', ok(inp.retYear) ? inp.retYear : need, !ok(inp.retYear));
+    row('FERS pension now', fmt$(inp.penNow) + '/mo' + (inp.suppNow > 0 ? ' + ' + fmt$(inp.suppNow) + '/mo supplement' : ''));
+    if (inp.ssNow > 0) row('Social Security now', fmt$(inp.ssNow) + '/mo');
+  }
   const careerYr = CUR_YEAR - inp.yos;
   const yosOk = !isNaN(inp.yos) && inp.yos < 60 && inp.yos > -16;
-  row('Career service', yosOk ? (inp.yos > 0 ? inp.yos + ' yrs (career since ' + careerYr + ')' : inp.yos === 0 ? 'starts this year' : 'starts ' + careerYr + ' (not career yet)') : need, !yosOk);
-  row('Current pay', ok(inp.salary) ? fmt$(inp.salary) + '/yr' + (inp.takeHome > 0 ? ' · take-home ' + fmt$(inp.takeHome) + '/mo' : '') : need, !ok(inp.salary));
-  row('High-3 salary', ok(inp.high3) ? fmt$(inp.high3) : need, !ok(inp.high3));
-  row('TSP', fmt$(inp.tspBal) + ' · ' + (inp.empPct*100).toFixed(0) + '% of pay + ' + (agencyPct(inp.empPct)*100).toFixed(1) + '% USPS');
+  if (!inp.retired) {
+    row('Career service', yosOk ? (inp.yos > 0 ? inp.yos + ' yrs (career since ' + careerYr + ')' : inp.yos === 0 ? 'starts this year' : 'starts ' + careerYr + ' (not career yet)') : need, !yosOk);
+    row('Current pay', ok(inp.salary) ? fmt$(inp.salary) + '/yr' + (inp.takeHome > 0 ? ' · take-home ' + fmt$(inp.takeHome) + '/mo' : '') : need, !ok(inp.salary));
+    row('High-3 salary', ok(inp.high3) ? fmt$(inp.high3) : need, !ok(inp.high3));
+  }
+  row('TSP', fmt$(inp.tspBal) + (inp.retired ? '' : ' · ' + (inp.empPct*100).toFixed(0) + '% of pay + ' + (agencyPct(inp.empPct)*100).toFixed(1) + '% USPS'));
   const left = paycheckLeft(inp);
   const eff = left === null ? inp.saveYr : Math.min(inp.saveYr, left);
   if (inp.tspStart > CUR_YEAR) row('TSP starts', inp.tspStart + ' (not contributing yet)');
   if (inp.rothBal > 0 || inp.rothIRA > 0) row('Roth IRA', fmt$(inp.rothBal) + (inp.rothIRA > 0 ? ' · +' + fmt$(inp.rothIRA) + '/yr' : '') + ' · since ' + Math.max(inp.rothStart, 1990));
   row('Other savings', fmt$(inp.otherBal));
-  if (inp.saveYr > 0 || (left !== null && left < 0))
+  if (!inp.retired && (inp.saveYr > 0 || (left !== null && left < 0)))
     row('Added while working', (left === null || eff >= inp.saveYr
       ? '+' + fmt$(inp.saveYr) + '/yr'
       : eff >= 0 ? '+' + fmt$(eff) + '/yr — all your paycheck leaves (you entered ' + fmt$(inp.saveYr) + ')'
                  : 'nothing — you\'re ' + fmt$(-left) + '/yr short, so savings shrink') + (inp.rothIRA > 0 && eff > 0 ? ' · Roth IRA ' + fmt$(Math.min(inp.rothIRA, eff)) : ''), left !== null && eff < inp.saveYr);
-  row('Social Security at 67', ok(inp.ssFRA) ? fmt$(inp.ssFRA) + '/mo (62: ' + fmt$(inp.ss62) + ', 70: ' + fmt$(inp.ss70) + ')' : need, !ok(inp.ssFRA));
+  if (!(inp.retired && inp.ssNow > 0)) row('Social Security at 67', ok(inp.ssFRA) ? fmt$(inp.ssFRA) + '/mo (62: ' + fmt$(inp.ss62) + ', 70: ' + fmt$(inp.ss70) + ')' : need, !ok(inp.ssFRA));
   const L = liveOnNow();
   if (L) row('Spending now (before retirement)', (L.entered ? '' : 'about ') + fmt$(L.liveOn) + '/mo' + (L.debtMo > 0 ? ' + ' + fmt$(L.debtMo) + '/mo loans' : '') + (L.entered ? '' : ' (our estimate)'));
   row('Retirement spending', ok(inp.spendMo) ? fmt$(inp.spendMo) + '/mo until 70' +
@@ -2349,6 +2411,34 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('infoPop').hidden = true; });
 
+// "Which are you?" path buttons — working (default) / not career yet (help panel) / already retired (different inputs)
+function setPath(which) {
+  const retired = which === 'retired', notCareer = which === 'notcareer';
+  $('pathWorking').setAttribute('aria-pressed', which === 'working' ? 'true' : 'false');
+  $('pathNotCareer').setAttribute('aria-pressed', notCareer ? 'true' : 'false');
+  $('pathRetired').setAttribute('aria-pressed', retired ? 'true' : 'false');
+  $('notCareerNote').hidden = !notCareer;
+  $('retiredFields').hidden = !retired;
+  document.querySelectorAll('.work-only').forEach(d => d.style.display = retired ? 'none' : '');
+  // step-2 wording tweaks for retirees
+  const tspLab = document.querySelector('label[for="tspPct"]');
+  if (tspLab) tspLab.closest('.field').style.display = retired ? 'none' : '';
+  const tspStartLab = document.querySelector('label[for="tspStart"]');
+  if (tspStartLab) tspStartLab.closest('.field').style.display = retired ? 'none' : '';
+  const ocLab = document.querySelector('label[for="otherContrib"]');
+  if (ocLab) ocLab.closest('.field').style.display = retired ? 'none' : '';
+  const gn = $('growthNote'); if (gn) gn.style.display = retired ? 'none' : '';
+  const rl = document.querySelector('label[for="rothIRA"]'); if (rl) rl.closest('.field').style.display = retired ? 'none' : '';
+  const rs = document.querySelector('label[for="rothStart"]'); if (rs) rs.closest('.field').style.display = '';
+  const sn = $('spendNow'); if (sn) sn.closest('.fields').style.display = retired ? 'none' : '';
+  const sa = $('spendAnchor'); if (sa) sa.style.display = retired ? 'none' : '';
+  if (retired) { $('spouseFields'); }
+  try { renderSummary(); } catch (e) {}
+}
+$('pathWorking').addEventListener('click', () => setPath('working'));
+$('pathNotCareer').addEventListener('click', () => setPath('notcareer'));
+$('pathRetired').addEventListener('click', () => setPath('retired'));
+
 // About card
 function toggleAbout(show) {
   const card = $('aboutCard');
@@ -2452,13 +2542,20 @@ $('addPurchRow').addEventListener('click', () => { const n = addPurchaseRow(); i
 $('addDebtRow').addEventListener('click', () => { const n = addDebtRow(); if (n) $('d' + n + 'What').focus(); });
 
 $('goBtn').addEventListener('click', () => {
-  const required = [
+  const retiredMode = $('pathRetired').getAttribute('aria-pressed') === 'true';
+  const required = retiredMode ? [
+    ['curAge', 'your age', v => v >= 40 && v <= 100],
+    ['retYear', 'the year you retired', v => v >= 1980 && v <= CUR_YEAR],
+    ['penNow', 'your monthly FERS pension', v => v >= 0],
+    ['spendMo', 'monthly spending (the first box)', v => v > 0]
+  ] : [
     ['curAge', 'your age', v => v >= 18 && v <= 80],
     ['poStart', 'the year you became (or expect to become) a career USPS employee', v => v >= 1950 && v <= CUR_YEAR + 15],
     ['salary', 'current pay', v => v > 0],
     ['ssFRA', 'Social Security at 67', v => v >= 0],
     ['spendMo', 'monthly spending (the first box)', v => v > 0]
   ];
+  if (retiredMode && !(numOr('ssNow', 0) > 0)) required.push(['ssFRA', 'Social Security at 67 (or your monthly check now, in step 1)', v => v >= 0]);
   const yearOk = v => !isNaN(v) && v >= CUR_YEAR && v <= CUR_YEAR + 45;
   if (numOr('wfAmt', 0) > 0) required.push(['wfYear', 'the year you expect the windfall', yearOk]);
   for (let n = 1; n <= purchRows; n++) {
@@ -2508,8 +2605,9 @@ function buildPrintReport() {
   const facts = [];
   const add = (l, v) => facts.push('<div><span>' + esc(l) + '</span><b>' + esc(v) + '</b></div>');
   add('Age today', i.curAge);
-  add('Career USPS since', (CUR_YEAR - i.yos) + (i.yos > 0 ? ' (' + i.yos + ' yrs so far)' : ' (not career yet)'));
-  add('Current annual pay', fmt$(i.salary) + (i.takeHome > 0 ? ' (take-home ' + fmt$(i.takeHome) + '/mo)' : ''));
+  if (i.retired) { add('Retired in', i.retYear); add('FERS pension now', fmt$(i.penNow) + '/mo' + (i.suppNow > 0 ? ' + supplement ' + fmt$(i.suppNow) + '/mo' : '')); if (i.ssNow > 0) add('Social Security now', fmt$(i.ssNow) + '/mo'); }
+  if (!i.retired) add('Career USPS since', (CUR_YEAR - i.yos) + (i.yos > 0 ? ' (' + i.yos + ' yrs so far)' : ' (not career yet)'));
+  if (!i.retired) add('Current annual pay', fmt$(i.salary) + (i.takeHome > 0 ? ' (take-home ' + fmt$(i.takeHome) + '/mo)' : ''));
   if (i.spendNow > 0) add('Spending now (while working)', fmt$(i.spendNow) + '/mo');
   add('High-3 average salary', fmt$(i.high3));
   add('TSP balance', fmt$(i.tspBal));
@@ -2556,13 +2654,13 @@ function buildPrintReport() {
     '<h1>Route2Retirement — Planning Snapshot</h1>' +
     '<p class="pr-sub">Prepared ' + today + ' · self-reported figures · all amounts are future (nominal) dollars unless noted</p>' +
     '<h2>The plan under consideration</h2>' +
-    '<p><b>Retire at ' + cell.retireAge + ' (' + retYear + ') · start Social Security at ' + cell.claimAge + ' (' + claimYear + ').</b> ' +
+    '<p><b>' + (i.retired ? 'Already retired (' + i.retYear + ')' + (i.ssNow > 0 ? ' · Social Security started' : ' · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') : 'Retire at ' + cell.retireAge + ' (' + retYear + ') · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') + '.</b> ' +
     (cell.ok ? 'Projected to last past age ' + i.horizon + ' with about ' + fmt$(cell.endBal) + ' remaining' +
        (last.netWorth !== last.total ? ' (net worth ' + fmt$(last.netWorth) + ')' : '') + '.'
              : 'Projected to run short around age ' + cell.lastsTo + '.') + '</p>' +
-    '<p>FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' × ' + p.yosR.toFixed(1) + ' yrs = ' + fmt$(p.gross) + '/yr gross, ' + fmt$(p.net) + '/yr after survivor election. ' +
+    (p.retired ? '<p>FERS pension as entered: ' + fmt$(p.net) + '/yr' + (p.suppEligible ? '; supplement ' + fmt$(p.suppMo) + '/mo until 62' : '') + '.</p>' : '<p>FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' × ' + p.yosR.toFixed(1) + ' yrs = ' + fmt$(p.gross) + '/yr gross, ' + fmt$(p.net) + '/yr after survivor election. ' +
     (p.suppEligible ? 'FERS supplement ≈ ' + fmt$(p.suppMo) + '/mo until 62. ' : '') +
-    'Social Security at ' + cell.claimAge + ' ≈ ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo.</p>' +
+    (i.retired && i.ssNow > 0 ? 'Social Security ' + fmt$(i.ssNow) + '/mo, already started.</p>' : 'Social Security at ' + cell.claimAge + ' ≈ ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo.</p>')) +
     '<p>' + esc($('orderNote').textContent) + '</p>' +
     '<h2>Information provided</h2><div class="pr-facts">' + facts.join('') + '</div>' +
     '<h2>Every combination tested (age money lasts to)</h2>' + grid +
