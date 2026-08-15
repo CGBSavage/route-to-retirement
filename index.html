@@ -515,7 +515,7 @@
         <div class="help">Bank savings, CDs, brokerage accounts — everything that isn't TSP or a Roth IRA. 0 is fine. Growth on this money counts as taxable interest when the tax estimate is on.</div>
       </div>
       <div class="field">
-        <label for="otherContrib">Outside TSP, how much did you actually put away last year?</label>
+        <label for="otherContrib" id="otherContribLabel">Outside TSP, how much did you actually put away last year?</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherContrib" type="text" inputmode="numeric" value="0"></div>
         <div class="help">Besides the Roth IRA amount above. Look at last year's bank or brokerage statements — what really went in, not what you hope to. We assume the same each year until you retire; after that, the plan works out on its own whether money is left over.</div>
       </div>
@@ -2440,13 +2440,12 @@ function setPath(which) {
     ? 'Start at 5% from day one: USPS adds up to 5% more on top when you put in at least 5% — that\'s free money you\'d otherwise leave behind. Until then, the Roth IRA below is your savings engine.'
     : 'USPS adds up to 5% more on top when you put in at least 5%.';
   const ts = document.querySelector('label[for="tspStart"]'); if (ts) ts.closest('.field').style.display = (retired || notCareer) ? 'none' : '';
+  $('otherContribLabel').textContent = notCareer ? 'Besides the Roth IRA above, how much did you actually put away last year?' : 'Outside TSP, how much did you actually put away last year?';
   $('retiredFields').hidden = !retired;
   document.querySelectorAll('.work-only').forEach(d => d.style.display = retired ? 'none' : '');
   // step-2 wording tweaks for retirees
   const tspLab = document.querySelector('label[for="tspPct"]');
   if (tspLab) tspLab.closest('.field').style.display = retired ? 'none' : '';
-  const tspStartLab = document.querySelector('label[for="tspStart"]');
-  if (tspStartLab) tspStartLab.closest('.field').style.display = retired ? 'none' : '';
   const ocLab = document.querySelector('label[for="otherContrib"]');
   if (ocLab) ocLab.closest('.field').style.display = retired ? 'none' : '';
   const gn = $('growthNote'); if (gn) gn.style.display = retired ? 'none' : '';
