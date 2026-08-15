@@ -523,7 +523,7 @@
           <option value="other" selected>Other savings</option>
           <option value="tsp">TSP</option>
         </select>
-        <div class="help">A big TSP withdrawal is taxable income — turn on the tax estimate in step 4 to see that bite counted, and check with a tax pro first. If a windfall is paying for it, enter the windfall in step 7 and pick "other savings" here.</div>
+        <div class="help">TSP only counts once you're retired — a payoff while you're still working always comes from other savings. A big TSP withdrawal is taxable income — turn on the tax estimate in step 4 to see that bite counted, and check with a tax pro first. If a windfall is paying for it, enter the windfall in step 7 and pick "other savings" here.</div>
       </div>
     </div>
   </section>
@@ -1035,24 +1035,14 @@ function simulate(inp, retireAge, claimAge, order) {
       }
       taxb = taxb * (1 + inp.otherRet) + contrib * (1 - inp.rothPct) + windfall;
       roth = roth * (1 + inp.otherRet) + contrib * inp.rothPct;
-      if (drawdown > 0) {
-        const rest = drawdown - takeOther(drawdown);      // other savings first, then TSP
-        if (rest > 0) { const fromTsp = Math.min(rest, tsp); tsp -= fromTsp; drawdown -= (rest - fromTsp); }
-      }
+      // Nothing ever comes out of TSP before retirement. Overspending, cash purchases, and
+      // early payoffs while working all come from other savings only; whatever other savings
+      // can't cover simply isn't modeled (flagged in the assumptions).
+      if (drawdown > 0) drawdown = takeOther(drawdown);
       otherIn = contrib + windfall - drawdown;
       contribUsed = contrib;
-      // a payoff during working years just leaves the account
-      // (taxes on a working-year TSP payoff are NOT estimated — flagged in assumptions)
-      if (payoffDue) {
-        if (inp.poSource === 'tsp') { payoffOut = Math.min(payoffDue, tsp); tsp -= payoffOut; }
-        else payoffOut = takeOther(payoffDue);
-      }
-      // cash purchases while working come out of savings (other first, then TSP);
-      // loan payments while working are covered by the paycheck, like all working-year costs
-      if (purch.cash > 0) {
-        const rest = purch.cash - takeOther(purch.cash);
-        if (rest > 0) tsp = Math.max(0, tsp - rest);
-      }
+      if (payoffDue) payoffOut = takeOther(payoffDue);
+      if (purch.cash > 0) takeOther(purch.cash);
       other = taxb + roth;
     } else {
       tspGrow = tsp * inp.postRet;
@@ -1556,15 +1546,18 @@ function renderAssumptions(cell) {
         (p.year < CUR_YEAR + (cell.retireAge - i.curAge) && p.term > 0 ? ' Loan payments made while still working aren\'t counted (the paycheck covers them); the remaining ones in retirement are.' : '');
     }),
     (i.poLoan && i.poAmt > 0)
-      ? 'In ' + i.poYear + ' you pay off the ' + i.poLoan.toLowerCase() + ' loan with ' + fmt$(i.poAmt) + ' from ' +
-        (i.poSource === 'tsp' ? 'your TSP' : 'other savings') + '; its monthly payment stops that year.' +
-        (i.poSource === 'tsp'
-          ? (i.taxOn
-              ? (i.poYear < CUR_YEAR + (cell.retireAge - i.curAge)
-                  ? ' Your payoff year falls while still working, where this model does NOT estimate taxes — the real tax bill would be on top. Get tax advice first.'
-                  : ' The lump counts as taxable income that year — see the tax spike in the year-by-year table. Still verify with a tax pro before committing.')
-              : ' Heads up: a lump TSP withdrawal is taxable income and taxes are OFF in this plan — turn on the tax estimate in step 4 to see the bite, and get tax advice before doing this.')
-          : '')
+      ? (() => {
+          const whileWorking = i.poYear < CUR_YEAR + (cell.retireAge - i.curAge);
+          const fromTsp = i.poSource === 'tsp' && !whileWorking;
+          return 'In ' + i.poYear + ' you pay off the ' + i.poLoan.toLowerCase() + ' loan with ' + fmt$(i.poAmt) + ' from ' +
+            (fromTsp ? 'your TSP' : 'other savings') + '; its monthly payment stops that year.' +
+            (i.poSource === 'tsp' && whileWorking ? ' (You picked TSP, but that year falls while you\'re still working — nothing leaves TSP before retirement in this model, so it comes from other savings.)' : '') +
+            (fromTsp
+              ? (i.taxOn
+                  ? ' The lump counts as taxable income that year — see the tax spike in the year-by-year table. Still verify with a tax pro before committing.'
+                  : ' Heads up: a lump TSP withdrawal is taxable income and taxes are OFF in this plan — turn on the tax estimate in step 4 to see the bite, and get tax advice before doing this.')
+              : '');
+        })()
       : null,
     i.hasSpouse && i.spSS > 0
       ? ($('spNow').value === 'yes'
@@ -1576,6 +1569,7 @@ function renderAssumptions(cell) {
         (i.stateRate > 0 ? ' plus a flat ' + (i.stateRate*100).toFixed(1) + '% state rate' : ', no state tax') +
         '. Brackets and deduction grow with inflation. Other-savings withdrawals aren\'t taxed (Roth is tax-free; for the taxable part, only its yearly growth is taxed, as interest). Working years are not taxed here (your paycheck already has withholding). A ballpark — not a tax return.'
       : 'Taxes are not modeled — treat the spending number as what you need including taxes.',
+    'Nothing comes out of TSP before you retire. Anything that has to be paid from savings while working — a cash purchase, an early payoff, or overspending — comes from other savings only; if other savings can\'t cover it, the model doesn\'t invent the money (that gap isn\'t shown).',
     'Health insurance (FEHB) and Medicare premiums should be inside your spending number.',
     'The model plans for money to last to age ' + i.horizon + '.'
   ];
