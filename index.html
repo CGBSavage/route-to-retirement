@@ -1,4 +1,8 @@
-<title>Route to Retirement</title>
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Route2Retirement</title>
 <style>
   /* ---------- tokens ---------- */
   :root {
@@ -93,7 +97,15 @@
   .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px 80px; }
 
   header.hero { padding: 44px 0 8px; }
-  .brandline { display: flex; align-items: baseline; gap: 10px; }
+  .brandline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .viewbar { margin-left: auto; display: inline-flex; gap: 8px; }
+  .viewbar button {
+    font: 600 14px system-ui, sans-serif; color: var(--ink-2); background: var(--surface);
+    border: 1.5px solid var(--hairline); border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .viewbar button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  html.bigtext .wrap { zoom: 1.18; }
+  @media print { .viewbar { display: none; } }
   .stamp {
     font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--accent); border: 1.5px solid var(--accent); border-radius: 4px;
@@ -307,8 +319,13 @@
 
 <div class="wrap">
   <header class="hero">
-    <div class="brandline"><span class="stamp">For letter carriers &amp; USPS employees</span></div>
-    <h1>Route to Retirement</h1>
+    <div class="brandline"><span class="stamp">For letter carriers &amp; USPS employees</span>
+      <span class="viewbar">
+        <button type="button" id="themeBtn" title="Switch between dark and light">🌙 Switch to dark</button>
+        <button type="button" id="bigBtn" aria-pressed="false" title="Make everything larger">A+ Bigger text</button>
+      </span>
+    </div>
+    <h1>Route2Retirement</h1>
     <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
     <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere.</p>
   </header>
@@ -1534,6 +1551,27 @@ function syncPayoff() {
 }
 $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
+// dark/light + bigger-text toggles (remembered on this device; localStorage is guarded — it throws in data: URLs)
+const PREF_KEY = 'routeToRetirementView';
+function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function savePrefs(p) { try { localStorage.setItem(PREF_KEY, JSON.stringify(p)); } catch (e) {} }
+function isDarkNow() {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === 'dark' : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}
+function applyView(p) {
+  const root = document.documentElement;
+  if (p.theme === 'dark' || p.theme === 'light') { root.dataset.theme = p.theme; root.style.colorScheme = p.theme; }
+  root.classList.toggle('bigtext', !!p.big);
+  const dark = isDarkNow();
+  $('themeBtn').textContent = dark ? '☀️ Switch to light' : '🌙 Switch to dark';
+  $('bigBtn').setAttribute('aria-pressed', p.big ? 'true' : 'false');
+}
+$('themeBtn').addEventListener('click', () => { const p = loadPrefs(); p.theme = isDarkNow() ? 'light' : 'dark'; savePrefs(p); applyView(p); });
+$('bigBtn').addEventListener('click', () => { const p = loadPrefs(); p.big = !p.big; savePrefs(p); applyView(p); });
+if (window.matchMedia) { try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyView(loadPrefs())); } catch (e) {} }
+applyView(loadPrefs());
+
 // step-2 note that mirrors the growth rates in advanced settings
 function syncGrowthNote() {
   const show = (id, v, d) => { const n = parseFloat(String($(id).value).replace(/[,\s%]/g, '')); $(v).textContent = String(isNaN(n) ? d : n); };
@@ -1636,7 +1674,7 @@ function buildPrintReport() {
 
   const last = cell.rows[cell.rows.length - 1];
   $('printReport').innerHTML =
-    '<h1>Route to Retirement — Planning Snapshot</h1>' +
+    '<h1>Route2Retirement — Planning Snapshot</h1>' +
     '<p class="pr-sub">Prepared ' + today + ' · self-reported figures · all amounts are future (nominal) dollars unless noted</p>' +
     '<h2>The plan under consideration</h2>' +
     '<p><b>Retire at ' + cell.retireAge + ' (' + retYear + ') · start Social Security at ' + cell.claimAge + ' (' + claimYear + ').</b> ' +
@@ -1669,7 +1707,7 @@ const REPORT_CSS = ':root{--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf
 
 function reportDocHTML() {
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>Route to Retirement — Report</title><style>' + REPORT_CSS + '</style></head><body>' +
+    '<title>Route2Retirement — Report</title><style>' + REPORT_CSS + '</style></head><body>' +
     '<div class="toolbar"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>' +
     $('printReport').innerHTML +
     '<' + 'script>setTimeout(function(){ try { window.print(); } catch (e) {} }, 500);<' + '/script></body></html>';
@@ -1714,3 +1752,5 @@ syncGrowthNote();
 syncSpouseSS();
 syncPayoff();
 </script>
+
+</html>
