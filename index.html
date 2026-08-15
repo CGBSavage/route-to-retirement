@@ -237,6 +237,7 @@
   table.years td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
   table.years th:first-child, table.years td:first-child { text-align: left; }
   table.years tr.short td { color: var(--critical); font-weight: 600; }
+  table.years .saved { color: var(--good); font-weight: 600; white-space: nowrap; }
   .assumptions ul { font-size: 15.5px; color: var(--ink-2); line-height: 1.7; padding-left: 22px; }
 
   footer.fine { margin-top: 40px; font-size: 14.5px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--hairline); padding-top: 18px; }
@@ -351,8 +352,9 @@
         <div class="help">Bank savings, IRAs, brokerage accounts — everything outside TSP. 0 is fine.</div>
       </div>
       <div class="field">
-        <label for="otherContrib">Added to those savings per year</label>
+        <label for="otherContrib">Added to those savings per year while you're still working</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherContrib" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Only counts until you retire. After that, the plan works out on its own each year whether money is left over — and saves it for you.</div>
       </div>
     </div>
   </section>
@@ -984,6 +986,7 @@ function simulate(inp, retireAge, claimAge) {
 
     rows.push({ age, year, working, supp, pension, mySS, spSS, spInc,
                 tspWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
+                saved: working ? 0 : otherIn,   // retired-year surplus reinvested into other savings
                 purchCash: purch.cash, purchPay: purch.pay,
                 tsp, other, total: tsp + other, netWorth: tsp + other - debtLeft });
   }
@@ -1268,6 +1271,16 @@ function drawIncome(cell) {
 }
 
 /* ================= table & assumptions ================= */
+// "From savings" cell: withdrawals taken, plus any leftover that got saved back
+// (both can happen in one year when a required minimum distribution exceeds the gap).
+function savedCell(r) {
+  const wd = r.tspWd + r.otherWd;
+  const parts = [];
+  if (wd > 1 || !(r.saved > 1)) parts.push(fmt$(wd));
+  if (r.saved > 1) parts.push('<span class="saved">+' + fmt$(r.saved) + ' saved</span>');
+  return parts.join('<br>');
+}
+
 function renderTable(cell) {
   const t = $('yearTable');
   const showDebt = INP.debts.length > 0;
@@ -1279,7 +1292,7 @@ function renderTable(cell) {
     if (r.working) continue;
     html += '<tr' + (r.shortfall > 1 ? ' class="short"' : '') + '><td>' + r.year + '</td><td>' + r.age + '</td><td>' +
       fmt$(r.pension + r.supp) + '</td><td>' + fmt$(r.mySS + r.spSS) + '</td><td>' + fmt$(r.spInc) + '</td><td>' +
-      fmt$(r.tspWd + r.otherWd) + '</td><td>' + fmt$(r.spending) + (r.shortfall > 1 ? ' ⚠' : '') + '</td>' +
+      savedCell(r) + '</td><td>' + fmt$(r.spending) + (r.shortfall > 1 ? ' ⚠' : '') + '</td>' +
       (showTax ? '<td>' + fmt$(r.tax) + '</td>' : '') + '<td>' +
       fmt$(r.tsp) + '</td><td>' + fmt$(r.other) + '</td>' +
       (showDebt ? '<td>' + fmt$(r.debtLeft) + '</td><td>' + fmt$(r.netWorth) + '</td>' : '') + '</tr>';
@@ -1463,7 +1476,7 @@ function buildPrintReport() {
   add('High-3 average salary', fmt$(i.high3));
   add('TSP balance', fmt$(i.tspBal));
   add('TSP contribution', (i.empPct*100).toFixed(0) + '% + ' + (agencyPct(i.empPct)*100).toFixed(1) + '% USPS');
-  add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr)' : ''));
+  add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr while working)' : ''));
   add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
   add('Monthly spending (today’s $)', fmt$(i.spendMo) + ' → ' + fmt$(i.spend70s) + ' (70s) → ' + fmt$(i.spend80s) + ' (80s) → ' + fmt$(i.spend90s) + ' (90+)' + (i.taxOn ? ', before taxes' : ', incl. taxes'));
   for (const d of i.debts) add(d.label + ' debt', fmt$(d.bal) + ' at ' + fmt$(d.mo) + '/mo to ' + d.payoff);
@@ -1511,7 +1524,7 @@ const REPORT_CSS = ':root{--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf
   'h1{font-family:Georgia,serif;font-size:24px;margin:0}.pr-sub{color:#444;margin:2px 0 14px;font-size:12px}' +
   'h2{font-family:Georgia,serif;font-size:16px;margin:18px 0 6px;padding-bottom:2px;border-bottom:1.5px solid #999;page-break-after:avoid}' +
   'p{margin:4px 0}table{border-collapse:collapse;width:100%;font-size:11px;font-variant-numeric:tabular-nums}' +
-  'th,td{border:1px solid #ccc;padding:3px 5px;text-align:right}th:first-child,td:first-child{text-align:left}tr{page-break-inside:avoid}' +
+  'th,td{border:1px solid #ccc;padding:3px 5px;text-align:right}tr.short td{color:#b00020;font-weight:600}.saved{color:#0ca30c;font-weight:600;white-space:nowrap}th:first-child,td:first-child{text-align:left}tr{page-break-inside:avoid}' +
   '.pr-facts{columns:2;column-gap:28px;font-size:12px}.pr-facts div{break-inside:avoid;padding:2px 0;display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted #ddd}' +
   '.pr-facts b{font-variant-numeric:tabular-nums;white-space:nowrap}ul{font-size:11.5px;margin:4px 0;padding-left:18px}li{margin-bottom:2px}' +
   'svg{width:100%;height:auto}.pr-fine{font-size:10.5px;color:#444;margin-top:12px;border-top:1px solid #999;padding-top:6px}' +
