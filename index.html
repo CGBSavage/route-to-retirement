@@ -1600,6 +1600,8 @@ function renderSummary() {
   row('TSP', fmt$(inp.tspBal) + ' · ' + (inp.empPct*100).toFixed(0) + '% of pay + ' + (agencyPct(inp.empPct)*100).toFixed(1) + '% USPS');
   row('Other savings', fmt$(inp.otherBal) + (inp.otherContrib > 0 ? ' · +' + fmt$(inp.otherContrib) + '/yr' : '') + (inp.taxOn && inp.rothPct > 0 ? ' · ' + Math.round(inp.rothPct*100) + '% Roth' : ''));
   row('Social Security at 67', ok(inp.ssFRA) ? fmt$(inp.ssFRA) + '/mo (62: ' + fmt$(inp.ss62) + ', 70: ' + fmt$(inp.ss70) + ')' : need, !ok(inp.ssFRA));
+  const L = liveOnNow();
+  if (L) row('Spending now (before retirement)', 'about ' + fmt$(L.liveOn) + '/mo' + (L.debtMo > 0 ? ' + ' + fmt$(L.debtMo) + '/mo loans' : '') + (L.useBp ? ' (our estimate)' : ''));
   row('Retirement spending', ok(inp.spendMo) ? fmt$(inp.spendMo) + '/mo until 70' +
       (inp.spend70s !== inp.spendMo || inp.spend80s !== inp.spend70s || inp.spend90s !== inp.spend80s
         ? ', then ' + fmt$(inp.spend70s) + ' / ' + fmt$(inp.spend80s) + ' / ' + fmt$(inp.spend90s) : ' and after') + (inp.taxOn ? ' + taxes' : '') : need, !ok(inp.spendMo));
@@ -1658,10 +1660,10 @@ function syncTakeHomeHint() {
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncTakeHomeHint));
 
 // step-4 anchor: what their numbers say they live on now, so the retirement spending boxes have a reference point
-function syncSpendAnchor() {
+// What the entered numbers say they live on now: take-home (or our ballpark) − savings-added − loan payments.
+function liveOnNow() {
   const sal = numOr('salary', 0);
-  const el = $('spendAnchor');
-  if (!(sal > 0)) { el.innerHTML = ''; return; }
+  if (!(sal > 0)) return null;
   const th = num('takeHome');
   const useBp = !(th > 0);
   const takeHome = useBp
@@ -1671,8 +1673,14 @@ function syncSpendAnchor() {
   const saveMo = numOr('otherContrib', 0) / 12;
   const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
   const liveOn = Math.max(0, takeHome - saveMo - debtMo);
-  if (!(liveOn > 0)) { el.innerHTML = ''; return; }
-  el.innerHTML = 'Your numbers say you live on about <b>' + fmt$(Math.round(liveOn / 10) * 10) + ' a month</b> right now, before retirement' +
+  return liveOn > 0 ? { liveOn: Math.round(liveOn / 10) * 10, useBp, debtMo } : null;
+}
+function syncSpendAnchor() {
+  const el = $('spendAnchor');
+  const L = liveOnNow();
+  if (!L) { el.innerHTML = ''; return; }
+  const { liveOn, useBp, debtMo } = L;
+  el.innerHTML = 'Your numbers say you live on about <b>' + fmt$(liveOn) + ' a month</b> right now, before retirement' +
     (useBp ? ' (our rough guess from your pay — enter your take-home in step 1 for a truer figure)' : '') +
     (debtMo > 0 ? ', not counting the ' + fmt$(debtMo) + '/mo in loan payments from step 5' : '') +
     '. Use that as your starting point — then think about what changes: no commute, no TSP coming out, more free time.' +
