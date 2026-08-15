@@ -415,9 +415,9 @@
         <div class="inputrow"><input id="curAge" type="text" inputmode="numeric" placeholder="60"><span class="suffix">years</span></div>
       </div>
       <div class="field">
-        <label for="poStart">The year you started at the Post Office</label>
+        <label for="poStart">The year you became a <b>career</b> USPS employee (or expect to)</label>
         <div class="inputrow"><input id="poStart" type="text" inputmode="numeric" placeholder="1998"></div>
-        <div class="help">If you bought back military time, move the year back by those years (4 years of service credit = enter a year 4 earlier).</div>
+        <div class="help">Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn't add to your years. It's on your SF-50 or in LiteBlue. Not career yet? Enter the year you expect to convert; TSP contributions will start then too. If you bought back military time, move the year back by those years.</div>
       </div>
       <div class="field">
         <label for="salary">Current annual pay (before taxes)</label>
@@ -452,7 +452,7 @@
       <div class="field">
         <label for="tspStart">Not in TSP yet? Year you expect to start</label>
         <div class="inputrow"><input id="tspStart" type="text" inputmode="numeric" placeholder="already in"></div>
-        <div class="help">Leave blank if you're already contributing. Non-career employees (CCA, RCA, PSE) usually can't join until conversion — enter your best guess for that year.</div>
+        <div class="help">Leave blank if you're already contributing — or if you entered a future career year in step 1 (TSP starts then). Non-career employees (CCA, RCA, PSE) can't join until conversion.</div>
       </div>
       <div class="field">
         <label for="rothBal">Roth IRA balance today</label>
@@ -1127,7 +1127,7 @@ function readInputs() {
     takeHome: num('takeHome'),   // NaN when blank
     high3: numOr('high3', num('salary')),
     tspBal: numOr('tspBal', 0), empPct: numOr('tspPct', 5) / 100,
-    tspStart: numOr('tspStart', 0),                       // year TSP contributions begin (0/blank = already)
+    tspStart: numOr('tspStart', num('poStart') > CUR_YEAR ? num('poStart') : 0),   // year TSP contributions begin (blank = already, or career start if that's in the future)
     otherBal: numOr('otherBal', 0), otherContrib: numOr('otherContrib', 0),
     rothBal: numOr('rothBal', 0), rothIRA: numOr('rothIRA', 0),   // Roth IRA balance + yearly addition while working
     rothStart: numOr('rothStart', CUR_YEAR),               // first contribution year → 5-year rule
@@ -2198,7 +2198,9 @@ function renderSummary() {
   const need = '(needed)';
   const ok = v => typeof v === 'number' && !isNaN(v) && v > 0;
   row('Age today', ok(inp.curAge) ? inp.curAge : need, !ok(inp.curAge));
-  row('Years at the Post Office', ok(inp.yos) && inp.yos < 60 ? inp.yos + ' (since ' + (CUR_YEAR - inp.yos) + ')' : need, !(ok(inp.yos) && inp.yos < 60));
+  const careerYr = CUR_YEAR - inp.yos;
+  const yosOk = !isNaN(inp.yos) && inp.yos < 60 && inp.yos > -16;
+  row('Career service', yosOk ? (inp.yos > 0 ? inp.yos + ' yrs (career since ' + careerYr + ')' : inp.yos === 0 ? 'starts this year' : 'starts ' + careerYr + ' (not career yet)') : need, !yosOk);
   row('Current pay', ok(inp.salary) ? fmt$(inp.salary) + '/yr' + (inp.takeHome > 0 ? ' · take-home ' + fmt$(inp.takeHome) + '/mo' : '') : need, !ok(inp.salary));
   row('High-3 salary', ok(inp.high3) ? fmt$(inp.high3) : need, !ok(inp.high3));
   row('TSP', fmt$(inp.tspBal) + ' · ' + (inp.empPct*100).toFixed(0) + '% of pay + ' + (agencyPct(inp.empPct)*100).toFixed(1) + '% USPS');
@@ -2293,7 +2295,7 @@ const INFO = {
     ['LiteBlue (USPS employee site)', 'https://liteblue.usps.gov', 'Your service history, pay, and an annuity estimate under "My HR".'],
     ['OPM — FERS retirement basics', 'https://www.opm.gov/retirement-center/fers-information/', 'Eligibility ages, how the pension is figured, and the FERS supplement.'],
     ['OPM — Retirement Services', 'https://www.opm.gov/retirement-center/', 'How to apply and what happens after you file.'],
-    ['Military buyback (OPM)', 'https://www.opm.gov/retirement-center/fers-information/creditable-service/', 'How military service can count toward your years.'] ] },
+    ['OPM — creditable service (what counts toward FERS)', 'https://www.opm.gov/retirement-center/fers-information/creditable-service/', 'Career service counts; most non-career postal time doesn\'t. Also military buyback.'] ] },
   savings: { t: 'Your savings — where to look', items: [
     ['tsp.gov (log in)', 'https://www.tsp.gov', 'Your TSP balance, contribution %, and withdrawal options.'],
     ['TSP — contribution limits and matching', 'https://www.tsp.gov/making-contributions/', 'What USPS adds and this year\'s IRS limits.'],
@@ -2452,7 +2454,7 @@ $('addDebtRow').addEventListener('click', () => { const n = addDebtRow(); if (n)
 $('goBtn').addEventListener('click', () => {
   const required = [
     ['curAge', 'your age', v => v >= 18 && v <= 80],
-    ['poStart', 'the year you started at the Post Office', v => v >= 1950 && v <= CUR_YEAR],
+    ['poStart', 'the year you became (or expect to become) a career USPS employee', v => v >= 1950 && v <= CUR_YEAR + 15],
     ['salary', 'current pay', v => v > 0],
     ['ssFRA', 'Social Security at 67', v => v >= 0],
     ['spendMo', 'monthly spending (the first box)', v => v > 0]
@@ -2506,7 +2508,7 @@ function buildPrintReport() {
   const facts = [];
   const add = (l, v) => facts.push('<div><span>' + esc(l) + '</span><b>' + esc(v) + '</b></div>');
   add('Age today', i.curAge);
-  add('Started federal service', (CUR_YEAR - i.yos) + ' (' + i.yos + ' yrs so far)');
+  add('Career USPS since', (CUR_YEAR - i.yos) + (i.yos > 0 ? ' (' + i.yos + ' yrs so far)' : ' (not career yet)'));
   add('Current annual pay', fmt$(i.salary) + (i.takeHome > 0 ? ' (take-home ' + fmt$(i.takeHome) + '/mo)' : ''));
   if (i.spendNow > 0) add('Spending now (while working)', fmt$(i.spendNow) + '/mo');
   add('High-3 average salary', fmt$(i.high3));
