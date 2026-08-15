@@ -724,10 +724,10 @@
         <div class="inputrow"><span class="prefix">$</span><input id="spRoth" type="text" inputmode="numeric" value="0"></div>
         <div class="help">Tax-free money; drawn last, like your own Roth.</div>
       </div>
-      <div class="field sp-work" style="display:none">
+      <div class="field">
         <label for="spRothContrib">Their Roth IRA — how much they add each year</label>
         <div class="inputrow"><span class="prefix">$</span><input id="spRothContrib" type="text" inputmode="numeric" value="0"></div>
-        <div class="help">Same limits and same advice as yours: automatic and forgotten is best, and it's worth doing even close to retirement.</div>
+        <div class="help">Same limits and same advice as yours: automatic and forgotten is best, and it's worth doing even close to retirement. They don't need their own paycheck — a "spousal IRA" can be funded on your earnings while you work.</div>
       </div>
       <div class="field">
         <label for="spRothStart">Year they first put money in a Roth IRA</label>
@@ -1304,7 +1304,7 @@ function simulate(inp, retireAge, claimAge, order) {
       if (inp.spendNow > 0 && left < 0) drawdown = -left;
       // Roth IRA amounts go in first (yours, then the spouse's while they work); the rest is "other" savings
       const rothMe = Math.min(contrib, inp.rothIRA);
-      const rothTheirs = spWorking ? Math.min(contrib - rothMe, inp.spRothContrib) : 0;
+      const rothTheirs = inp.hasSpouse ? Math.min(contrib - rothMe, inp.spRothContrib) : 0;   // spousal IRA: their paycheck not required while you work
       const restPart = contrib - rothMe - rothTheirs;
       taxb = taxb * (1 + inp.otherRet) + restPart + windfall;
       rothMine = rothMine * (1 + inp.otherRet) + rothMe;
@@ -1623,11 +1623,17 @@ function rothImpactHtml(best) {
     return '<p class="hustle">🌱 <b>Your Roth IRA habit:</b> ' + fmt$(i.rothIRA) + ' a year, automatically, grows to about <b>' + fmt$(Math.max(0, rothAtRet - rothW)) + '</b> of tax-free money by the time you retire at ' + best.retireAge + ' ' + tail +
       ' (Assumes ' + (i.otherRet*100).toFixed(1) + '%/yr growth — change it in advanced settings.)</p>';
   }
-  if (i.tspStart > CUR_YEAR || i.curAge < 40) {
-    return '<p class="hustle">🌱 ' + (i.tspStart > CUR_YEAR ? 'Not in TSP yet? ' : 'Starting early? ') + 'A Roth IRA you fund automatically every year — even before TSP is available — is the closest thing to TSP magic you can set up yourself. Try entering the IRS max ($7,500; $8,600 at 50+) in step 2 and press the button again to see what it does by retirement.</p>';
-  }
-  return '';
+  // No Roth amount entered: recommend it to everyone — young, not-yet-in-TSP, or close to retirement.
+  const yrsLeft = best.retireAge - i.curAge;
+  const maxMe = rothMax(i.curAge), maxSp = i.hasSpouse ? rothMax(i.spAge) : 0;
+  const lead = i.tspStart > CUR_YEAR ? 'Not in TSP yet? '
+    : yrsLeft <= 10 ? 'Close to retirement? A Roth IRA is still worth starting. '
+    : 'Starting early? ';
+  return '<p class="hustle">🌱 ' + lead + 'Money you put in has already been taxed, so everything it earns comes out tax-free later — and it\'s never subject to required withdrawals. Set up an automatic monthly transfer and it builds the way TSP does, without thinking about it. ' +
+    'The 2026 IRS limit is $7,500 a year ($8,600 at 50+)' + (yrsLeft > 0 ? ' — over your ' + yrsLeft + ' working year' + (yrsLeft === 1 ? '' : 's') + ' left that adds up.' : '.') +
+    ' <button type="button" class="linkbtn" id="tryRothMax">Try the max (' + fmt$(maxMe) + '/yr' + (maxSp ? ' for you, ' + fmt$(maxSp) + ' for your spouse' : '') + ') and re-run</button></p>';
 }
+function rothMax(age) { return age >= 50 ? 8600 : 7500; }   // 2026 IRS limits — update yearly
 
 function renderVerdict(best) {
   const v = $('verdict');
@@ -1998,7 +2004,7 @@ function renderAssumptions(cell) {
           : i.spSSFRA > 0 ? 'Social Security ' + fmt$(spSSMonthlyAt(i, i.spSSStart)) + '/mo starting at their age ' + i.spSSStart + ' (from their 62/67/70 estimates), same COLA afterward. ' : 'No Social Security entered. ') +
         (i.spPenMo > 0 ? 'Pension ' + fmt$(i.spPenMo) + '/mo ' + (i.spPenAge <= i.spAge ? 'now' : 'from age ' + i.spPenAge) + (i.spPenCola ? ' with raises' : ', fixed') + ', taxable. ' : '') +
         (i.sp401k > 0 || i.sp401kContrib > 0 ? 'Their 401(k)/IRA (' + fmt$(i.sp401k) + (i.sp401kContrib > 0 && i.spTakeHome > 0 ? ', +' + fmt$(i.sp401kContrib) + '/yr while they work' : '') + ') grows like TSP, is taxed when withdrawn, required withdrawals from their age 73, and is tapped after your TSP. ' : '') +
-        (i.spRoth > 0 || i.spRothContrib > 0 ? 'Their Roth (' + fmt$(i.spRoth) + (i.spRothContrib > 0 && i.spTakeHome > 0 ? ', +' + fmt$(i.spRothContrib) + '/yr while they work' : '') + ') is tax-free, drawn last, not touched before ' + (Math.max(i.spRothStart, CUR_YEAR) + 5) + '. ' : '') +
+        (i.spRoth > 0 || i.spRothContrib > 0 ? 'Their Roth (' + fmt$(i.spRoth) + (i.spRothContrib > 0 ? ', +' + fmt$(i.spRothContrib) + '/yr while either of you works' : '') + ') is tax-free, drawn last, not touched before ' + (Math.max(i.spRothStart, CUR_YEAR) + 5) + '. ' : '') +
         'Survivor and spousal Social Security rules are not modeled.'
       : null,
     i.taxOn
@@ -2147,7 +2153,7 @@ function renderSummary() {
     row('Spouse Social Security', inp.spDrawingNow ? fmt$(inp.spSS) + '/mo now' : (inp.spSSFRA > 0 ? fmt$(spSSMonthlyAt(inp, inp.spSSStart)) + '/mo from age ' + inp.spSSStart : 'none'));
     if (inp.spTakeHome > 0) row('Spouse take-home', fmt$(inp.spTakeHome) + '/mo until age ' + inp.spRetireAge);
     if (inp.spPenMo > 0) row('Spouse pension', fmt$(inp.spPenMo) + '/mo ' + (inp.spPenAge <= inp.spAge ? 'now' : 'from age ' + inp.spPenAge));
-    if (inp.sp401k > 0 || inp.spRoth > 0 || inp.spRothContrib > 0) row('Spouse savings', fmt$(inp.sp401k) + ' pre-tax' + (inp.sp401kContrib > 0 && inp.spTakeHome > 0 ? ' (+' + fmt$(inp.sp401kContrib) + '/yr)' : '') + ' · ' + fmt$(inp.spRoth) + ' Roth' + (inp.spRothContrib > 0 && inp.spTakeHome > 0 ? ' (+' + fmt$(inp.spRothContrib) + '/yr)' : ''));
+    if (inp.sp401k > 0 || inp.spRoth > 0 || inp.spRothContrib > 0) row('Spouse savings', fmt$(inp.sp401k) + ' pre-tax' + (inp.sp401kContrib > 0 && inp.spTakeHome > 0 ? ' (+' + fmt$(inp.sp401kContrib) + '/yr)' : '') + ' · ' + fmt$(inp.spRoth) + ' Roth' + (inp.spRothContrib > 0 ? ' (+' + fmt$(inp.spRothContrib) + '/yr)' : ''));
   }
   if (inp.poLoan && inp.poAmt > 0) row('Early payoff', inp.poLoan + ' — ' + fmt$(inp.poAmt) + ' in ' + inp.poYear + ' from ' + (inp.poSource === 'tsp' ? 'TSP' : 'other savings'));
   row('Taxes', inp.taxOn ? 'estimated' + (inp.stateRate > 0 ? ' (state ' + (inp.stateRate*100).toFixed(1) + '%)' : '') : 'not included — spending should cover them');
@@ -2191,6 +2197,17 @@ const FEEDBACK_EMAIL = 'carolynchristmas@gmail.com';
   $('fbBtn').addEventListener('click', () => toggle());
   $('fbClose').addEventListener('click', () => toggle(false));
 })();
+
+// "Try the max" Roth button inside the verdict card
+$('verdict').addEventListener('click', e => {
+  if (e.target && e.target.id === 'tryRothMax') {
+    $('rothIRA').value = rothMax(INP.curAge).toLocaleString('en-US');
+    if (INP.hasSpouse) $('spRothContrib').value = rothMax(INP.spAge).toLocaleString('en-US');
+    $('rothIRA').dispatchEvent(new Event('input', { bubbles: true }));
+    $('goBtn').click();
+    setTimeout(() => $('verdict').scrollIntoView({ block: 'start', behavior: 'smooth' }), 100);
+  }
+});
 
 // About card
 function toggleAbout(show) {
