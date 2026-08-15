@@ -496,7 +496,8 @@
       <div class="inputrow"><input id="p4Year" type="text" inputmode="numeric" placeholder="2035"></div>
       <select id="p4How"><option value="cash" selected>Cash</option><option value="3">Borrow — 3 yrs</option><option value="5">Borrow — 5 yrs</option><option value="10">Borrow — 10 yrs</option></select>
     </div>
-    <p class="help" style="font-size:14.5px;color:var(--muted);margin:10px 0 16px">Leave rows blank if they don't apply. Borrowing uses the interest rate in the advanced settings (7% unless you change it). Try a purchase in different years or cash vs. borrowing and watch how the plan reacts — that's what this section is for.</p>
+    <div style="padding:10px 0 4px"><button type="button" id="addPurchRow" class="ghostbtn">＋ Add another row</button></div>
+    <p class="help" style="font-size:14.5px;color:var(--muted);margin:6px 0 16px">Leave rows blank if they don't apply. Borrowing uses the interest rate in the advanced settings (7% unless you change it). Try a purchase in different years or cash vs. borrowing and watch how the plan reacts — that's what this section is for.</p>
   </section>
 
   <section class="card">
@@ -759,9 +760,24 @@ function readDebts() {
   return out;
 }
 
+let purchRows = 4;
+const PURCH_MAX = 12;
+function addPurchaseRow() {
+  if (purchRows >= PURCH_MAX) return 0;
+  const n = ++purchRows;
+  document.querySelector('.purchgrid').insertAdjacentHTML('beforeend',
+    '<input id="p' + n + 'What" type="text" placeholder="Another big cost">' +
+    '<div class="inputrow"><span class="prefix">$</span><input id="p' + n + 'Amt" type="text" inputmode="numeric" placeholder="0"></div>' +
+    '<div class="inputrow"><input id="p' + n + 'Year" type="text" inputmode="numeric" placeholder="20—"></div>' +
+    '<select id="p' + n + 'How"><option value="cash" selected>Cash</option><option value="3">Borrow — 3 yrs</option><option value="5">Borrow — 5 yrs</option><option value="10">Borrow — 10 yrs</option></select>');
+  $('p' + n + 'Amt').addEventListener('blur', e => fmtField(e.target));
+  if (purchRows >= PURCH_MAX) $('addPurchRow').style.display = 'none';
+  return n;
+}
+
 function readPurchases() {
   const out = [];
-  for (const n of [1, 2, 3, 4]) {
+  for (let n = 1; n <= purchRows; n++) {
     const amt = numOr('p' + n + 'Amt', 0);
     if (amt <= 0) continue;
     const year = num('p' + n + 'Year');
@@ -1348,15 +1364,20 @@ const SAVE_IDS = ['curAge','poStart','salary','high3','tspBal','tspPct','otherBa
                   'spAge','spSS','spNow','spSSStart',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate'];
 function saveForm() {
-  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked };
+  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, purchRows };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
+  for (let n = 5; n <= purchRows; n++)
+    ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
   try { localStorage.setItem('routeToRetirement', JSON.stringify(o)); } catch (e) {}
 }
 function loadForm() {
   try {
     const o = JSON.parse(localStorage.getItem('routeToRetirement') || 'null');
     if (!o) return;
+    while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow();
     SAVE_IDS.forEach(id => { if (o[id] !== undefined && o[id] !== '') $(id).value = o[id]; });
+    for (let n = 5; n <= purchRows; n++)
+      ['What','Amt','Year','How'].forEach(s => { if (o['p' + n + s]) $('p' + n + s).value = o['p' + n + s]; });
     if (o.horizon === '95') $('horizon').value = '101';   // migrate the old default forward
     $('hasSpouse').checked = !!o.hasSpouse;
     $('spouseFields').style.display = o.hasSpouse ? '' : 'none';
@@ -1380,6 +1401,7 @@ function syncPayoff() {
 }
 $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
+$('addPurchRow').addEventListener('click', () => { const n = addPurchaseRow(); if (n) $('p' + n + 'What').focus(); });
 
 $('goBtn').addEventListener('click', () => {
   const required = [
@@ -1391,7 +1413,7 @@ $('goBtn').addEventListener('click', () => {
   ];
   const yearOk = v => !isNaN(v) && v >= CUR_YEAR && v <= CUR_YEAR + 45;
   if (numOr('wfAmt', 0) > 0) required.push(['wfYear', 'the year you expect the windfall', yearOk]);
-  for (const n of [1, 2, 3, 4]) {
+  for (let n = 1; n <= purchRows; n++) {
     if (numOr('p' + n + 'Amt', 0) > 0) required.push(['p' + n + 'Year', 'the year for "' + ($('p' + n + 'What').value.trim() || 'purchase ' + n) + '"', yearOk]);
   }
   if ($('poLoan').value !== '') {
