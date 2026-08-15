@@ -424,6 +424,16 @@
         <div class="help">USPS adds up to 5% more on top when you put in at least 5%.</div>
       </div>
       <div class="field">
+        <label for="tspStart">Not in TSP yet? Year you expect to start</label>
+        <div class="inputrow"><input id="tspStart" type="text" inputmode="numeric" placeholder="already in"></div>
+        <div class="help">Leave blank if you're already contributing. Non-career employees (CCA, RCA, PSE) usually can't join until conversion — enter your best guess for that year.</div>
+      </div>
+      <div class="field">
+        <label for="rothIRA">Roth IRA — added every year, automatically</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="rothIRA" type="text" inputmode="numeric" value="0"></div>
+        <div class="help" id="rothHelp">Tax-free growth you set up once and forget, like TSP. The 2026 IRS limit is $7,500 a year ($8,600 at 50+). If you can't do TSP yet, this is the place to start — enter the max and see what it does over the years.</div>
+      </div>
+      <div class="field">
         <label for="otherBal">Other savings &amp; investments</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherBal" type="text" inputmode="numeric" placeholder="20,000"></div>
         <div class="help">Bank savings, Roth IRAs, brokerage accounts — everything outside TSP. 0 is fine. (Have a <b>traditional</b> IRA? Add it to your TSP balance instead — it's taxed the same way.)</div>
@@ -431,7 +441,7 @@
       <div class="field">
         <label for="otherContrib">Outside TSP, how much did you actually put away last year?</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherContrib" type="text" inputmode="numeric" value="0"></div>
-        <div class="help">Look at last year's bank or IRA statements — what really went in, not what you hope to. We assume the same each year until you retire; after that, the plan works out on its own whether money is left over.</div>
+        <div class="help">Besides the Roth IRA amount above. Look at last year's bank or IRA statements — what really went in, not what you hope to. We assume the same each year until you retire; after that, the plan works out on its own whether money is left over.</div>
       </div>
     </div>
     <p class="help" id="growthNote" style="font-size:14.5px;color:var(--muted);margin:-6px 0 16px">📈 Yes, growth is counted: we assume TSP earns <b id="gnPre">7</b>%/yr while you work and <b id="gnPost">4</b>%/yr once retired, and other savings earn <b id="gnOther">4</b>%/yr. <a href="#" id="gnLink">Change these</a> in the advanced settings.</p>
@@ -1053,7 +1063,9 @@ function readInputs() {
     takeHome: num('takeHome'),   // NaN when blank
     high3: numOr('high3', num('salary')),
     tspBal: numOr('tspBal', 0), empPct: numOr('tspPct', 5) / 100,
+    tspStart: numOr('tspStart', 0),                       // year TSP contributions begin (0/blank = already)
     otherBal: numOr('otherBal', 0), otherContrib: numOr('otherContrib', 0),
+    rothIRA: numOr('rothIRA', 0),                         // Roth IRA added every year while working
     ssFRA: num('ssFRA'),
     ss62: numOr('ss62', num('ssFRA') * 0.70),
     ss70: numOr('ss70', num('ssFRA') * 1.24),
@@ -1097,6 +1109,7 @@ function readInputs() {
     rothPct: Math.max(0, Math.min(100, numOr('rothPct', 0))) / 100,
     drawOrder: $('drawOrder').value === 'other' ? 'other' : 'tsp'
   };
+  out.saveYr = out.otherContrib + out.rothIRA;          // total planned yearly savings while working
   // Yearly take-home the working-year model runs on: what they entered, else our ballpark.
   out.takeHomeYr = (out.takeHome > 0 ? out.takeHome : Math.max(0, ballparkTakeHome(out))) * 12;
   return out;
@@ -1247,7 +1260,7 @@ function simulate(inp, retireAge, claimAge, order) {
     let tspIn = 0, tspGrow, tspWd = 0, spWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0, drawdownUsed = 0;
     if (working) {
       const sal = inp.salary * Math.pow(1 + inp.salGrowth, t);
-      tspIn = sal * (Math.min(inp.empPct, 1) + agencyPct(inp.empPct));
+      tspIn = (inp.tspStart > 0 && year < inp.tspStart) ? 0 : sal * (Math.min(inp.empPct, 1) + agencyPct(inp.empPct));
       tspGrow = tsp * inp.preRet;
       tsp = tsp + tspIn + tspGrow;
       // How much can really go into savings this year: what they said, capped by what the
@@ -1256,16 +1269,18 @@ function simulate(inp, retireAge, claimAge, order) {
       // Savings can never exceed what the paycheck leaves: take-home (entered, or our ballpark)
       // minus loan and purchase-loan payments, and minus today's spending when we know it.
       // A negative "left" means overspending — that comes out of other savings.
-      let contrib = inp.otherContrib, drawdown = 0;
+      let contrib = inp.saveYr, drawdown = 0;
       const takeHome = inp.takeHomeYr * Math.pow(1 + inp.salGrowth, t);
       const spendNowYr = inp.spendNow > 0 ? inp.spendNow * 12 * Math.pow(1 + inp.inflation, t) : 0;
       // spouse's forced RMD (if they're 73+ while you still work) lands in taxable savings
       sp401k = sp401k + spGrow + spContrib - spRmd;
       const left = takeHome + spWork + spSS + spPen + pen2 + spInc + spRmd - spendNowYr - debtPayments(inp, year, payoffFunded) - purch.pay;   // household money in
-      contrib = Math.min(inp.otherContrib, Math.max(0, left));
+      contrib = Math.min(inp.saveYr, Math.max(0, left));
       if (inp.spendNow > 0 && left < 0) drawdown = -left;
-      taxb = taxb * (1 + inp.otherRet) + contrib * (1 - inp.rothPct) + windfall;
-      roth = roth * (1 + inp.otherRet) + contrib * inp.rothPct;
+      // the automatic Roth IRA amount goes in first (it's the set-and-forget piece); the rest is "other" savings
+      const rothPart = Math.min(contrib, inp.rothIRA), restPart = contrib - rothPart;
+      taxb = taxb * (1 + inp.otherRet) + restPart * (1 - inp.rothPct) + windfall;
+      roth = roth * (1 + inp.otherRet) + rothPart + restPart * inp.rothPct;
       // Nothing ever comes out of TSP before retirement. Overspending, cash purchases, and
       // early payoffs while working all come from other savings only. If other savings can't
       // cover overspending or a cash purchase, that's money you don't have — the plan fails there.
@@ -1463,9 +1478,9 @@ function paycheckLeft(inp) {
 }
 function planNote(inp) {   // sentence explaining how the plan treated the savings-added number
   const left = paycheckLeft(inp);
-  if (left === null || left >= inp.otherContrib) return '';
+  if (left === null || left >= inp.saveYr) return '';
   return left >= 0
-    ? ' <b>The plan credits only ' + fmt$(left) + '/yr to savings while you work</b> (what\'s actually left), not the ' + fmt$(inp.otherContrib) + ' you entered.'
+    ? ' <b>The plan credits only ' + fmt$(left) + '/yr to savings while you work</b> (what\'s actually left), not the ' + fmt$(inp.saveYr) + ' you entered.'
     : ' <b>The plan draws about ' + fmt$(-left) + '/yr out of savings while you work</b> to cover the difference — nothing gets added.';
 }
 
@@ -1477,7 +1492,7 @@ function sanityChecks(inp) {
     else if (d.adjusted) notes.push('At ' + fmt$(d.mo) + '/mo, the ' + d.label.toLowerCase() + ' loan can\'t be gone by the year you entered — the plan uses ' + d.payoff + ' instead (the earliest the payments could cover the balance).');
   }
   const th = inp.takeHome;
-  const saveMo = inp.otherContrib / 12;
+  const saveMo = inp.saveYr / 12;
   const debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
   const firstSpend = inp.spendMo + debtMo;
   if (th > 0) {
@@ -1485,7 +1500,7 @@ function sanityChecks(inp) {
     if (bp > 0 && (th < bp * 0.7 || th > bp * 1.3))
       notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (roughly ' + fmt$(bp) + '/mo after taxes, TSP, and health insurance). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
     if (saveMo > th * 0.5)
-      notes.push('You said ' + fmt$(inp.otherContrib) + ' a year goes into other savings — that\'s more than half your take-home. Double-check that\'s what really happened last year.');
+      notes.push('You said ' + fmt$(inp.saveYr) + ' a year goes into savings (Roth IRA + other) — that\'s more than half your take-home. Double-check that\'s what really happened last year.');
     // What they actually live on now (entered, or take-home minus savings) — compare to the retirement plan.
     const liveOn = inp.spendNow > 0 ? inp.spendNow + debtMo : Math.max(0, th - saveMo);
     if (inp.spendNow > 0) {
@@ -1494,7 +1509,7 @@ function sanityChecks(inp) {
       if (outgo > thh * 1.1)
         notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo — more than the ' + fmt$(thh) + '/mo coming in' + (thh > th ? ' (take-home plus other household income)' : '') + '.' + planNote(inp) + ' Double-check the numbers if that\'s not what\'s really happening.');
       else if (planNote(inp))
-        notes.push('Your income doesn\'t quite stretch to ' + fmt$(inp.otherContrib) + '/yr of savings on top of spending' + (debtMo ? ' and loans' : '') + '.' + planNote(inp));
+        notes.push('Your income doesn\'t quite stretch to ' + fmt$(inp.saveYr) + '/yr of savings on top of spending' + (debtMo ? ' and loans' : '') + '.' + planNote(inp));
       else if (outgo < thh * 0.8)
         notes.push('About ' + fmt$(thh - outgo) + '/mo of your income isn\'t accounted for by spending, loans, or savings. That\'s fine — but if it\'s really piling up somewhere, count it in step 2 so the plan gets credit for it.');
     }
@@ -1509,7 +1524,7 @@ function sanityChecks(inp) {
     const outgo = (inp.spendNow > 0 ? inp.spendNow : 0) + saveMo + debtMo;
     if (inp.spendNow > 0 && bp > 0 && outgo > bp * 1.15)
       notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo, but ' + fmt$(inp.salary) + ' a year usually takes home only about ' + fmt$(bp) + '/mo.' + planNote(inp) + ' Double-check those numbers, or enter your real take-home in step 1.');
-    else if (inp.otherContrib + inp.salary * Math.min(inp.empPct, 1) > inp.salary * 0.4)
+    else if (inp.saveYr + inp.salary * Math.min(inp.empPct, 1) > inp.salary * 0.4)
       notes.push('TSP plus other savings add up to more than 40% of your pay — double-check the "put away last year" number. (Enter your monthly take-home in step 1 and we can check this more closely.)');
   }
   return notes;
@@ -1560,6 +1575,27 @@ function hustleHtml(inp, fix, lead, sayNo) {
     '<b>retiring at ' + cell.retireAge + '</b> with Social Security at ' + cell.claimAge + ' work. Try it in step 7 (extra income ' + fmt$(perMo * 12) + '/yr through ' + (CUR_YEAR + until - inp.curAge) + ') and press the button again.</p>';
 }
 
+// What the automatic Roth IRA habit is worth in the selected/best plan (vs. not doing it), or a nudge to start one.
+function rothImpactHtml(best) {
+  const i = INP;
+  if (!best) return '';
+  if (i.rothIRA > 0) {
+    const without = simulate(Object.assign({}, i, { rothIRA: 0, saveYr: i.otherContrib }), best.retireAge, best.claimAge, best.order);
+    const atRet = best.rows.find(r => !r.working), atRetW = without.rows.find(r => !r.working);
+    const rothAtRet = atRet ? atRet.roth : 0, rothW = atRetW ? atRetW.roth : 0;
+    let tail;
+    if (best.ok && without.ok) tail = 'and leaves about <b>' + fmt$(Math.max(0, best.endBal - without.endBal)) + ' more</b> at ' + i.horizon + ' than skipping it.';
+    else if (best.ok && !without.ok) tail = '— and <b>without it this plan would run out around age ' + without.lastsTo + '</b>.';
+    else tail = 'and stretches the money from age ' + without.lastsTo + ' to ' + best.lastsTo + '.';
+    return '<p class="hustle">🌱 <b>Your Roth IRA habit:</b> ' + fmt$(i.rothIRA) + ' a year, automatically, grows to about <b>' + fmt$(Math.max(0, rothAtRet - rothW)) + '</b> of tax-free money by the time you retire at ' + best.retireAge + ' ' + tail +
+      ' (Assumes ' + (i.otherRet*100).toFixed(1) + '%/yr growth — change it in advanced settings.)</p>';
+  }
+  if (i.tspStart > CUR_YEAR || i.curAge < 40) {
+    return '<p class="hustle">🌱 ' + (i.tspStart > CUR_YEAR ? 'Not in TSP yet? ' : 'Starting early? ') + 'A Roth IRA you fund automatically every year — even before TSP is available — is the closest thing to TSP magic you can set up yourself. Try entering the IRS max ($7,500; $8,600 at 50+) in step 2 and press the button again to see what it does by retirement.</p>';
+  }
+  return '';
+}
+
 function renderVerdict(best) {
   const v = $('verdict');
   v.classList.toggle('bad', !best || !best.ok);
@@ -1573,7 +1609,7 @@ function renderVerdict(best) {
       INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings.</p>' +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
       '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
-      hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) + checkHtml;
+      rothImpactHtml(best) + hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) + checkHtml;
   } else if (best) {
     const preRet = best.lastsTo < best.retireAge;
     v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
@@ -1581,7 +1617,7 @@ function renderVerdict(best) {
       '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>' +
       (preRet ? ' — <b>before you even retire</b>. Your take-home doesn\'t cover today\'s spending, loan payments, and cash purchases, and other savings run dry making up the difference (nothing comes out of TSP before retirement).' : '.') + '</p>' +
       '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>' +
-      hustleHtml(INP, cheapestFix(INP, GRID.rows.find(r => r.retireAge === best.retireAge)), 'Everyone has a side hustle these days —', true) + checkHtml;
+      rothImpactHtml(best) + hustleHtml(INP, cheapestFix(INP, GRID.rows.find(r => r.retireAge === best.retireAge)), 'Everyone has a side hustle these days —', true) + checkHtml;
   } else {
     v.innerHTML = '<h2>No eligible combinations found.</h2><p>Check your age and years of service — FERS immediate retirement needs age 62 with 5 years, 60 with 20, or 57 with 30.</p>';
   }
@@ -1876,9 +1912,9 @@ function renderAssumptions(cell) {
       (i.postRet*100).toFixed(1) + '%/yr in retirement. Withdrawals only cover what pension, Social Security, and other income don\'t. Required minimum distributions start at 73.',
     (paycheckLeft(i) !== null
       ? 'While working: take-home ' + fmt$(i.takeHomeYr / 12) + '/mo' + (i.takeHome > 0 ? '' : ' (our estimate)') + ((i.hasSpouse && i.spSS > 0) || i.sideInc > 0 ? ' plus household income already coming in (spouse Social Security, extra income)' : '') + ' minus ' + fmt$(i.spendNow) + '/mo spending' +
-        (i.debts.length ? ' and loan payments' : '') + ' leaves ' + fmt$(Math.max(0, paycheckLeft(i)) / 12) + '/mo — savings added each year is the smaller of that and the ' + fmt$(i.otherContrib) + ' you entered' +
+        (i.debts.length ? ' and loan payments' : '') + ' leaves ' + fmt$(Math.max(0, paycheckLeft(i)) / 12) + '/mo — savings added each year is the smaller of that and the ' + fmt$(i.saveYr) + ' you entered' + (i.rothIRA > 0 ? ' (Roth IRA first)' : '') +
         (paycheckLeft(i) < 0 ? ', and the shortfall (' + fmt$(-paycheckLeft(i)) + '/yr) comes out of savings' : '') + '. Take-home rises with pay raises; spending with inflation.'
-      : 'While working, ' + fmt$(i.otherContrib) + '/yr goes into other savings as entered, capped at what take-home leaves after loan payments (fill in spending now in step 4 and we\'ll check it against your spending too).'),
+      : 'While working, ' + fmt$(i.saveYr) + '/yr goes into savings' + (i.rothIRA > 0 ? ' (' + fmt$(i.rothIRA) + ' of it Roth IRA)' : '') + ' as entered, capped at what take-home leaves after loan payments (fill in spending now in step 4 and we\'ll check it against your spending too).'),
     'Other savings grow ' + (i.otherRet*100).toFixed(1) + '%/yr' +
       (i.rothPct > 0 ? ' (' + Math.round(i.rothPct*100) + '% treated as Roth — tax-free and drawn last; the rest as taxable, its growth counted as taxable interest' + (i.taxOn ? '' : ' when the tax estimate is on') + ')' : '') +
       '. Withdrawal order: ' + (cell.order === 'other' ? 'other savings first, then TSP' : 'TSP first, then other savings') +
@@ -1951,12 +1987,12 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','takeHome','high3','spendNow','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','spendNow','rothIRA','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
 
-const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
+const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tspBal','tspPct','tspStart','rothIRA','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
                   'spend70s','spend80s','spend90s',
                   'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
                   'p1What','p1Amt','p1Year','p1How','p2What','p2Amt','p2Year','p2How',
@@ -2022,7 +2058,7 @@ $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
 // live "quick check" summary above the button — mirrors what's been entered and flags anything odd
 function livingComparison(inp) {
-  const th = inp.takeHome, saveMo = inp.otherContrib / 12, debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
+  const th = inp.takeHome, saveMo = inp.saveYr / 12, debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
   const liveOn = inp.spendNow > 0 ? inp.spendNow + debtMo : Math.max(0, th - saveMo);
   const firstSpend = inp.spendMo + debtMo;
   if (!(inp.spendNow > 0 || th > 0) || !(inp.spendMo > 0)) return '';
@@ -2052,13 +2088,14 @@ function renderSummary() {
   row('High-3 salary', ok(inp.high3) ? fmt$(inp.high3) : need, !ok(inp.high3));
   row('TSP', fmt$(inp.tspBal) + ' · ' + (inp.empPct*100).toFixed(0) + '% of pay + ' + (agencyPct(inp.empPct)*100).toFixed(1) + '% USPS');
   const left = paycheckLeft(inp);
-  const eff = left === null ? inp.otherContrib : Math.min(inp.otherContrib, left);
+  const eff = left === null ? inp.saveYr : Math.min(inp.saveYr, left);
+  if (inp.tspStart > CUR_YEAR) row('TSP starts', inp.tspStart + ' (not contributing yet)');
   row('Other savings', fmt$(inp.otherBal) + (inp.taxOn && inp.rothPct > 0 ? ' · ' + Math.round(inp.rothPct*100) + '% Roth' : ''));
-  if (inp.otherContrib > 0 || (left !== null && left < 0))
-    row('Added while working', left === null || eff >= inp.otherContrib
-      ? '+' + fmt$(inp.otherContrib) + '/yr'
-      : eff >= 0 ? '+' + fmt$(eff) + '/yr — all your paycheck leaves (you entered ' + fmt$(inp.otherContrib) + ')'
-                 : 'nothing — you\'re ' + fmt$(-left) + '/yr short, so savings shrink', left !== null && eff < inp.otherContrib);
+  if (inp.saveYr > 0 || (left !== null && left < 0))
+    row('Added while working', (left === null || eff >= inp.saveYr
+      ? '+' + fmt$(inp.saveYr) + '/yr'
+      : eff >= 0 ? '+' + fmt$(eff) + '/yr — all your paycheck leaves (you entered ' + fmt$(inp.saveYr) + ')'
+                 : 'nothing — you\'re ' + fmt$(-left) + '/yr short, so savings shrink') + (inp.rothIRA > 0 && eff > 0 ? ' · Roth IRA ' + fmt$(Math.min(inp.rothIRA, eff)) : ''), left !== null && eff < inp.saveYr);
   row('Social Security at 67', ok(inp.ssFRA) ? fmt$(inp.ssFRA) + '/mo (62: ' + fmt$(inp.ss62) + ', 70: ' + fmt$(inp.ss70) + ')' : need, !ok(inp.ssFRA));
   const L = liveOnNow();
   if (L) row('Spending now (before retirement)', (L.entered ? '' : 'about ') + fmt$(L.liveOn) + '/mo' + (L.debtMo > 0 ? ' + ' + fmt$(L.debtMo) + '/mo loans' : '') + (L.entered ? '' : ' (our estimate)'));
@@ -2181,7 +2218,7 @@ function liveOnNow() {
     ? ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
         curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: $('taxOn').checked ? numOr('stateRate', 0) / 100 : 0 })
     : th;
-  const saveMo = numOr('otherContrib', 0) / 12;
+  const saveMo = (numOr('otherContrib', 0) + numOr('rothIRA', 0)) / 12;
   const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
   let extraMo = 0;
   try { extraMo = householdExtraNow(readInputs()) / 12; } catch (e) {}
@@ -2203,7 +2240,7 @@ function syncSpendAnchor() {
     ' Use it as your starting point for retirement — then think about what changes: no commute, more free time.' +
     (debtMo === 0 ? ' If part of it is loan payments, leave those out here — they go in step 5.' : '');
 }
-['salary', 'takeHome', 'spendNow', 'tspPct', 'curAge', 'otherContrib', 'stateRate',
+['salary', 'takeHome', 'spendNow', 'tspPct', 'curAge', 'otherContrib', 'rothIRA', 'stateRate',
  'debtHomeBal', 'debtHomeMo', 'debtHomeYear', 'debtCarBal', 'debtCarMo', 'debtCarYear', 'debtOtherBal', 'debtOtherMo', 'debtOtherYear'].forEach(id => $(id).addEventListener('input', syncSpendAnchor));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncSpendAnchor));
 
@@ -2286,6 +2323,8 @@ function buildPrintReport() {
   add('High-3 average salary', fmt$(i.high3));
   add('TSP balance', fmt$(i.tspBal));
   add('TSP contribution', (i.empPct*100).toFixed(0) + '% + ' + (agencyPct(i.empPct)*100).toFixed(1) + '% USPS');
+  if (i.tspStart > CUR_YEAR) add('TSP contributions start', i.tspStart);
+  if (i.rothIRA > 0) add('Roth IRA, yearly (automatic)', fmt$(i.rothIRA));
   add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr while working)' : '') + (i.rothPct > 0 ? ', ' + Math.round(i.rothPct*100) + '% Roth' : ''));
   add('Withdrawal order', SEL && SEL.order === 'other' ? 'Other savings first, then TSP' : 'TSP first, then other savings');
   add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
