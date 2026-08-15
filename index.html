@@ -819,7 +819,7 @@
       </div>
       <div class="field" style="grid-column:1 / -1">
         <label class="spouse-toggle" style="padding:0 0 6px"><input type="checkbox" id="fehbOn"><span>Keep your health insurance (FEHB / PSHB) into retirement — model the premiums separately</span></label>
-        <div class="help">Postal retirees can keep their plan for life if they retire on an immediate pension after 5 straight years enrolled. The premium is <b>deducted from your FERS pension</b> each month (after-tax in retirement). At 65, most postal retirees must also enroll in <b>Medicare Part B</b> to keep PSHB — about $203/mo per person in 2026 (people who were 64+ on Jan 1, 2025, or already retired then, are exempt; many PSHB plans give Part B credits back). Two things people get wrong: (1) skipping Part B is penalty-free only while you're covered by a plan from <i>current</i> employment — yours or a spouse's; <b>retiree FEHB/PSHB doesn't count</b>, so waiting means a permanent 10%-per-year surcharge; and (2) if you're in the required group and don't enroll, you can <b>lose PSHB itself</b>, drug coverage first. If you turn this on, <b>leave health insurance out of your monthly spending</b> so it isn't counted twice. Which plan covers a particular medication is a plan-brochure question — check before you retire.</div>
+        <div class="help">Postal retirees can keep their plan for life if they retire on an immediate pension after 5 straight years enrolled. The premium is <b>deducted from your FERS pension</b> each month (after-tax in retirement). At 65, most postal retirees must also enroll in <b>Medicare Part B</b> to keep PSHB — about $203/mo per person in 2026 (people who were 64+ on Jan 1, 2025, or already retired then, are exempt; many PSHB plans give Part B credits back). Two things people get wrong: (1) skipping Part B is penalty-free only while you're covered by a plan from <i>current</i> employment — yours or a spouse's; <b>retiree FEHB/PSHB doesn't count</b>, so waiting means a permanent 10%-per-year surcharge. <b>If you're still working at 65, enroll in Part B when you retire</b> — you have 8 months from your last day, penalty-free (this plan adds it at retirement in that case); and (2) if you're in the required group and don't enroll, you can <b>lose PSHB itself</b>, drug coverage first. If you turn this on, <b>leave health insurance out of your monthly spending</b> so it isn't counted twice. Which plan covers a particular medication is a plan-brochure question — check before you retire.</div>
       </div>
       <div class="field fehb-dep" style="display:none">
         <label for="fehbMo">Your share of the premium now, per month</label>
@@ -829,7 +829,7 @@
       <div class="field fehb-dep" style="display:none">
         <label for="partB">Add Medicare Part B at 65?</label>
         <select id="partB">
-          <option value="yes" selected>Yes — required for most (about $203/mo each, rising)</option>
+          <option value="yes" selected>Yes — at 65, or at retirement if later (about $203/mo each, rising)</option>
           <option value="no">No — I'm exempt (64+ on Jan 1, 2025 / retired by then), or still working at 65</option>
         </select>
       </div>
@@ -2057,7 +2057,7 @@ function renderAssumptions(cell) {
     (i.sideInc > 0 ? 'Extra income counts as earned income for the Social Security earnings test: before 67, anything over about ' + fmt$(23400) + '/yr (rising with inflation) trims the FERS supplement and any Social Security check by $1 for every $2 over.' : null),
     'Nothing comes out of TSP before you retire. Anything that has to be paid from savings while working — a cash purchase, an early payoff, or overspending — comes from other savings only; if other savings can\'t cover it, the model doesn\'t invent the money (that gap isn\'t shown).',
     i.fehbOn
-      ? 'Health insurance kept into retirement: your ' + fmt$(i.fehbMo) + '/mo premium share continues (deducted from the pension, rising 5%/yr)' + (i.partB ? ', plus Medicare Part B at 65 (about $203/mo per person in 2026, rising)' + (i.hasSpouse ? ' for each of you' : '') : ', no Part B') + '. Keep it out of your monthly spending number.'
+      ? 'Health insurance kept into retirement: your ' + fmt$(i.fehbMo) + '/mo premium share continues (deducted from the pension, rising 5%/yr)' + (i.partB ? ', plus Medicare Part B from 65 — or from retirement if you retire later than 65 (about $203/mo per person in 2026, rising)' + (i.hasSpouse ? ' for each of you' : '') : ', no Part B') + '. Keep it out of your monthly spending number.'
       : 'Health insurance (FEHB/PSHB) and Medicare premiums should be inside your spending number (or turn on the health-insurance option in advanced settings).',
     i.qcdYr > 0 ? 'From age 70½, ' + fmt$(i.qcdYr) + '/yr (today\'s dollars) goes straight from your TSP/IRA to charity — never taxed, counts toward the required withdrawal' + (i.qcdInSpend ? ', and comes out of the giving already in your spending' : ', on top of your spending') + '. TSP itself doesn\'t do this — roll that money into a traditional IRA first.' : null,
     'The model plans for money to last to age ' + i.horizon + '.'
@@ -2205,7 +2205,7 @@ function renderSummary() {
     if (inp.sp401k > 0 || inp.spRoth > 0 || inp.spRothContrib > 0) row('Spouse savings', fmt$(inp.sp401k) + ' pre-tax' + (inp.sp401kContrib > 0 && inp.spTakeHome > 0 ? ' (+' + fmt$(inp.sp401kContrib) + '/yr)' : '') + ' · ' + fmt$(inp.spRoth) + ' Roth' + (inp.spRothContrib > 0 ? ' (+' + fmt$(inp.spRothContrib) + '/yr)' : ''));
   }
   if (inp.poLoan && inp.poAmt > 0) row('Early payoff', inp.poLoan + ' — ' + fmt$(inp.poAmt) + ' in ' + inp.poYear + ' from ' + (inp.poSource === 'tsp' ? 'TSP' : 'other savings'));
-  if (inp.fehbOn) row('Health insurance in retirement', fmt$(inp.fehbMo) + '/mo now' + (inp.partB ? ' + Part B at 65' : ''));
+  if (inp.fehbOn) row('Health insurance in retirement', fmt$(inp.fehbMo) + '/mo now' + (inp.partB ? ' + Part B at 65 (or at retirement if later)' : ''));
   if (inp.qcdYr > 0) row('Giving from TSP/IRA (70½+)', fmt$(inp.qcdYr) + '/yr, tax-free');
   row('Taxes', inp.taxOn ? 'estimated' + (inp.stateRate > 0 ? ' (state ' + (inp.stateRate*100).toFixed(1) + '%)' : '') : 'not included — spending should cover them');
   $('sumGrid').innerHTML = rows.join('');
