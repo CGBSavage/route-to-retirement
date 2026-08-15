@@ -184,6 +184,16 @@
   details.advanced summary { cursor: pointer; font-weight: 600; padding: 12px 0; font-size: 17px; color: var(--ink-2); }
   details.advanced .fields { padding-top: 12px; }
 
+  section.summary { padding-bottom: 18px; }
+  .sumgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; font-size: 15.5px; }
+  @media (max-width: 640px) { .sumgrid { grid-template-columns: 1fr; } }
+  .sumgrid div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted var(--hairline); padding: 4px 0; }
+  .sumgrid span:first-child { color: var(--ink-2); white-space: nowrap; }
+  .sumgrid b { font-variant-numeric: tabular-nums; text-align: right; }
+  .sumgrid .missing b { color: var(--critical); }
+  #sumChecks .checks { margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: var(--warning-wash); font-size: 15.5px; }
+  #sumChecks .checks ul { margin: 4px 0 0; padding-left: 20px; }
+  #sumChecks .compare { margin: 12px 0 0; color: var(--ink-2); font-size: 15.5px; }
   .gobar { margin: 28px 0 8px; text-align: center; }
   #goBtn {
     font-size: 21px; font-weight: 700; padding: 16px 36px; border-radius: 12px; border: none;
@@ -653,6 +663,13 @@
       </div>
     </div>
   </details>
+
+  <section class="card summary" id="preSummary">
+    <h2>Quick check before you run it</h2>
+    <p class="cardsub">Here's what you've told us so far. Give it a once-over — if something looks off, fix it above.</p>
+    <div class="sumgrid" id="sumGrid"></div>
+    <div id="sumChecks"></div>
+  </section>
 
   <div class="gobar">
     <button id="goBtn">Show me my plan</button>
@@ -1180,12 +1197,7 @@ function renderVerdict(best) {
   const v = $('verdict');
   v.classList.toggle('bad', !best || !best.ok);
   const checks = sanityChecks(INP);
-  const th = INP.takeHome, saveMo = INP.otherContrib / 12, liveOn = Math.max(0, th - saveMo);
-  const firstSpend = INP.spendMo + INP.debts.reduce((a, d) => a + d.mo, 0);
-  const compareHtml = (th > 0 && firstSpend <= liveOn * 1.1)
-    ? '<p class="compare">For comparison: you take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today') +
-      '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement — ' + (firstSpend < liveOn * 0.9 ? 'less than that, which is comfortable.' : 'about the same, which hangs together.') + '</p>' : '';
-  const checkHtml = compareHtml + (checks.length
+  const checkHtml = livingComparison(INP) + (checks.length
     ? '<div class="checks"><b>Worth a second look:</b><ul>' + checks.map(n => '<li>' + n + '</li>').join('') + '</ul></div>' : '');
   if (best && best.ok) {
     v.innerHTML = '<h2>Good news — the numbers can work. ✓</h2>' +
@@ -1560,6 +1572,52 @@ function syncPayoff() {
 }
 $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
+// live "quick check" summary above the button — mirrors what's been entered and flags anything odd
+function livingComparison(inp) {
+  const th = inp.takeHome, saveMo = inp.otherContrib / 12, liveOn = Math.max(0, th - saveMo);
+  const firstSpend = inp.spendMo + inp.debts.reduce((a, d) => a + d.mo, 0);
+  if (!(th > 0) || !(inp.spendMo > 0)) return '';
+  const base = 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today') +
+    '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement — ';
+  if (firstSpend > liveOn * 1.1) return '';   // the amber check covers this case
+  return '<p class="compare">' + base + (firstSpend < liveOn * 0.9 ? 'less than that, which is comfortable.' : 'about the same, which hangs together.') + '</p>';
+}
+function renderSummary() {
+  let inp;
+  try { inp = readInputs(); } catch (e) { return; }
+  const rows = [];
+  const row = (label, val, missing) => rows.push('<div' + (missing ? ' class="missing"' : '') + '><span>' + label + '</span><b>' + val + '</b></div>');
+  const need = '(needed)';
+  const ok = v => typeof v === 'number' && !isNaN(v) && v > 0;
+  row('Age today', ok(inp.curAge) ? inp.curAge : need, !ok(inp.curAge));
+  row('Years at the Post Office', ok(inp.yos) && inp.yos < 60 ? inp.yos + ' (since ' + (CUR_YEAR - inp.yos) + ')' : need, !(ok(inp.yos) && inp.yos < 60));
+  row('Current pay', ok(inp.salary) ? fmt$(inp.salary) + '/yr' + (inp.takeHome > 0 ? ' · take-home ' + fmt$(inp.takeHome) + '/mo' : '') : need, !ok(inp.salary));
+  row('High-3 salary', ok(inp.high3) ? fmt$(inp.high3) : need, !ok(inp.high3));
+  row('TSP', fmt$(inp.tspBal) + ' · ' + (inp.empPct*100).toFixed(0) + '% of pay + ' + (agencyPct(inp.empPct)*100).toFixed(1) + '% USPS');
+  row('Other savings', fmt$(inp.otherBal) + (inp.otherContrib > 0 ? ' · +' + fmt$(inp.otherContrib) + '/yr' : '') + (inp.taxOn && inp.rothPct > 0 ? ' · ' + Math.round(inp.rothPct*100) + '% Roth' : ''));
+  row('Social Security at 67', ok(inp.ssFRA) ? fmt$(inp.ssFRA) + '/mo (62: ' + fmt$(inp.ss62) + ', 70: ' + fmt$(inp.ss70) + ')' : need, !ok(inp.ssFRA));
+  row('Retirement spending', ok(inp.spendMo) ? fmt$(inp.spendMo) + '/mo until 70' +
+      (inp.spend70s !== inp.spendMo || inp.spend80s !== inp.spend70s || inp.spend90s !== inp.spend80s
+        ? ', then ' + fmt$(inp.spend70s) + ' / ' + fmt$(inp.spend80s) + ' / ' + fmt$(inp.spend90s) : ' and after') + (inp.taxOn ? ' + taxes' : '') : need, !ok(inp.spendMo));
+  const debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
+  row('Loans', inp.debts.length ? fmt$(debtMo) + '/mo, last one paid off ' + Math.max(...inp.debts.map(d => d.payoff)) : 'none');
+  const purch = inp.purchases.filter(p => p.year && p.amt > 0);
+  row('Big purchases', purch.length ? purch.map(p => (p.what || 'purchase') + ' ' + fmt$(p.amt) + ' in ' + p.year).join('; ') : 'none');
+  if (inp.sideInc > 0) row('Extra income', fmt$(inp.sideInc) + '/yr through ' + inp.sideUntil);
+  if (inp.wfAmt > 0) row('Windfall', fmt$(inp.wfAmt) + ' in ' + inp.wfYear);
+  if (inp.hasSpouse) row('Spouse Social Security', fmt$(inp.spSS) + '/mo' + ($('spNow').value === 'yes' ? ' now' : ' from age ' + inp.spSSStart));
+  if (inp.poLoan && inp.poAmt > 0) row('Early payoff', inp.poLoan + ' — ' + fmt$(inp.poAmt) + ' in ' + inp.poYear + ' from ' + (inp.poSource === 'tsp' ? 'TSP' : 'other savings'));
+  row('Taxes', inp.taxOn ? 'estimated' + (inp.stateRate > 0 ? ' (state ' + (inp.stateRate*100).toFixed(1) + '%)' : '') : 'not included — spending should cover them');
+  $('sumGrid').innerHTML = rows.join('');
+  let checks = [];
+  try { checks = ok(inp.salary) ? sanityChecks(inp) : []; } catch (e) {}
+  $('sumChecks').innerHTML = livingComparison(inp) +
+    (checks.length ? '<div class="checks"><b>Worth a second look:</b><ul>' + checks.map(n => '<li>' + n + '</li>').join('') + '</ul></div>' : '');
+}
+let sumTimer = null;
+document.addEventListener('input', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) { clearTimeout(sumTimer); sumTimer = setTimeout(renderSummary, 250); } });
+document.addEventListener('change', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) { clearTimeout(sumTimer); sumTimer = setTimeout(renderSummary, 50); } });
+
 // dark/light + bigger-text toggles (remembered on this device; localStorage is guarded — it throws in data: URLs)
 const PREF_KEY = 'routeToRetirementView';
 function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { return {}; } }
@@ -1758,6 +1816,7 @@ $('rvClose').addEventListener('click', () => { $('reportView').classList.remove(
 
 loadForm();
 syncGrowthNote();
+renderSummary();
 syncSpouseSS();
 syncPayoff();
 </script>
