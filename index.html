@@ -454,9 +454,9 @@
         <div class="inputrow"><input id="curAge" type="text" inputmode="numeric" placeholder="60"><span class="suffix">years</span></div>
       </div>
       <div class="field work-only">
-        <label for="poStart">The year you became a <b>career</b> USPS employee (or expect to)</label>
+        <label for="poStart" id="poStartLabel">The year you became a <b>career</b> USPS employee</label>
         <div class="inputrow"><input id="poStart" type="text" inputmode="numeric" placeholder="1998"></div>
-        <div class="help">Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn't add to your years. It's on your SF-50 or in LiteBlue. Not career yet? Enter the year you expect to convert; TSP contributions will start then too. If you bought back military time, move the year back by those years.</div>
+        <div class="help" id="poStartHelp">Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn't add to your years. It's on your SF-50 or in LiteBlue. If you bought back military time, move the year back by those years.</div>
       </div>
       <div class="field work-only">
         <label for="salary">Current annual pay (before taxes)</label>
@@ -2424,6 +2424,11 @@ function setPath(which) {
   $('pathNotCareer').setAttribute('aria-pressed', notCareer ? 'true' : 'false');
   $('pathRetired').setAttribute('aria-pressed', retired ? 'true' : 'false');
   $('notCareerNote').hidden = !notCareer;
+  $('poStartLabel').innerHTML = notCareer ? 'The year you <b>expect to become</b> a career USPS employee' : 'The year you became a <b>career</b> USPS employee';
+  $('poStartHelp').textContent = notCareer
+    ? 'Your best guess for the conversion year. FERS years and TSP contributions both start then (time as a CCA, RCA, or PSE before that doesn\'t count toward the pension).'
+    : 'Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn\'t add to your years. It\'s on your SF-50 or in LiteBlue. If you bought back military time, move the year back by those years.';
+  $('poStart').placeholder = notCareer ? String(CUR_YEAR + 1) : '1998';
   $('retiredFields').hidden = !retired;
   document.querySelectorAll('.work-only').forEach(d => d.style.display = retired ? 'none' : '');
   // step-2 wording tweaks for retirees
