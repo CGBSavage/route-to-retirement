@@ -154,6 +154,18 @@
     .debtgrid { grid-template-columns: 56px 1fr 1fr 1fr; gap: 8px 6px; }
     .debtgrid input { font-size: 15px; }
   }
+  .purchgrid {
+    display: grid; grid-template-columns: 1.3fr 1fr 0.8fr 1.1fr;
+    gap: 10px 10px; align-items: center; padding-bottom: 4px;
+  }
+  .purchgrid input, .purchgrid select { font-size: 16px; padding: 9px 8px; }
+  .purchgrid .prefix { left: 8px; }
+  .purchgrid .prefix + input { padding-left: 22px; }
+  @media (max-width: 640px) {
+    .purchgrid { grid-template-columns: 1fr 1fr; }
+    .purchgrid .debthead { display: none; }
+    .purchgrid input[id$="What"] { grid-column: 1 / -1; }
+  }
   .spouse-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0 16px; font-size: 17px; }
   .spouse-toggle input { width: 22px; height: 22px; margin-top: 3px; accent-color: var(--accent); }
   details.advanced { margin-top: 22px; border: 1px dashed var(--hairline); border-radius: 12px; padding: 4px 18px; background: none; }
@@ -454,13 +466,41 @@
           <option value="other" selected>Other savings</option>
           <option value="tsp">TSP</option>
         </select>
-        <div class="help">A big TSP withdrawal is taxable income — turn on the tax estimate in step 4 to see that bite counted, and check with a tax pro first. If a windfall is paying for it, enter the windfall in step 6 and pick "other savings" here.</div>
+        <div class="help">A big TSP withdrawal is taxable income — turn on the tax estimate in step 4 to see that bite counted, and check with a tax pro first. If a windfall is paying for it, enter the windfall in step 7 and pick "other savings" here.</div>
       </div>
     </div>
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">6</span>Extra income</h2>
+    <h2><span class="stepnum">6</span>Big future purchases</h2>
+    <p class="cardsub">Cars wear out, kitchens age, cruises call, kids get help. Plan the big one-time costs here so the numbers stay honest. Enter <b>today's prices</b> — the math adjusts them for inflation to the year you pick. "Cash" means it's paid from savings that year; "borrow" spreads monthly loan payments over the term instead.</p>
+    <div class="purchgrid">
+      <span class="debthead">What</span>
+      <span class="debthead">About how much (today)</span>
+      <span class="debthead">In year</span>
+      <span class="debthead">How you'd pay</span>
+      <input id="p1What" type="text" placeholder="Replace the car">
+      <div class="inputrow"><span class="prefix">$</span><input id="p1Amt" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><input id="p1Year" type="text" inputmode="numeric" placeholder="2031"></div>
+      <select id="p1How"><option value="cash" selected>Cash</option><option value="3">Borrow — 3 yrs</option><option value="5">Borrow — 5 yrs</option><option value="10">Borrow — 10 yrs</option></select>
+      <input id="p2What" type="text" placeholder="30-day cruise">
+      <div class="inputrow"><span class="prefix">$</span><input id="p2Amt" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><input id="p2Year" type="text" inputmode="numeric" placeholder="2029"></div>
+      <select id="p2How"><option value="cash" selected>Cash</option><option value="3">Borrow — 3 yrs</option><option value="5">Borrow — 5 yrs</option><option value="10">Borrow — 10 yrs</option></select>
+      <input id="p3What" type="text" placeholder="Home renovation">
+      <div class="inputrow"><span class="prefix">$</span><input id="p3Amt" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><input id="p3Year" type="text" inputmode="numeric" placeholder="2033"></div>
+      <select id="p3How"><option value="cash" selected>Cash</option><option value="3">Borrow — 3 yrs</option><option value="5">Borrow — 5 yrs</option><option value="10">Borrow — 10 yrs</option></select>
+      <input id="p4What" type="text" placeholder="Gift to the kids">
+      <div class="inputrow"><span class="prefix">$</span><input id="p4Amt" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><input id="p4Year" type="text" inputmode="numeric" placeholder="2035"></div>
+      <select id="p4How"><option value="cash" selected>Cash</option><option value="3">Borrow — 3 yrs</option><option value="5">Borrow — 5 yrs</option><option value="10">Borrow — 10 yrs</option></select>
+    </div>
+    <p class="help" style="font-size:14.5px;color:var(--muted);margin:10px 0 16px">Leave rows blank if they don't apply. Borrowing uses the interest rate in the advanced settings (7% unless you change it). Try a purchase in different years or cash vs. borrowing and watch how the plan reacts — that's what this section is for.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="stepnum">7</span>Extra income</h2>
     <p class="cardsub">Side work, self-employment, rental income — money the two of you expect to keep earning in retirement. Skip it if there's none.</p>
     <div class="fields">
       <div class="field">
@@ -485,7 +525,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">7</span>Spouse or partner</h2>
+    <h2><span class="stepnum">8</span>Spouse or partner</h2>
     <label class="spouse-toggle"><input type="checkbox" id="hasSpouse"><span>Include a spouse or partner's Social Security in the plan</span></label>
     <div class="fields" id="spouseFields" style="display:none">
       <div class="field">
@@ -555,6 +595,11 @@
         <label for="horizon">Plan for money to last to age</label>
         <div class="inputrow"><input id="horizon" type="text" inputmode="numeric" value="101"><span class="suffix">years</span></div>
         <div class="help">101 is a very safe planning target — better to plan long than run short.</div>
+      </div>
+      <div class="field">
+        <label for="borrowRate">Interest rate for future borrowing</label>
+        <div class="inputrow"><input id="borrowRate" type="text" inputmode="decimal" value="7" class="has-suffix"><span class="suffix">% / yr</span></div>
+        <div class="help">Used when a big purchase in step 6 is set to "borrow."</div>
       </div>
       <div class="field">
         <label for="suppOverride">FERS supplement, monthly (optional)</label>
@@ -714,6 +759,28 @@ function readDebts() {
   return out;
 }
 
+function readPurchases() {
+  const out = [];
+  for (const n of [1, 2, 3, 4]) {
+    const amt = numOr('p' + n + 'Amt', 0);
+    if (amt <= 0) continue;
+    const year = num('p' + n + 'Year');
+    const how = $('p' + n + 'How').value;
+    out.push({
+      what: $('p' + n + 'What').value.trim() || 'Purchase ' + n,
+      amt, year: isNaN(year) ? 0 : year,
+      term: how === 'cash' ? 0 : parseInt(how, 10)   // 0 = pay cash
+    });
+  }
+  return out;
+}
+
+// Monthly payment for a loan of P over n years at annual rate r.
+function loanMonthly(P, r, n) {
+  const m = r / 12, k = 12 * n;
+  return m > 0 ? P * m / (1 - Math.pow(1 + m, -k)) : P / k;
+}
+
 function readInputs() {
   return {
     curAge: num('curAge'),
@@ -731,6 +798,8 @@ function readInputs() {
     spend80s: numOr('spend80s', numOr('spend70s', num('spendMo'))),
     spend90s: numOr('spend90s', numOr('spend80s', numOr('spend70s', num('spendMo')))),
     debts: readDebts(),
+    purchases: readPurchases(),
+    borrowRate: numOr('borrowRate', 7) / 100,
     sideInc: numOr('sideInc', 0), sideUntil: numOr('sideUntil', 0),
     wfAmt: numOr('wfAmt', 0), wfYear: numOr('wfYear', 0),
     poLoan: $('poLoan').value, poAmt: numOr('poAmt', 0), poYear: numOr('poYear', 0),
@@ -766,6 +835,23 @@ function debtRemaining(inp, year) {
     const span = Math.max(1, d.payoff - CUR_YEAR);
     return a + d.bal * (d.payoff - year) / span;
   }, 0);
+}
+
+// Big-purchase flows for `year`: cash due, loan payments due, and remaining loan
+// balance for net worth. Today's prices inflate to the purchase year.
+function purchaseFlows(inp, year) {
+  let cash = 0, pay = 0, owed = 0;
+  for (const p of inp.purchases) {
+    if (!p.year) continue;
+    const cost = p.amt * Math.pow(1 + inp.inflation, p.year - CUR_YEAR);
+    if (p.term === 0) {
+      if (year === p.year) cash += cost;
+    } else if (year >= p.year && year < p.year + p.term) {
+      pay += loanMonthly(cost, inp.borrowRate, p.term) * 12;
+      owed += cost * (p.year + p.term - year) / p.term;   // straight-line remaining
+    }
+  }
+  return { cash, pay, owed };
 }
 
 function ssMonthlyAt(inp, claimAge) {
@@ -809,10 +895,11 @@ function simulate(inp, retireAge, claimAge) {
     const spInc = (inp.sideInc > 0 && year <= inp.sideUntil) ? inp.sideInc : 0;
 
     const debtPay = working ? 0 : debtPayments(inp, year);
-    const debtLeft = debtRemaining(inp, year);
+    const purch = purchaseFlows(inp, year);
+    const debtLeft = debtRemaining(inp, year) + purch.owed;
     // spending blocks are in today's dollars; inflate to this year's future dollars
     const spendBase = age < 70 ? inp.spendMo : age < 80 ? inp.spend70s : age < 90 ? inp.spend80s : inp.spend90s;
-    const spending = working ? 0 : spendBase * 12 * Math.pow(1 + inp.inflation, t) + debtPay;
+    const spending = working ? 0 : spendBase * 12 * Math.pow(1 + inp.inflation, t) + debtPay + purch.cash + purch.pay;
 
     const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
 
@@ -832,6 +919,13 @@ function simulate(inp, retireAge, claimAge) {
       if (payoffDue) {
         if (inp.poSource === 'tsp') { payoffOut = Math.min(payoffDue, tsp); tsp -= payoffOut; }
         else { payoffOut = Math.min(payoffDue, other); other -= payoffOut; }
+      }
+      // cash purchases while working come out of savings (other first, then TSP);
+      // loan payments while working are covered by the paycheck, like all working-year costs
+      if (purch.cash > 0) {
+        const fromOther = Math.min(purch.cash, other); other -= fromOther;
+        const rest = purch.cash - fromOther;
+        if (rest > 0) tsp = Math.max(0, tsp - rest);
       }
     } else {
       tspGrow = tsp * inp.postRet;
@@ -874,6 +968,7 @@ function simulate(inp, retireAge, claimAge) {
 
     rows.push({ age, year, working, supp, pension, mySS, spSS, spInc,
                 tspWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
+                purchCash: purch.cash, purchPay: purch.pay,
                 tsp, other, total: tsp + other, netWorth: tsp + other - debtLeft });
   }
   return { rows, runout, endBal: tsp + other, pen,
@@ -1143,6 +1238,8 @@ function drawIncome(cell) {
         series.map(s => s.label + ': <b>' + fmt$(s.key(r)) + '</b>').join('<br>') +
         '<br>Spending: <b>' + fmt$(r.spending) + '</b>' +
         (r.debtPay > 0.5 ? ' (incl. ' + fmt$(r.debtPay) + ' loan payments)' : '') +
+        (r.purchCash > 0.5 ? '<br>Big purchase this year: <b>' + fmt$(r.purchCash) + '</b>' : '') +
+        (r.purchPay > 0.5 ? '<br>Purchase loan payments: <b>' + fmt$(r.purchPay) + '</b>' : '') +
         (r.tax > 0.5 ? '<br>Taxes (est.): <b>' + fmt$(r.tax) + '</b>' : '') +
         (r.shortfall > 1 ? '<br><b style="color:var(--critical)">Short by ' + fmt$(r.shortfall) + '</b>' : ''), e.clientX, e.clientY, !!ev.touches);
     };
@@ -1196,6 +1293,14 @@ function renderAssumptions(cell) {
       : 'No loans or debts entered — spending is your monthly number alone.',
     i.sideInc > 0 ? 'Extra household income of ' + fmt$(i.sideInc) + '/yr continues through ' + i.sideUntil + ' (not adjusted for inflation).' : null,
     i.wfAmt > 0 ? 'A one-time windfall of ' + fmt$(i.wfAmt) + ' lands in your other savings in ' + i.wfYear + '.' : null,
+    ...i.purchases.map(p => {
+      const cost = p.amt * Math.pow(1 + i.inflation, p.year - CUR_YEAR);
+      return '"' + p.what + '": about ' + fmt$(cost) + ' in ' + p.year + ' (' + fmt$(p.amt) + ' in today\'s dollars)' +
+        (p.term === 0
+          ? ', paid in cash from savings that year.'
+          : ', borrowed over ' + p.term + ' years at ' + (i.borrowRate*100).toFixed(1) + '% (about ' + fmt$(loanMonthly(cost, i.borrowRate, p.term)) + '/mo).') +
+        (p.year < CUR_YEAR + (cell.retireAge - i.curAge) && p.term > 0 ? ' Loan payments made while still working aren\'t counted (the paycheck covers them); the remaining ones in retirement are.' : '');
+    }),
     (i.poLoan && i.poAmt > 0)
       ? 'In ' + i.poYear + ' you pay off the ' + i.poLoan.toLowerCase() + ' loan with ' + fmt$(i.poAmt) + ' from ' +
         (i.poSource === 'tsp' ? 'your TSP' : 'other savings') + '; its monthly payment stops that year.' +
@@ -1230,12 +1335,15 @@ function fmtField(input) {
     input.value = parseFloat(v).toLocaleString('en-US');
 }
 const MONEY_IDS = ['salary','high3','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+                   'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
 
 const SAVE_IDS = ['curAge','poStart','salary','high3','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
                   'spend70s','spend80s','spend90s',
                   'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
+                  'p1What','p1Amt','p1Year','p1How','p2What','p2Amt','p2Year','p2How',
+                  'p3What','p3Amt','p3Year','p3How','p4What','p4Amt','p4Year','p4How','borrowRate',
                   'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource',
                   'spAge','spSS','spNow','spSSStart',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate'];
@@ -1283,6 +1391,9 @@ $('goBtn').addEventListener('click', () => {
   ];
   const yearOk = v => !isNaN(v) && v >= CUR_YEAR && v <= CUR_YEAR + 45;
   if (numOr('wfAmt', 0) > 0) required.push(['wfYear', 'the year you expect the windfall', yearOk]);
+  for (const n of [1, 2, 3, 4]) {
+    if (numOr('p' + n + 'Amt', 0) > 0) required.push(['p' + n + 'Year', 'the year for "' + ($('p' + n + 'What').value.trim() || 'purchase ' + n) + '"', yearOk]);
+  }
   if ($('poLoan').value !== '') {
     required.push(['poAmt', 'the loan payoff amount', v => v > 0]);
     required.push(['poYear', 'the year you pay off the loan', yearOk]);
@@ -1334,6 +1445,7 @@ function buildPrintReport() {
   add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
   add('Monthly spending (today’s $)', fmt$(i.spendMo) + ' → ' + fmt$(i.spend70s) + ' (70s) → ' + fmt$(i.spend80s) + ' (80s) → ' + fmt$(i.spend90s) + ' (90+)' + (i.taxOn ? ', before taxes' : ', incl. taxes'));
   for (const d of i.debts) add(d.label + ' debt', fmt$(d.bal) + ' at ' + fmt$(d.mo) + '/mo to ' + d.payoff);
+  for (const p of i.purchases) add('Planned: ' + p.what, fmt$(p.amt) + ' (today\'s $) in ' + p.year + (p.term === 0 ? ', cash' : ', borrow ' + p.term + ' yrs'));
   if (i.sideInc > 0) add('Extra income', fmt$(i.sideInc) + '/yr through ' + i.sideUntil);
   if (i.wfAmt > 0) add('Expected windfall', fmt$(i.wfAmt) + ' in ' + i.wfYear);
   if (i.poLoan && i.poAmt > 0) add('Early payoff: ' + i.poLoan, fmt$(i.poAmt) + ' in ' + i.poYear + ' from ' + (i.poSource === 'tsp' ? 'TSP' : 'other savings'));
