@@ -1,5 +1,7 @@
 <!doctype html>
 <html lang="en">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'">
+<meta name="referrer" content="no-referrer">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Route2Retirement</title>
@@ -353,7 +355,7 @@
     </div>
     <h1>Route2Retirement</h1>
     <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
-    <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere.</p>
+    <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a></p>
   </header>
 
   <section class="card">
@@ -841,7 +843,15 @@
       <div class="goerr" id="printNote" style="color:var(--ink-2);font-weight:400"></div>
     </div>
 
-    <footer class="fine">
+    <section class="card" id="privacy">
+    <h2>Privacy &amp; terms</h2>
+    <p class="cardsub"><b>What's stored, and where.</b> To save you retyping, the numbers you enter are kept in this browser's own storage on this device — not on any server, and never sent anywhere. Nothing you type includes your name, Social Security number, or account numbers. That storage isn't encrypted: anyone who uses this same browser on this device could open the page and see your entries, the same as any website that "remembers" you. On a shared or borrowed device, turn saving off or clear your entries when you're done.</p>
+    <label class="spouse-toggle"><input type="checkbox" id="rememberOn" checked><span>Remember my entries on this device</span></label>
+    <div style="padding:0 0 12px"><button type="button" id="clearBtn" class="ghostbtn">Clear my saved entries now</button> <span id="clearMsg" class="help" style="margin-left:8px"></span></div>
+    <p class="cardsub"><b>Terms, in plain English.</b> Route2Retirement is a free educational tool made by and for postal workers. It gives rough estimates from the numbers you enter and standard assumptions; it is not financial, tax, or legal advice, and it can be wrong. Nothing here is a promise about what you'll receive from FERS, TSP, or Social Security — confirm those with HR/OPM, tsp.gov, and ssa.gov, and talk to a qualified planner before deciding. It's provided as-is, without warranty; you use it at your own risk. Not affiliated with, or endorsed by, the U.S. Postal Service, OPM, or the Social Security Administration.</p>
+  </section>
+
+  <footer class="fine">
       <p><b>Please read:</b> This is an educational estimate, not financial, tax, or investment advice, and it can't see your whole picture (health insurance, taxes, FEHB, Medicare, sick-leave credit, market swings). Before you file anything, confirm your pension numbers with an official annuity estimate from HR/OPM, your Social Security numbers at ssa.gov, and talk it over with a fee-only financial planner if you can.</p>
       <p>Not affiliated with, or endorsed by, the U.S. Postal Service, OPM, or the Social Security Administration. Your entries are saved only in this browser so they're here when you come back.</p>
     </footer>
@@ -940,16 +950,16 @@ function debtRowDefs() {
   const rows = [['debtHomeBal','debtHomeMo','debtHomeYear','Home'],
                 ['debtCarBal','debtCarMo','debtCarYear','Cars'],
                 ['debtOtherBal','debtOtherMo','debtOtherYear','Other debt']];
-  for (let n = 1; n <= debtRows; n++) rows.push(['d' + n + 'Bal', 'd' + n + 'Mo', 'd' + n + 'Year', ($('d' + n + 'What').value.trim() || 'Loan ' + n)]);
+  for (let n = 1; n <= debtRows; n++) rows.push(['d' + n + 'Bal', 'd' + n + 'Mo', 'd' + n + 'Year', cleanLabel($('d' + n + 'What').value, 'Loan ' + n)]);
   return rows;
 }
 // keep the "pay one off early" dropdown in step with the loans that exist
 function syncPayoffOptions() {
   const sel = $('poLoan'), cur = sel.value;
   const labels = ['Home', 'Cars', 'Other debt'];
-  for (let n = 1; n <= debtRows; n++) labels.push($('d' + n + 'What').value.trim() || 'Loan ' + n);
+  for (let n = 1; n <= debtRows; n++) labels.push(cleanLabel($('d' + n + 'What').value, 'Loan ' + n));
   const nice = l => l === 'Home' ? 'the home loan' : l === 'Cars' ? 'the car loan(s)' : l === 'Other debt' ? 'the other debt' : '"' + l + '"';
-  sel.innerHTML = '<option value="">No</option>' + labels.map(l => '<option value="' + l.replace(/"/g, '&quot;') + '">Yes — ' + nice(l) + '</option>').join('');
+  sel.innerHTML = '<option value="">No</option>' + labels.map(l => '<option value="' + l + '">Yes — ' + nice(l) + '</option>').join('');
   if (labels.includes(cur)) sel.value = cur; else sel.value = '';
 }
 function readDebts() {
@@ -999,7 +1009,7 @@ function readPurchases() {
     const year = num('p' + n + 'Year');
     const how = $('p' + n + 'How').value;
     out.push({
-      what: $('p' + n + 'What').value.trim() || 'Purchase ' + n,
+      what: cleanLabel($('p' + n + 'What').value, 'Purchase ' + n),
       amt, year: isNaN(year) ? 0 : Math.max(CUR_YEAR, year),
       term: how === 'cash' ? 0 : parseInt(how, 10)   // 0 = pay cash
     });
@@ -1941,6 +1951,7 @@ function saveForm() {
     ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
   for (let n = 1; n <= debtRows; n++)
     ['What','Bal','Mo','Year'].forEach(s => o['d' + n + s] = $('d' + n + s).value);
+  if (!rememberEnabled()) return;
   try { localStorage.setItem('routeToRetirement', JSON.stringify(o)); } catch (e) {}
 }
 function loadForm() {
@@ -2057,6 +2068,22 @@ let sumTimer = null;
 document.addEventListener('input', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) { clearTimeout(sumTimer); sumTimer = setTimeout(renderSummary, 250); } });
 document.addEventListener('change', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) { clearTimeout(sumTimer); sumTimer = setTimeout(renderSummary, 50); } });
 
+// remember-on-this-device switch and clear button
+const REMEMBER_KEY = 'routeToRetirementRemember';
+function rememberEnabled() { try { return localStorage.getItem(REMEMBER_KEY) !== 'off'; } catch (e) { return false; } }
+$('rememberOn').checked = rememberEnabled();
+$('rememberOn').addEventListener('change', e => {
+  try {
+    if (e.target.checked) { localStorage.removeItem(REMEMBER_KEY); saveForm(); }
+    else { localStorage.setItem(REMEMBER_KEY, 'off'); localStorage.removeItem('routeToRetirement'); }
+  } catch (err) {}
+});
+$('clearBtn').addEventListener('click', () => {
+  try { localStorage.removeItem('routeToRetirement'); } catch (e) {}
+  $('clearMsg').textContent = 'Cleared. Your entries stay on screen until you leave this page.';
+  setTimeout(() => { $('clearMsg').textContent = ''; }, 5000);
+});
+
 // dark/light + bigger-text toggles (remembered on this device; localStorage is guarded — it throws in data: URLs)
 const PREF_KEY = 'routeToRetirementView';
 function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { return {}; } }
@@ -2159,7 +2186,7 @@ $('goBtn').addEventListener('click', () => {
   const yearOk = v => !isNaN(v) && v >= CUR_YEAR && v <= CUR_YEAR + 45;
   if (numOr('wfAmt', 0) > 0) required.push(['wfYear', 'the year you expect the windfall', yearOk]);
   for (let n = 1; n <= purchRows; n++) {
-    if (numOr('p' + n + 'Amt', 0) > 0) required.push(['p' + n + 'Year', 'the year for "' + ($('p' + n + 'What').value.trim() || 'purchase ' + n) + '"', yearOk]);
+    if (numOr('p' + n + 'Amt', 0) > 0) required.push(['p' + n + 'Year', 'the year for "' + (String($('p' + n + 'What').value).trim().slice(0, 40) || 'purchase ' + n) + '"', yearOk]);
   }
   if ($('poLoan').value !== '') {
     required.push(['poAmt', 'the loan payoff amount', v => v > 0]);
@@ -2192,7 +2219,9 @@ $('goBtn').addEventListener('click', () => {
 });
 
 /* ================= printable report ================= */
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// user-typed labels (loan / purchase names) are stored already-escaped so they're safe wherever they're rendered
+function cleanLabel(v, fallback) { const t = String(v || '').trim().slice(0, 40); return t ? esc(t) : fallback; }
 function buildPrintReport() {
   if (!SEL || !INP) return;
   const i = INP, cell = SEL, p = cell.pen;
@@ -2213,8 +2242,9 @@ function buildPrintReport() {
   add('Withdrawal order', SEL && SEL.order === 'other' ? 'Other savings first, then TSP' : 'TSP first, then other savings');
   add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
   add('Monthly spending (today’s $)', fmt$(i.spendMo) + ' → ' + fmt$(i.spend70s) + ' (70s) → ' + fmt$(i.spend80s) + ' (80s) → ' + fmt$(i.spend90s) + ' (90+)' + (i.taxOn ? ', before taxes' : ', incl. taxes'));
-  for (const d of i.debts) add(d.label + ' debt', fmt$(d.bal) + ' at ' + fmt$(d.mo) + '/mo to ' + d.payoff);
-  for (const p of i.purchases) add('Planned: ' + p.what, fmt$(p.amt) + ' (today\'s $) in ' + p.year + (p.term === 0 ? ', cash' : ', borrow ' + p.term + ' yrs'));
+  const unesc = h => h.replace(/&quot;/g,'"').replace(/&gt;/g,'>').replace(/&lt;/g,'<').replace(/&amp;/g,'&');
+  for (const d of i.debts) add(unesc(d.label) + ' debt', fmt$(d.bal) + ' at ' + fmt$(d.mo) + '/mo to ' + d.payoff);
+  for (const p of i.purchases) add('Planned: ' + unesc(p.what), fmt$(p.amt) + ' (today\'s $) in ' + p.year + (p.term === 0 ? ', cash' : ', borrow ' + p.term + ' yrs'));
   if (i.sideInc > 0) add('Extra income', fmt$(i.sideInc) + '/yr through ' + i.sideUntil);
   if (i.wfAmt > 0) add('Expected windfall', fmt$(i.wfAmt) + ' in ' + i.wfYear);
   if (i.poLoan && i.poAmt > 0) add('Early payoff: ' + i.poLoan, fmt$(i.poAmt) + ' in ' + i.poYear + ' from ' + (i.poSource === 'tsp' ? 'TSP' : 'other savings'));
