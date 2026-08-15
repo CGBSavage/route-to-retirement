@@ -369,12 +369,25 @@
 
   <section class="card">
     <h2><span class="stepnum">4</span>Your spending</h2>
-    <p class="cardsub">Think about a normal month once you're retired: food, utilities, insurance, gas, fun. When in doubt, use what you spend now.</p>
+    <p class="cardsub">Nobody spends evenly through retirement — the early "go-go" years (travel, projects, grandkids) usually cost more than the quieter years later, when most of us stay closer to home and live more simply. Enter what a typical month looks like in each stretch, <b>in today's dollars</b> — the math converts everything to future dollars for you. Only the first box is required; leave any box blank to keep the same amount as the stretch before. <b>Don't count loan payments</b> — those go in step 5 so they can stop when a loan is paid off.</p>
     <div class="fields">
       <div class="field">
-        <label for="spendMo">Monthly spending in retirement</label>
+        <label for="spendMo">Monthly spending until age 70</label>
         <div class="inputrow"><span class="prefix">$</span><input id="spendMo" type="text" inputmode="numeric" placeholder="4,500"></div>
-        <div class="help">In today's dollars — we handle inflation for you. <b>Don't count loan payments here</b> — those go in step 5 so we can stop counting them when they're paid off.</div>
+        <div class="help">Usually your most active — and most expensive — years.</div>
+      </div>
+      <div class="field">
+        <label for="spend70s">In your 70s</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spend70s" type="text" inputmode="numeric" placeholder="same as before"></div>
+      </div>
+      <div class="field">
+        <label for="spend80s">In your 80s</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spend80s" type="text" inputmode="numeric" placeholder="same as before"></div>
+        <div class="help">Most people naturally slow down and spend less here.</div>
+      </div>
+      <div class="field">
+        <label for="spend90s">Age 90 and beyond</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spend90s" type="text" inputmode="numeric" placeholder="same as before"></div>
       </div>
     </div>
     <label class="spouse-toggle"><input type="checkbox" id="taxOn"><span>Take a rough stab at income taxes too</span></label>
@@ -713,6 +726,10 @@ function readInputs() {
     ss62: numOr('ss62', num('ssFRA') * 0.70),
     ss70: numOr('ss70', num('ssFRA') * 1.24),
     spendMo: num('spendMo'),
+    // later blocks fall back to the block before (today's dollars throughout)
+    spend70s: numOr('spend70s', num('spendMo')),
+    spend80s: numOr('spend80s', numOr('spend70s', num('spendMo'))),
+    spend90s: numOr('spend90s', numOr('spend80s', numOr('spend70s', num('spendMo')))),
     debts: readDebts(),
     sideInc: numOr('sideInc', 0), sideUntil: numOr('sideUntil', 0),
     wfAmt: numOr('wfAmt', 0), wfYear: numOr('wfYear', 0),
@@ -793,7 +810,9 @@ function simulate(inp, retireAge, claimAge) {
 
     const debtPay = working ? 0 : debtPayments(inp, year);
     const debtLeft = debtRemaining(inp, year);
-    const spending = working ? 0 : inp.spendMo * 12 * Math.pow(1 + inp.inflation, t) + debtPay;
+    // spending blocks are in today's dollars; inflate to this year's future dollars
+    const spendBase = age < 70 ? inp.spendMo : age < 80 ? inp.spend70s : age < 90 ? inp.spend80s : inp.spend90s;
+    const spending = working ? 0 : spendBase * 12 * Math.pow(1 + inp.inflation, t) + debtPay;
 
     const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
 
@@ -1167,7 +1186,11 @@ function renderAssumptions(cell) {
     'TSP: grows ' + (i.preRet*100).toFixed(1) + '%/yr while working (you ' + (i.empPct*100).toFixed(0) + '% + USPS ' + (agencyPct(i.empPct)*100).toFixed(1) + '%), ' +
       (i.postRet*100).toFixed(1) + '%/yr in retirement. Withdrawals only cover what pension, Social Security, and other income don\'t. Required minimum distributions start at 73.',
     'Other savings grow ' + (i.otherRet*100).toFixed(1) + '%/yr and are tapped after TSP; any yearly surplus gets saved back into them.',
-    'Spending starts at ' + fmt$(i.spendMo * 12) + '/yr in today\'s dollars and rises ' + (i.inflation*100).toFixed(1) + '%/yr with inflation.',
+    'Spending by stage of life, in today\'s dollars: ' + fmt$(i.spendMo) + '/mo until 70' +
+      (i.spend70s !== i.spendMo || i.spend80s !== i.spend70s || i.spend90s !== i.spend80s
+        ? ', ' + fmt$(i.spend70s) + '/mo in your 70s, ' + fmt$(i.spend80s) + '/mo in your 80s, ' + fmt$(i.spend90s) + '/mo from 90'
+        : ' and every stage after (no taper entered)') +
+      '. Each year\'s amount is converted to future dollars at ' + (i.inflation*100).toFixed(1) + '%/yr inflation.',
     i.debts.length
       ? 'Loans: ' + i.debts.map(d => d.label + ' ' + fmt$(d.mo) + '/mo through ' + d.payoff).join('; ') + '. Payments are added on top of spending until paid off; balances count against net worth.'
       : 'No loans or debts entered — spending is your monthly number alone.',
@@ -1206,11 +1229,12 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','high3','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','high3','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
 
 const SAVE_IDS = ['curAge','poStart','salary','high3','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
+                  'spend70s','spend80s','spend90s',
                   'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
                   'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource',
                   'spAge','spSS','spNow','spSSStart',
@@ -1255,7 +1279,7 @@ $('goBtn').addEventListener('click', () => {
     ['poStart', 'the year you started at the Post Office', v => v >= 1950 && v <= CUR_YEAR],
     ['salary', 'current pay', v => v > 0],
     ['ssFRA', 'Social Security at 67', v => v >= 0],
-    ['spendMo', 'monthly spending', v => v > 0]
+    ['spendMo', 'monthly spending (the first box)', v => v > 0]
   ];
   const yearOk = v => !isNaN(v) && v >= CUR_YEAR && v <= CUR_YEAR + 45;
   if (numOr('wfAmt', 0) > 0) required.push(['wfYear', 'the year you expect the windfall', yearOk]);
@@ -1308,7 +1332,7 @@ function buildPrintReport() {
   add('TSP contribution', (i.empPct*100).toFixed(0) + '% + ' + (agencyPct(i.empPct)*100).toFixed(1) + '% USPS');
   add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr)' : ''));
   add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
-  add('Monthly spending (today’s $)', fmt$(i.spendMo) + (i.taxOn ? ' before taxes' : ' incl. taxes'));
+  add('Monthly spending (today’s $)', fmt$(i.spendMo) + ' → ' + fmt$(i.spend70s) + ' (70s) → ' + fmt$(i.spend80s) + ' (80s) → ' + fmt$(i.spend90s) + ' (90+)' + (i.taxOn ? ', before taxes' : ', incl. taxes'));
   for (const d of i.debts) add(d.label + ' debt', fmt$(d.bal) + ' at ' + fmt$(d.mo) + '/mo to ' + d.payoff);
   if (i.sideInc > 0) add('Extra income', fmt$(i.sideInc) + '/yr through ' + i.sideUntil);
   if (i.wfAmt > 0) add('Expected windfall', fmt$(i.wfAmt) + ' in ' + i.wfYear);
