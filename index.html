@@ -214,6 +214,8 @@
 
   .scenario-title { font-size: 20px; font-weight: 600; margin: 4px 0 2px; }
   .scenario-sub { color: var(--ink-2); font-size: 15.5px; margin: 0 0 10px; }
+  .ordernote { background: var(--surface-2); border-left: 4px solid var(--accent); border-radius: 6px; padding: 8px 12px; }
+  .ordernote:empty { display: none; }
 
   figure.chart { margin: 8px 0 18px; }
   figure.chart svg { display: block; width: 100%; height: auto; }
@@ -349,7 +351,7 @@
       <div class="field">
         <label for="otherBal">Other savings &amp; investments</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherBal" type="text" inputmode="numeric" placeholder="20,000"></div>
-        <div class="help">Bank savings, IRAs, brokerage accounts — everything outside TSP. 0 is fine.</div>
+        <div class="help">Bank savings, Roth IRAs, brokerage accounts — everything outside TSP. 0 is fine. (Have a <b>traditional</b> IRA? Add it to your TSP balance instead — it's taxed the same way.)</div>
       </div>
       <div class="field">
         <label for="otherContrib">Added to those savings per year while you're still working</label>
@@ -357,6 +359,7 @@
         <div class="help">Only counts until you retire. After that, the plan works out on its own each year whether money is left over — and saves it for you.</div>
       </div>
     </div>
+    <p class="help" id="growthNote" style="font-size:14.5px;color:var(--muted);margin:-6px 0 16px">📈 Yes, growth is counted: we assume TSP earns <b id="gnPre">7</b>%/yr while you work and <b id="gnPost">4</b>%/yr once retired, and other savings earn <b id="gnOther">4</b>%/yr. <a href="#" id="gnLink">Change these</a> in the advanced settings.</p>
   </section>
 
   <section class="card">
@@ -412,7 +415,12 @@
         <div class="help">A rough flat rate. Leave 0 if your state doesn't tax retirement income — many don't.</div>
       </div>
       <div class="field">
-        <div class="help" style="margin-top:26px">With this on, enter your monthly spending <b>without</b> taxes — the tax bill gets added on top automatically. It's a ballpark, not a tax return.</div>
+        <label for="rothPct">Share of your other savings that's in a Roth IRA</label>
+        <div class="inputrow"><input id="rothPct" type="text" inputmode="decimal" value="0" class="has-suffix"><span class="suffix">%</span></div>
+        <div class="help">A rough guess is fine. Roth money grows and comes out tax-free; the rest (bank, brokerage) has its yearly growth taxed as interest. TSP withdrawals are always taxed.</div>
+      </div>
+      <div class="field">
+        <div class="help" style="margin-top:6px">With this on, enter your monthly spending <b>without</b> taxes — the tax bill gets added on top automatically. It's a ballpark, not a tax return.</div>
       </div>
     </div>
   </section>
@@ -571,6 +579,14 @@
         <div class="inputrow"><input id="otherRet" type="text" inputmode="decimal" value="4" class="has-suffix"><span class="suffix">% / yr</span></div>
       </div>
       <div class="field">
+        <label for="drawOrder">Which savings to spend first in retirement</label>
+        <select id="drawOrder">
+          <option value="tsp" selected>TSP first, then other savings (Roth last)</option>
+          <option value="other">Other savings first (Roth last), then TSP</option>
+        </select>
+        <div class="help">Required TSP withdrawals from age 73 happen either way. The plan below tells you how the other order would have turned out.</div>
+      </div>
+      <div class="field">
         <label for="inflation">Inflation (spending grows this fast)</label>
         <div class="inputrow"><input id="inflation" type="text" inputmode="decimal" value="2.5" class="has-suffix"><span class="suffix">% / yr</span></div>
       </div>
@@ -637,6 +653,7 @@
       <h2>How this plan plays out</h2>
       <p class="scenario-title" id="scnTitle"></p>
       <p class="scenario-sub" id="scnSub"></p>
+      <p class="scenario-sub ordernote" id="orderNote"></p>
 
       <figure class="chart">
         <div class="legendrow"><b style="font-family:Charter,Georgia,serif;font-size:17px;color:var(--ink)">Your savings over time</b><span id="balLegend" style="display:contents"></span></div>
@@ -834,7 +851,9 @@ function readInputs() {
     horizon: Math.max(80, Math.min(105, numOr('horizon', 95))),
     suppOverride: num('suppOverride'),  // NaN → auto
     taxOn: $('taxOn').checked,
-    stateRate: numOr('stateRate', 0) / 100
+    stateRate: numOr('stateRate', 0) / 100,
+    rothPct: Math.max(0, Math.min(100, numOr('rothPct', 0))) / 100,
+    drawOrder: $('drawOrder').value === 'other' ? 'other' : 'tsp'
   };
 }
 
@@ -890,12 +909,26 @@ function pensionInfo(inp, retireAge) {
   return { yosR, high3R, mult, gross, net: gross * (1 - inp.survivor), eligible, suppEligible, suppMo };
 }
 
-function simulate(inp, retireAge, claimAge) {
+// "Other savings" is tracked as two buckets: taxable (bank, brokerage — its yearly growth is
+// taxable interest when the tax estimate is on) and Roth (never taxed). Money leaves the
+// taxable bucket first and the Roth last, which is the usual advice. `order` picks whether
+// TSP or other savings is tapped first ('tsp' default); required minimum distributions
+// from TSP are always taken regardless.
+function simulate(inp, retireAge, claimAge, order) {
+  order = order || inp.drawOrder || 'tsp';
   const pen = pensionInfo(inp, retireAge);
   const ssAnnualAtClaim = ssMonthlyAt(inp, claimAge) * 12;
-  let tsp = inp.tspBal, other = inp.otherBal;
+  let tsp = inp.tspBal;
+  let roth = inp.otherBal * inp.rothPct, taxb = inp.otherBal - roth;
+  let other = taxb + roth;
   let runout = null;
   const rows = [];
+  // pull `amt` from taxable first, then Roth; returns what was actually taken
+  const takeOther = (amt) => {
+    const a = Math.min(amt, taxb); taxb -= a;
+    const b = Math.min(amt - a, roth); roth -= b;
+    return a + b;
+  };
 
   for (let age = inp.curAge; age <= inp.horizon; age++) {
     const t = age - inp.curAge;
@@ -931,56 +964,67 @@ function simulate(inp, retireAge, claimAge) {
       tspGrow = tsp * inp.preRet;
       tsp = tsp + tspIn + tspGrow;
       otherIn = inp.otherContrib + windfall;
-      other = other * (1 + inp.otherRet) + otherIn;
+      taxb = taxb * (1 + inp.otherRet) + inp.otherContrib * (1 - inp.rothPct) + windfall;
+      roth = roth * (1 + inp.otherRet) + inp.otherContrib * inp.rothPct;
       // a payoff during working years just leaves the account
       // (taxes on a working-year TSP payoff are NOT estimated — flagged in assumptions)
       if (payoffDue) {
         if (inp.poSource === 'tsp') { payoffOut = Math.min(payoffDue, tsp); tsp -= payoffOut; }
-        else { payoffOut = Math.min(payoffDue, other); other -= payoffOut; }
+        else payoffOut = takeOther(payoffDue);
       }
       // cash purchases while working come out of savings (other first, then TSP);
       // loan payments while working are covered by the paycheck, like all working-year costs
       if (purch.cash > 0) {
-        const fromOther = Math.min(purch.cash, other); other -= fromOther;
-        const rest = purch.cash - fromOther;
+        const rest = purch.cash - takeOther(purch.cash);
         if (rest > 0) tsp = Math.max(0, tsp - rest);
       }
+      other = taxb + roth;
     } else {
       tspGrow = tsp * inp.postRet;
-      const otherGrow = other * inp.otherRet;
+      const taxInterest = taxb * inp.otherRet;    // growth on the taxable bucket is taxable income
+      taxb = taxb * (1 + inp.otherRet) + windfall;
+      roth = roth * (1 + inp.otherRet);
       const guaranteed = supp + pension + mySS + spSS + spInc;
       const rmd = age >= 73 ? tsp / rmdDiv(age) : 0;
       // the payoff lump comes out of its account first; it counts toward the RMD
       // and (from TSP) toward taxable income
       const payoffTsp = (payoffDue && inp.poSource === 'tsp') ? Math.min(payoffDue, Math.max(0, tsp + tspGrow)) : 0;
-      const payoffOther = (payoffDue && inp.poSource !== 'tsp') ? Math.min(payoffDue, Math.max(0, other + otherGrow + windfall)) : 0;
+      const payoffOther = (payoffDue && inp.poSource !== 'tsp') ? takeOther(payoffDue) : 0;
       payoffOut = payoffTsp + payoffOther;
       const tspAvail = Math.max(0, tsp + tspGrow - payoffTsp);
-      const otherAvail = Math.max(0, other + otherGrow + windfall - payoffOther);
+      const otherAvail = taxb + roth;
+      const rmdNet = Math.max(0, rmd - payoffTsp);
+      // how much comes from each account for a given gap, honoring the draw order
+      const draw = (gap) => {
+        let tw, ow;
+        if (order === 'other') {
+          tw = Math.min(rmdNet, tspAvail);                       // forced RMD first
+          ow = Math.min(Math.max(0, gap - tw), otherAvail);
+          tw = Math.min(Math.max(tw, gap - ow), tspAvail);       // then TSP for what's left
+        } else {
+          tw = Math.min(Math.max(Math.max(0, gap), rmdNet), tspAvail);
+          ow = Math.min(Math.max(0, gap - tw), otherAvail);
+        }
+        return [tw, ow];
+      };
       // Taxes raise the amount needed, which raises TSP withdrawals, which raises
       // taxes — loop a few times until it settles (converges fast).
       for (let k = 0; k < 6; k++) {
-        const gap = spending + tax - guaranteed;
-        tspWd = Math.min(Math.max(Math.max(0, gap), rmd - payoffTsp), tspAvail);
-        otherWd = Math.min(Math.max(0, gap - tspWd), otherAvail);
+        [tspWd, otherWd] = draw(spending + tax - guaranteed);
         if (!inp.taxOn) break;
-        const newTax = estimateTax(inp, t, supp + pension + spInc + tspWd + payoffTsp, mySS + spSS);
+        const newTax = estimateTax(inp, t, supp + pension + spInc + tspWd + payoffTsp + taxInterest, mySS + spSS);
         if (Math.abs(newTax - tax) < 1) { tax = newTax; break; }
         tax = newTax;
       }
       // settle withdrawals against the final tax figure
       const gap = spending + tax - guaranteed;
-      tspWd = Math.min(Math.max(Math.max(0, gap), rmd - payoffTsp), tspAvail);
-      otherWd = Math.min(Math.max(0, gap - tspWd), otherAvail);
-      const remaining = gap - tspWd;
+      [tspWd, otherWd] = draw(gap);
       tsp = Math.max(0, tsp + tspGrow - tspWd - payoffTsp);
-      if (remaining > 0) {
-        shortfall = Math.max(0, remaining - otherWd);
-        other = Math.max(0, other + otherGrow + windfall - payoffOther - otherWd);
-      } else {
-        otherIn = -remaining;               // surplus (incl. excess RMD) is saved
-        other = other + otherGrow + windfall - payoffOther + otherIn;
-      }
+      takeOther(otherWd);
+      const remaining = gap - tspWd - otherWd;
+      if (remaining > 0) shortfall = remaining;
+      else { otherIn = -remaining; taxb += otherIn; }   // surplus (incl. excess RMD) is saved
+      other = taxb + roth;
       if (shortfall > 50 && runout === null) runout = age;
     }
 
@@ -988,9 +1032,9 @@ function simulate(inp, retireAge, claimAge) {
                 tspWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
                 saved: working ? 0 : otherIn,   // retired-year surplus reinvested into other savings
                 purchCash: purch.cash, purchPay: purch.pay,
-                tsp, other, total: tsp + other, netWorth: tsp + other - debtLeft });
+                tsp, other, roth, total: tsp + other, netWorth: tsp + other - debtLeft });
   }
-  return { rows, runout, endBal: tsp + other, pen,
+  return { rows, runout, endBal: tsp + other, pen, order,
            lastsTo: runout === null ? inp.horizon : runout,
            ok: runout === null, retireAge, claimAge };
 }
@@ -1104,7 +1148,36 @@ function selectScenario(cell) {
   $('scnSub').textContent = cell.ok
     ? bits.join(' · ') + ' — lasts past ' + INP.horizon + ' with ' + fmt$(cell.endBal) + ' left.'
     : bits.join(' · ') + ' — savings run out around age ' + cell.lastsTo + '.';
+  $('orderNote').innerHTML = orderComparison(cell);
   drawBalance(cell); drawIncome(cell); renderTable(cell); renderAssumptions(cell);
+}
+
+// Re-run the selected plan with the opposite draw order and say which comes out ahead.
+// (Roth money is always drawn last within "other savings" — that part isn't a choice here.)
+function orderComparison(cell) {
+  const alt = simulate(INP, cell.retireAge, cell.claimAge, cell.order === 'other' ? 'tsp' : 'other');
+  const name = o => o === 'other' ? 'other savings first, then TSP' : 'TSP first, then other savings';
+  const cur = name(cell.order), oth = name(alt.order);
+  const totTax = r => r.rows.reduce((a, x) => a + x.tax, 0);
+  const taxBit = INP.taxOn ? ' Lifetime taxes: ' + fmt$(totTax(cell)) + ' this way vs. ' + fmt$(totTax(alt)) + ' the other way.' : '';
+  let verdict;
+  if (cell.ok && alt.ok) {
+    const diff = alt.endBal - cell.endBal;
+    if (Math.abs(diff) < 1000) verdict = 'Drawing <b>' + oth + '</b> instead would come out about the same.';
+    else if (diff > 0) verdict = 'Drawing <b>' + oth + '</b> instead would leave about <b>' + fmt$(diff) + ' more</b> at ' + INP.horizon + '.';
+    else verdict = 'Drawing ' + oth + ' instead would leave about ' + fmt$(-diff) + ' <b>less</b> — your current order is the better one here.';
+  } else if (!cell.ok && alt.ok) {
+    verdict = 'Drawing <b>' + oth + '</b> instead would make this plan last past ' + INP.horizon + '.';
+  } else if (cell.ok && !alt.ok) {
+    verdict = 'Drawing ' + oth + ' instead would run out around age ' + alt.lastsTo + ' — your current order is the better one here.';
+  } else {
+    const d = alt.lastsTo - cell.lastsTo;
+    verdict = d > 0 ? 'Drawing <b>' + oth + '</b> instead would stretch the money about ' + d + ' more year' + (d > 1 ? 's' : '') + '.'
+            : d < 0 ? 'Drawing ' + oth + ' instead would run out sooner.' : 'Drawing ' + oth + ' instead would run out around the same age.';
+  }
+  return '<b>Withdrawal order:</b> this plan spends ' + cur + '. ' + verdict + taxBit +
+    (INP.taxOn ? '' : ' Turn on the tax estimate in step 4 to see how taxes change this.') +
+    ' You can switch the order in the advanced settings.';
 }
 
 /* ================= charts ================= */
@@ -1311,7 +1384,10 @@ function renderAssumptions(cell) {
     'Social Security at ' + cell.claimAge + ': ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo from your SSA estimates, then ' + (i.ssCola*100).toFixed(1) + '%/yr COLA after claiming.',
     'TSP: grows ' + (i.preRet*100).toFixed(1) + '%/yr while working (you ' + (i.empPct*100).toFixed(0) + '% + USPS ' + (agencyPct(i.empPct)*100).toFixed(1) + '%), ' +
       (i.postRet*100).toFixed(1) + '%/yr in retirement. Withdrawals only cover what pension, Social Security, and other income don\'t. Required minimum distributions start at 73.',
-    'Other savings grow ' + (i.otherRet*100).toFixed(1) + '%/yr and are tapped after TSP; any yearly surplus gets saved back into them.',
+    'Other savings grow ' + (i.otherRet*100).toFixed(1) + '%/yr' +
+      (i.rothPct > 0 ? ' (' + Math.round(i.rothPct*100) + '% treated as Roth — tax-free and drawn last; the rest as taxable, its growth counted as taxable interest' + (i.taxOn ? '' : ' when the tax estimate is on') + ')' : '') +
+      '. Withdrawal order: ' + (cell.order === 'other' ? 'other savings first, then TSP' : 'TSP first, then other savings') +
+      ' (required TSP withdrawals from 73 always happen). Any yearly surplus gets saved back into other savings.',
     'Spending by stage of life, in today\'s dollars: ' + fmt$(i.spendMo) + '/mo until 70' +
       (i.spend70s !== i.spendMo || i.spend80s !== i.spend70s || i.spend90s !== i.spend80s
         ? ', ' + fmt$(i.spend70s) + '/mo in your 70s, ' + fmt$(i.spend80s) + '/mo in your 80s, ' + fmt$(i.spend90s) + '/mo from 90'
@@ -1349,7 +1425,7 @@ function renderAssumptions(cell) {
     i.taxOn
       ? 'Taxes (rough estimate, filed ' + (i.hasSpouse ? 'jointly' : 'single') + '): pension, FERS supplement, TSP withdrawals, and extra income count as taxable; the IRS provisional-income formula decides how much of Social Security is taxed; minus the standard deduction (with the 65+ extra); then federal brackets' +
         (i.stateRate > 0 ? ' plus a flat ' + (i.stateRate*100).toFixed(1) + '% state rate' : ', no state tax') +
-        '. Brackets and deduction grow with inflation; other-savings withdrawals are treated as tax-free; working years are not taxed here (your paycheck already has withholding). A ballpark — not a tax return.'
+        '. Brackets and deduction grow with inflation. Other-savings withdrawals aren\'t taxed (Roth is tax-free; for the taxable part, only its yearly growth is taxed, as interest). Working years are not taxed here (your paycheck already has withholding). A ballpark — not a tax return.'
       : 'Taxes are not modeled — treat the spending number as what you need including taxes.',
     'Health insurance (FEHB) and Medicare premiums should be inside your spending number.',
     'The model plans for money to last to age ' + i.horizon + '.'
@@ -1375,7 +1451,8 @@ const SAVE_IDS = ['curAge','poStart','salary','high3','tspBal','tspPct','otherBa
                   'p3What','p3Amt','p3Year','p3How','p4What','p4Amt','p4Year','p4How','borrowRate',
                   'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource',
                   'spAge','spSS','spNow','spSSStart',
-                  'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate'];
+                  'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
+                  'rothPct','drawOrder'];
 function saveForm() {
   const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, purchRows };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
@@ -1414,6 +1491,19 @@ function syncPayoff() {
 }
 $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
+// step-2 note that mirrors the growth rates in advanced settings
+function syncGrowthNote() {
+  const show = (id, v, d) => { const n = parseFloat(String($(id).value).replace(/[,\s%]/g, '')); $(v).textContent = String(isNaN(n) ? d : n); };
+  show('preRet', 'gnPre', 7); show('postRet', 'gnPost', 4); show('otherRet', 'gnOther', 4);
+}
+['preRet', 'postRet', 'otherRet'].forEach(id => $(id).addEventListener('input', syncGrowthNote));
+$('gnLink').addEventListener('click', e => {
+  e.preventDefault();
+  const adv = document.querySelector('details.advanced');
+  adv.open = true;
+  $('preRet').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setTimeout(() => $('preRet').focus({ preventScroll: true }), 400);
+});
 $('addPurchRow').addEventListener('click', () => { const n = addPurchaseRow(); if (n) $('p' + n + 'What').focus(); });
 
 $('goBtn').addEventListener('click', () => {
@@ -1476,7 +1566,8 @@ function buildPrintReport() {
   add('High-3 average salary', fmt$(i.high3));
   add('TSP balance', fmt$(i.tspBal));
   add('TSP contribution', (i.empPct*100).toFixed(0) + '% + ' + (agencyPct(i.empPct)*100).toFixed(1) + '% USPS');
-  add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr while working)' : ''));
+  add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr while working)' : '') + (i.rothPct > 0 ? ', ' + Math.round(i.rothPct*100) + '% Roth' : ''));
+  add('Withdrawal order', SEL && SEL.order === 'other' ? 'Other savings first, then TSP' : 'TSP first, then other savings');
   add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
   add('Monthly spending (today’s $)', fmt$(i.spendMo) + ' → ' + fmt$(i.spend70s) + ' (70s) → ' + fmt$(i.spend80s) + ' (80s) → ' + fmt$(i.spend90s) + ' (90+)' + (i.taxOn ? ', before taxes' : ', incl. taxes'));
   for (const d of i.debts) add(d.label + ' debt', fmt$(d.bal) + ' at ' + fmt$(d.mo) + '/mo to ' + d.payoff);
@@ -1512,6 +1603,7 @@ function buildPrintReport() {
     '<p>FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' × ' + p.yosR.toFixed(1) + ' yrs = ' + fmt$(p.gross) + '/yr gross, ' + fmt$(p.net) + '/yr after survivor election. ' +
     (p.suppEligible ? 'FERS supplement ≈ ' + fmt$(p.suppMo) + '/mo until 62. ' : '') +
     'Social Security at ' + cell.claimAge + ' ≈ ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo.</p>' +
+    '<p>' + esc($('orderNote').textContent) + '</p>' +
     '<h2>Information provided</h2><div class="pr-facts">' + facts.join('') + '</div>' +
     '<h2>Every combination tested (age money lasts to)</h2>' + grid +
     '<h2>Savings over time — selected plan</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
@@ -1575,6 +1667,7 @@ $('printBtn').addEventListener('click', async () => {
 $('rvClose').addEventListener('click', () => { $('reportView').classList.remove('open'); });
 
 loadForm();
+syncGrowthNote();
 syncSpouseSS();
 syncPayoff();
 </script>
