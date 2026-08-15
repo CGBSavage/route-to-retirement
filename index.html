@@ -1,0 +1,1408 @@
+<title>Route to Retirement</title>
+<style>
+  /* ---------- tokens ---------- */
+  :root {
+    color-scheme: light;
+    --bg: #f3f4f6;
+    --surface: #fdfdfc;
+    --surface-2: #f7f8f9;
+    --ink: #16202b;
+    --ink-2: #4c5866;
+    --muted: #8a8f96;
+    --accent: #1f4e79;
+    --accent-ink: #ffffff;
+    --hairline: rgba(22,32,43,0.12);
+    --grid: #e3e2dc;
+    --baseline: #c3c2b7;
+    --series-1: #2a78d6;  /* pension */
+    --series-2: #eb6834;  /* social security */
+    --series-3: #1baf7a;  /* other income */
+    --series-4: #eda100;  /* savings withdrawals */
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --good-wash: rgba(12,163,12,0.13);
+    --warning-wash: rgba(250,178,25,0.18);
+    --serious-wash: rgba(236,131,90,0.20);
+    --critical-wash: rgba(208,59,59,0.16);
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 4px 16px rgba(22,32,43,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #101418;
+      --surface: #1a2027;
+      --surface-2: #151b21;
+      --ink: #eef1f4;
+      --ink-2: #b6bec7;
+      --muted: #8a8f96;
+      --accent: #6ea8dc;
+      --accent-ink: #0e1a26;
+      --hairline: rgba(255,255,255,0.14);
+      --grid: #2c2f33;
+      --baseline: #43474c;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --good-wash: rgba(12,163,12,0.22);
+      --warning-wash: rgba(250,178,25,0.20);
+      --serious-wash: rgba(236,131,90,0.22);
+      --critical-wash: rgba(208,59,59,0.26);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #101418;
+    --surface: #1a2027;
+    --surface-2: #151b21;
+    --ink: #eef1f4;
+    --ink-2: #b6bec7;
+    --muted: #8a8f96;
+    --accent: #6ea8dc;
+    --accent-ink: #0e1a26;
+    --hairline: rgba(255,255,255,0.14);
+    --grid: #2c2f33;
+    --baseline: #43474c;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --good-wash: rgba(12,163,12,0.22);
+    --warning-wash: rgba(250,178,25,0.20);
+    --serious-wash: rgba(236,131,90,0.22);
+    --critical-wash: rgba(208,59,59,0.26);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+  }
+
+  /* ---------- base ---------- */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+  }
+  h1, h2, h3 { font-family: Charter, Georgia, "Times New Roman", serif; text-wrap: balance; }
+  a { color: var(--accent); }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px 80px; }
+
+  header.hero { padding: 44px 0 8px; }
+  .brandline { display: flex; align-items: baseline; gap: 10px; }
+  .stamp {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); border: 1.5px solid var(--accent); border-radius: 4px;
+    padding: 2px 8px; white-space: nowrap;
+  }
+  h1 { font-size: clamp(34px, 6vw, 48px); margin: 10px 0 6px; line-height: 1.12; }
+  .tagline { font-size: clamp(18px, 3vw, 21px); color: var(--ink-2); margin: 0 0 14px; max-width: 34em; }
+  .privacy { font-size: 15px; color: var(--muted); margin: 0; }
+
+  /* ---------- cards & form ---------- */
+  section.card {
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 22px 22px 8px; margin-top: 22px;
+  }
+  section.card h2 { font-size: 24px; margin: 0 0 2px; }
+  .cardsub { color: var(--ink-2); font-size: 16px; margin: 0 0 18px; }
+  .stepnum {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    font-family: system-ui, sans-serif; font-size: 16px; font-weight: 700; margin-right: 10px;
+    vertical-align: -4px;
+  }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; padding-bottom: 16px; }
+  @media (max-width: 640px) { .fields { grid-template-columns: 1fr; } }
+  .field label { display: block; font-weight: 600; font-size: 16.5px; margin-bottom: 4px; }
+  .field .help { font-size: 14.5px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+  .inputrow { position: relative; display: flex; align-items: center; }
+  .inputrow .prefix, .inputrow .suffix {
+    position: absolute; color: var(--muted); font-size: 17px; pointer-events: none;
+  }
+  .inputrow .prefix { left: 12px; }
+  .inputrow .suffix { right: 12px; }
+  input[type="text"], select {
+    width: 100%; font-size: 19px; padding: 11px 12px; border-radius: 8px;
+    border: 1.5px solid var(--hairline); background: var(--surface-2); color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .inputrow .prefix + input { padding-left: 28px; }
+  .inputrow input.has-suffix { padding-right: 64px; }
+  input:focus-visible, select:focus-visible, button:focus-visible, .cell:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 1px;
+  }
+  input.bad { border-color: var(--critical); }
+  .ghostbtn {
+    background: none; border: 1.5px solid var(--accent); color: var(--accent);
+    font-size: 15px; font-weight: 600; padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .debtgrid {
+    display: grid; grid-template-columns: minmax(64px, auto) 1fr 1fr 1fr;
+    gap: 10px 10px; align-items: center; padding-bottom: 4px;
+  }
+  .debthead { font-size: 13.5px; font-weight: 600; color: var(--ink-2); line-height: 1.25; }
+  .debtlabel { font-weight: 600; font-size: 16px; }
+  .debtgrid input { font-size: 17px; padding: 9px 8px; }
+  .debtgrid .prefix { left: 8px; }
+  .debtgrid .prefix + input { padding-left: 22px; }
+  @media (max-width: 560px) {
+    .debtgrid { grid-template-columns: 56px 1fr 1fr 1fr; gap: 8px 6px; }
+    .debtgrid input { font-size: 15px; }
+  }
+  .spouse-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0 16px; font-size: 17px; }
+  .spouse-toggle input { width: 22px; height: 22px; margin-top: 3px; accent-color: var(--accent); }
+  details.advanced { margin-top: 22px; border: 1px dashed var(--hairline); border-radius: 12px; padding: 4px 18px; background: none; }
+  details.advanced summary { cursor: pointer; font-weight: 600; padding: 12px 0; font-size: 17px; color: var(--ink-2); }
+  details.advanced .fields { padding-top: 12px; }
+
+  .gobar { margin: 28px 0 8px; text-align: center; }
+  #goBtn {
+    font-size: 21px; font-weight: 700; padding: 16px 36px; border-radius: 12px; border: none;
+    background: var(--accent); color: var(--accent-ink); cursor: pointer; box-shadow: var(--shadow);
+  }
+  #goBtn:active { transform: translateY(1px); }
+  .goerr { color: var(--critical); font-weight: 600; margin-top: 10px; min-height: 1.4em; }
+
+  /* ---------- results ---------- */
+  #results { display: none; }
+  .verdict {
+    border-left: 6px solid var(--good); border-radius: 12px; background: var(--surface);
+    box-shadow: var(--shadow); border-top: 1px solid var(--hairline); border-right: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+    padding: 20px 22px; margin-top: 26px;
+  }
+  .verdict.bad { border-left-color: var(--critical); }
+  .verdict h2 { margin: 0 0 6px; font-size: 26px; }
+  .verdict p { margin: 6px 0; font-size: 17.5px; }
+  .verdict .big { font-size: 19px; }
+
+  .gridwrap { overflow-x: auto; padding-bottom: 6px; }
+  table.matrix { border-collapse: separate; border-spacing: 4px; margin: 6px auto 0; }
+  table.matrix th { font-size: 14.5px; font-weight: 600; color: var(--ink-2); padding: 4px 6px; }
+  table.matrix th.rowhead { text-align: right; white-space: nowrap; }
+  table.matrix .corner { font-size: 13.5px; color: var(--muted); text-align: right; font-weight: 400; max-width: 130px; }
+  .cell {
+    min-width: 54px; height: 46px; border-radius: 8px; border: none;
+    font-size: 15.5px; font-weight: 600; color: var(--ink); cursor: pointer;
+    font-variant-numeric: tabular-nums; font-family: inherit; width: 100%;
+  }
+  .cell.sel { outline: 3px solid var(--accent); outline-offset: 0; }
+  .cell.na { background: var(--surface-2); color: var(--muted); cursor: help; font-weight: 400; }
+  .cell.ok { background: var(--good-wash); }
+  .cell.warn { background: var(--warning-wash); }
+  .cell.serious { background: var(--serious-wash); }
+  .cell.crit { background: var(--critical-wash); }
+  .gridlegend { display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: center; margin-top: 14px; font-size: 14.5px; color: var(--ink-2); padding-bottom: 14px; }
+  .gridlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .chip { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+  .scenario-title { font-size: 20px; font-weight: 600; margin: 4px 0 2px; }
+  .scenario-sub { color: var(--ink-2); font-size: 15.5px; margin: 0 0 10px; }
+
+  figure.chart { margin: 8px 0 18px; }
+  figure.chart svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 14.5px; color: var(--muted); margin-top: 4px; }
+  .legendrow { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; color: var(--ink-2); margin: 2px 0 8px; }
+  .legendrow span { display: inline-flex; align-items: center; gap: 6px; }
+
+  .viztip {
+    position: fixed; z-index: 30; pointer-events: none; display: none;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--hairline);
+    border-radius: 8px; box-shadow: var(--shadow); padding: 8px 11px; font-size: 14px; line-height: 1.45;
+    max-width: 260px;
+  }
+  .viztip b { font-variant-numeric: tabular-nums; }
+
+  details.yeartable, details.assumptions { margin: 6px 0 16px; border-top: 1px solid var(--hairline); }
+  details.yeartable summary, details.assumptions summary { cursor: pointer; font-weight: 600; padding: 12px 0; }
+  .tablewrap { overflow-x: auto; }
+  table.years { border-collapse: collapse; font-size: 14.5px; width: 100%; min-width: 640px; }
+  table.years th { text-align: right; font-weight: 600; color: var(--ink-2); border-bottom: 1.5px solid var(--baseline); padding: 6px 8px; }
+  table.years td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  table.years th:first-child, table.years td:first-child { text-align: left; }
+  table.years tr.short td { color: var(--critical); font-weight: 600; }
+  .assumptions ul { font-size: 15.5px; color: var(--ink-2); line-height: 1.7; padding-left: 22px; }
+
+  footer.fine { margin-top: 40px; font-size: 14.5px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--hairline); padding-top: 18px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* ---------- on-screen report view (for embedded/shared pages that can't print) ---------- */
+  #reportView {
+    display: none; position: fixed; inset: 0; background: #fff; z-index: 50; overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    --ink: #000; --ink-2: #333; --muted: #555; --grid: #ddd; --baseline: #999;
+    --surface: #fff; --surface-2: #f3f3f3; --hairline: #bbb;
+    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; --critical: #b00020;
+  }
+  #reportView.open { display: block; }
+  #reportView .rv-bar {
+    position: sticky; top: 0; z-index: 2; background: #1f4e79; color: #fff;
+    padding: 10px 14px; display: flex; gap: 10px; justify-content: space-between; align-items: center; font-size: 13.5px; line-height: 1.35;
+  }
+  #reportView .rv-bar button { font-size: 15px; font-weight: 700; border: none; border-radius: 8px; padding: 8px 16px; background: #fff; color: #1f4e79; cursor: pointer; flex-shrink: 0; }
+  #reportView .rv-body { max-width: 820px; margin: 0 auto; padding: 16px 16px 48px; font-size: 13.5px; line-height: 1.5; color: #000; }
+  #reportView h1 { font-family: Charter, Georgia, serif; font-size: 24px; margin: 0; color: #000; }
+  #reportView h2 { font-family: Charter, Georgia, serif; font-size: 16px; margin: 18px 0 6px; padding-bottom: 2px; border-bottom: 1.5px solid #999; color: #000; }
+  #reportView p { margin: 4px 0; color: #000; }
+  #reportView .pr-sub { color: #444; font-size: 12px; margin: 2px 0 14px; }
+  #reportView table { border-collapse: collapse; width: 100%; font-size: 11px; font-variant-numeric: tabular-nums; color: #000; }
+  #reportView th, #reportView td { border: 1px solid #ccc; padding: 3px 5px; text-align: right; color: #000; }
+  #reportView th:first-child, #reportView td:first-child { text-align: left; }
+  #reportView .pr-facts { columns: 2; column-gap: 28px; font-size: 12.5px; }
+  #reportView .pr-facts div { break-inside: avoid; display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted #ddd; padding: 2px 0; }
+  #reportView .pr-facts b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #reportView ul { font-size: 12px; padding-left: 18px; margin: 4px 0; }
+  #reportView svg { width: 100%; height: auto; }
+  #reportView .pr-fine { font-size: 11px; color: #444; border-top: 1px solid #999; margin-top: 12px; padding-top: 6px; }
+
+  /* ---------- printable report ---------- */
+  #printReport { display: none; }
+  @media print {
+    :root, :root[data-theme="dark"] {
+      --bg: #fff; --surface: #fff; --surface-2: #f3f3f3; --ink: #000; --ink-2: #333;
+      --muted: #555; --hairline: #bbb; --grid: #ddd; --baseline: #999;
+    }
+    body { background: #fff; font-size: 12px; }
+    .wrap, .viztip { display: none !important; }
+    #printReport { display: block; color: #000; padding: 0 4px; }
+    #printReport h1 { font-size: 22px; margin: 0; }
+    #printReport .pr-sub { color: #444; margin: 2px 0 14px; font-size: 12px; }
+    #printReport h2 { font-size: 15px; margin: 16px 0 6px; padding-bottom: 2px; border-bottom: 1.5px solid #999; page-break-after: avoid; }
+    #printReport p { margin: 4px 0; }
+    #printReport table { border-collapse: collapse; width: 100%; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+    #printReport th, #printReport td { border: 1px solid #ccc; padding: 3px 5px; text-align: right; }
+    #printReport th:first-child, #printReport td:first-child { text-align: left; }
+    #printReport tr { page-break-inside: avoid; }
+    #printReport .pr-facts { columns: 2; column-gap: 28px; font-size: 11.5px; }
+    #printReport .pr-facts div { break-inside: avoid; padding: 1.5px 0; display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted #ddd; }
+    #printReport .pr-facts b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    #printReport ul { font-size: 11px; margin: 4px 0; padding-left: 18px; }
+    #printReport li { margin-bottom: 2px; }
+    #printReport svg { width: 100%; height: auto; }
+    #printReport .pr-fine { font-size: 10px; color: #444; margin-top: 12px; border-top: 1px solid #999; padding-top: 6px; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="brandline"><span class="stamp">For letter carriers &amp; USPS employees</span></div>
+    <h1>Route to Retirement</h1>
+    <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
+    <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere.</p>
+  </header>
+
+  <section class="card">
+    <h2><span class="stepnum">1</span>About you</h2>
+    <p class="cardsub">Your basic USPS work history. Your High-3 salary is on your latest annuity estimate from LiteBlue or HR.</p>
+    <div class="fields">
+      <div class="field">
+        <label for="curAge">Your age today</label>
+        <div class="inputrow"><input id="curAge" type="text" inputmode="numeric" placeholder="60"><span class="suffix">years</span></div>
+      </div>
+      <div class="field">
+        <label for="poStart">The year you started at the Post Office</label>
+        <div class="inputrow"><input id="poStart" type="text" inputmode="numeric" placeholder="1998"></div>
+        <div class="help">If you bought back military time, move the year back by those years (4 years of service credit = enter a year 4 earlier).</div>
+      </div>
+      <div class="field">
+        <label for="salary">Current annual pay (before taxes)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="salary" type="text" inputmode="numeric" placeholder="68,000"></div>
+      </div>
+      <div class="field">
+        <label for="high3">High-3 average salary</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="high3" type="text" inputmode="numeric" placeholder="65,000"></div>
+        <div class="help">The average of your highest-paid 3 years in a row — usually your last 3. Not sure? Use your current pay; it's close.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="stepnum">2</span>Your savings</h2>
+    <p class="cardsub">Your TSP balance is at <b>tsp.gov</b> or on your quarterly statement.</p>
+    <div class="fields">
+      <div class="field">
+        <label for="tspBal">TSP balance today</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="tspBal" type="text" inputmode="numeric" placeholder="250,000"></div>
+      </div>
+      <div class="field">
+        <label for="tspPct">How much of your pay goes into TSP</label>
+        <div class="inputrow"><input id="tspPct" type="text" inputmode="decimal" value="5" class="has-suffix"><span class="suffix">%</span></div>
+        <div class="help">USPS adds up to 5% more on top when you put in at least 5%.</div>
+      </div>
+      <div class="field">
+        <label for="otherBal">Other savings &amp; investments</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="otherBal" type="text" inputmode="numeric" placeholder="20,000"></div>
+        <div class="help">Bank savings, IRAs, brokerage accounts — everything outside TSP. 0 is fine.</div>
+      </div>
+      <div class="field">
+        <label for="otherContrib">Added to those savings per year</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="otherContrib" type="text" inputmode="numeric" value="0"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="stepnum">3</span>Your Social Security</h2>
+    <p class="cardsub">Log in at <b>ssa.gov/myaccount</b> and open your Statement. It lists your estimated monthly benefit at different ages.</p>
+    <div class="fields">
+      <div class="field">
+        <label for="ssFRA">Monthly benefit at age 67</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="ssFRA" type="text" inputmode="numeric" placeholder="2,200"></div>
+        <div class="help">Age 67 is "full retirement age" for anyone born in 1960 or later.</div>
+      </div>
+      <div class="field">
+        <label for="ss62">Monthly benefit at age 62</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="ss62" type="text" inputmode="numeric" placeholder="1,540"></div>
+        <div class="help">Leave blank and we'll estimate it (about 70% of the age-67 amount).</div>
+      </div>
+      <div class="field">
+        <label for="ss70">Monthly benefit at age 70</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="ss70" type="text" inputmode="numeric" placeholder="2,730"></div>
+        <div class="help">Leave blank and we'll estimate it (about 124% of the age-67 amount).</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="stepnum">4</span>Your spending</h2>
+    <p class="cardsub">Think about a normal month once you're retired: food, utilities, insurance, gas, fun. When in doubt, use what you spend now.</p>
+    <div class="fields">
+      <div class="field">
+        <label for="spendMo">Monthly spending in retirement</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spendMo" type="text" inputmode="numeric" placeholder="4,500"></div>
+        <div class="help">In today's dollars — we handle inflation for you. <b>Don't count loan payments here</b> — those go in step 5 so we can stop counting them when they're paid off.</div>
+      </div>
+    </div>
+    <label class="spouse-toggle"><input type="checkbox" id="taxOn"><span>Take a rough stab at income taxes too</span></label>
+    <div class="fields" id="taxFields" style="display:none">
+      <div class="field">
+        <label for="stateRate">State income tax rate</label>
+        <div class="inputrow"><input id="stateRate" type="text" inputmode="decimal" value="0" class="has-suffix"><span class="suffix">%</span></div>
+        <div class="help">A rough flat rate. Leave 0 if your state doesn't tax retirement income — many don't.</div>
+      </div>
+      <div class="field">
+        <div class="help" style="margin-top:26px">With this on, enter your monthly spending <b>without</b> taxes — the tax bill gets added on top automatically. It's a ballpark, not a tax return.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="stepnum">5</span>What you owe</h2>
+    <p class="cardsub">Loans you're still paying on. We add the payments to your spending until each one is paid off, and subtract what's owed when we show your net worth. Leave rows blank if they don't apply.</p>
+    <div class="debtgrid">
+      <span></span>
+      <span class="debthead">Amount still owed</span>
+      <span class="debthead">Monthly payment</span>
+      <span class="debthead">Paid off in (year)</span>
+
+      <span class="debtlabel">Home</span>
+      <div class="inputrow"><span class="prefix">$</span><input id="debtHomeBal" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><span class="prefix">$</span><input id="debtHomeMo" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><input id="debtHomeYear" type="text" inputmode="numeric" placeholder="auto"></div>
+
+      <span class="debtlabel">Cars</span>
+      <div class="inputrow"><span class="prefix">$</span><input id="debtCarBal" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><span class="prefix">$</span><input id="debtCarMo" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><input id="debtCarYear" type="text" inputmode="numeric" placeholder="auto"></div>
+
+      <span class="debtlabel">Other debt</span>
+      <div class="inputrow"><span class="prefix">$</span><input id="debtOtherBal" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><span class="prefix">$</span><input id="debtOtherMo" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="inputrow"><input id="debtOtherYear" type="text" inputmode="numeric" placeholder="auto"></div>
+    </div>
+    <p class="help" style="font-size:14.5px;color:var(--muted);margin:10px 0 4px">Credit cards, personal loans, family loans — anything with a monthly payment. Leave the year blank and we'll estimate it from the balance and payment.</p>
+    <div class="fields" style="margin-top:10px">
+      <div class="field">
+        <label for="poLoan">Pay one off early, all at once?</label>
+        <select id="poLoan">
+          <option value="" selected>No</option>
+          <option value="Home">Yes — the home loan</option>
+          <option value="Cars">Yes — the car loan(s)</option>
+          <option value="Other debt">Yes — the other debt</option>
+        </select>
+      </div>
+      <div class="field po-dep" style="display:none">
+        <label for="poAmt">Payoff amount</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="poAmt" type="text" inputmode="numeric" placeholder="60,000"></div>
+        <div class="help">What it will take to close it out on that date.</div>
+      </div>
+      <div class="field po-dep" style="display:none">
+        <label for="poYear">In the year</label>
+        <div class="inputrow"><input id="poYear" type="text" inputmode="numeric" placeholder="2028"></div>
+        <div class="help">The monthly payment stops starting this year.</div>
+      </div>
+      <div class="field po-dep" style="display:none">
+        <label for="poSource">Where the money comes from</label>
+        <select id="poSource">
+          <option value="other" selected>Other savings</option>
+          <option value="tsp">TSP</option>
+        </select>
+        <div class="help">A big TSP withdrawal is taxable income — turn on the tax estimate in step 4 to see that bite counted, and check with a tax pro first. If a windfall is paying for it, enter the windfall in step 6 and pick "other savings" here.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="stepnum">6</span>Extra income</h2>
+    <p class="cardsub">Side work, self-employment, rental income — money the two of you expect to keep earning in retirement. Skip it if there's none.</p>
+    <div class="fields">
+      <div class="field">
+        <label for="sideInc">Extra income per year (household)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="sideInc" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Before taxes. Yours, your spouse's, or both together.</div>
+      </div>
+      <div class="field">
+        <label for="sideUntil">Coming in until the year</label>
+        <div class="inputrow"><input id="sideUntil" type="text" inputmode="numeric" placeholder="2032"></div>
+      </div>
+      <div class="field">
+        <label for="wfAmt">One-time windfall or inheritance</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="wfAmt" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Money you expect to receive once — an inheritance, a property sale, a settlement. It gets added to your savings in the year you pick. Leave 0 if none.</div>
+      </div>
+      <div class="field">
+        <label for="wfYear">Year you expect it</label>
+        <div class="inputrow"><input id="wfYear" type="text" inputmode="numeric" placeholder="2030"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="stepnum">7</span>Spouse or partner</h2>
+    <label class="spouse-toggle"><input type="checkbox" id="hasSpouse"><span>Include a spouse or partner's Social Security in the plan</span></label>
+    <div class="fields" id="spouseFields" style="display:none">
+      <div class="field">
+        <label for="spAge">Their age today</label>
+        <div class="inputrow"><input id="spAge" type="text" inputmode="numeric" placeholder="63"><span class="suffix">years</span></div>
+      </div>
+      <div class="field">
+        <label for="spNow">Are they getting Social Security now?</label>
+        <select id="spNow">
+          <option value="yes" selected>Yes — already drawing</option>
+          <option value="no">Not yet</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="spSS" id="spSSLabel">Their monthly check</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spSS" type="text" inputmode="numeric" value="0"></div>
+        <div class="help" id="spSSHelp">The amount they get each month. Enter 0 if they won't get Social Security.</div>
+      </div>
+      <div class="field" id="spStartWrap" style="display:none">
+        <label for="spSSStart">Age they plan to start</label>
+        <div class="inputrow"><input id="spSSStart" type="text" inputmode="numeric" value="62"><span class="suffix">years</span></div>
+        <div class="help">Any age from 62 to 70.</div>
+      </div>
+    </div>
+  </section>
+
+  <details class="advanced">
+    <summary>Advanced settings — fine if you never touch these</summary>
+    <div class="fields">
+      <div class="field">
+        <label for="preRet">TSP yearly growth while working</label>
+        <div class="inputrow"><input id="preRet" type="text" inputmode="decimal" value="7" class="has-suffix"><span class="suffix">% / yr</span></div>
+      </div>
+      <div class="field">
+        <label for="postRet">TSP yearly growth once retired</label>
+        <div class="inputrow"><input id="postRet" type="text" inputmode="decimal" value="4" class="has-suffix"><span class="suffix">% / yr</span></div>
+      </div>
+      <div class="field">
+        <label for="otherRet">Other savings yearly growth</label>
+        <div class="inputrow"><input id="otherRet" type="text" inputmode="decimal" value="4" class="has-suffix"><span class="suffix">% / yr</span></div>
+      </div>
+      <div class="field">
+        <label for="inflation">Inflation (spending grows this fast)</label>
+        <div class="inputrow"><input id="inflation" type="text" inputmode="decimal" value="2.5" class="has-suffix"><span class="suffix">% / yr</span></div>
+      </div>
+      <div class="field">
+        <label for="ssCola">Social Security yearly raise (COLA)</label>
+        <div class="inputrow"><input id="ssCola" type="text" inputmode="decimal" value="2.5" class="has-suffix"><span class="suffix">% / yr</span></div>
+      </div>
+      <div class="field">
+        <label for="fersCola">FERS pension yearly raise (from 62)</label>
+        <div class="inputrow"><input id="fersCola" type="text" inputmode="decimal" value="2" class="has-suffix"><span class="suffix">% / yr</span></div>
+      </div>
+      <div class="field">
+        <label for="salGrowth">Yearly pay raises until you retire</label>
+        <div class="inputrow"><input id="salGrowth" type="text" inputmode="decimal" value="2" class="has-suffix"><span class="suffix">% / yr</span></div>
+      </div>
+      <div class="field">
+        <label for="survivor">Survivor benefit for your spouse</label>
+        <select id="survivor">
+          <option value="0.10" selected>Full — spouse gets 50% if you die (costs 10% of pension)</option>
+          <option value="0.05">Partial — spouse gets 25% (costs 5%)</option>
+          <option value="0">None — biggest pension, nothing for spouse</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="horizon">Plan for money to last to age</label>
+        <div class="inputrow"><input id="horizon" type="text" inputmode="numeric" value="95"><span class="suffix">years</span></div>
+        <div class="help">95 is a safe planning target — many of us get there.</div>
+      </div>
+      <div class="field">
+        <label for="suppOverride">FERS supplement, monthly (optional)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="suppOverride" type="text" inputmode="numeric" placeholder="auto"></div>
+        <div class="help">Leave blank to auto-estimate: age-62 benefit × years of service ÷ 40.</div>
+      </div>
+    </div>
+  </details>
+
+  <div class="gobar">
+    <button id="goBtn">Show me my plan</button>
+    <div class="goerr" id="goErr"></div>
+  </div>
+
+  <div id="results">
+    <div class="verdict" id="verdict"></div>
+
+    <section class="card">
+      <h2>Pick your combination</h2>
+      <p class="cardsub">Each box tries one plan: retire at the age on the left, start Social Security at the age on top. The number is how long your money lasts. <b>Tap any box</b> to see its details below.</p>
+      <div class="gridwrap" id="gridwrap"></div>
+      <div class="gridlegend">
+        <span><span class="chip" style="background:var(--good-wash)"></span>✓ Lasts to <span id="legendHorizon">95</span>+</span>
+        <span><span class="chip" style="background:var(--warning-wash)"></span>Runs out at 90+</span>
+        <span><span class="chip" style="background:var(--serious-wash)"></span>Runs out in your 80s</span>
+        <span><span class="chip" style="background:var(--critical-wash)"></span>Runs out before 80</span>
+        <span><span class="chip" style="background:var(--surface-2);border:1px solid var(--hairline)"></span>— Not eligible / not advised</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>How this plan plays out</h2>
+      <p class="scenario-title" id="scnTitle"></p>
+      <p class="scenario-sub" id="scnSub"></p>
+
+      <figure class="chart">
+        <div class="legendrow"><b style="font-family:Charter,Georgia,serif;font-size:17px;color:var(--ink)">Your savings over time</b><span id="balLegend" style="display:contents"></span></div>
+        <svg id="balChart" viewBox="0 0 840 320" role="img" aria-label="Line chart of total savings balance and net worth by age"></svg>
+        <figcaption id="balCaption">TSP + other savings at the end of each year. Hover or tap for details.</figcaption>
+      </figure>
+
+      <figure class="chart">
+        <div class="legendrow" style="margin-bottom:2px"><b style="font-family:Charter,Georgia,serif;font-size:17px;color:var(--ink)">Where each retirement year's money comes from</b></div>
+        <div class="legendrow" id="incLegend"></div>
+        <svg id="incChart" viewBox="0 0 840 340" role="img" aria-label="Stacked bars of income sources by age with spending line"></svg>
+        <figcaption>Bars are income; the dark line is your spending (rising with inflation).</figcaption>
+      </figure>
+
+      <details class="yeartable">
+        <summary>Year-by-year numbers (table)</summary>
+        <div class="tablewrap"><table class="years" id="yearTable"></table></div>
+      </details>
+
+      <details class="assumptions">
+        <summary>What this plan assumes</summary>
+        <ul id="assumpList"></ul>
+      </details>
+    </section>
+
+    <div class="gobar" style="margin-top:10px">
+      <button id="printBtn" class="ghostbtn" style="font-size:17px;padding:12px 22px">🖨️ Print a report to take to a financial planner</button>
+      <div class="goerr" id="printNote" style="color:var(--ink-2);font-weight:400"></div>
+    </div>
+
+    <footer class="fine">
+      <p><b>Please read:</b> This is an educational estimate, not financial, tax, or investment advice, and it can't see your whole picture (health insurance, taxes, FEHB, Medicare, sick-leave credit, market swings). Before you file anything, confirm your pension numbers with an official annuity estimate from HR/OPM, your Social Security numbers at ssa.gov, and talk it over with a fee-only financial planner if you can.</p>
+      <p>Not affiliated with, or endorsed by, the U.S. Postal Service, OPM, or the Social Security Administration. Your entries are saved only in this browser so they're here when you come back.</p>
+    </footer>
+  </div>
+</div>
+
+<div class="viztip" id="viztip"></div>
+<div id="printReport" aria-hidden="true"></div>
+<div id="reportView" role="dialog" aria-label="Planner report">
+  <div class="rv-bar">
+    <span>Your report — this shared page can't open a print window, so read or screenshot it here. To print on paper, use the app file copy.</span>
+    <button id="rvClose">Close</button>
+  </div>
+  <div class="rv-body" id="rvBody"></div>
+</div>
+
+<script>
+'use strict';
+/* ================= helpers ================= */
+const $ = id => document.getElementById(id);
+const fmt$ = n => (n < 0 ? '-$' : '$') + Math.round(Math.abs(n)).toLocaleString('en-US');
+const fmtK = n => {
+  const a = Math.abs(n);
+  if (a >= 1e6) return '$' + (n/1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M';
+  if (a >= 1e3) return '$' + Math.round(n/1e3) + 'K';
+  return '$' + Math.round(n);
+};
+const num = id => {
+  const v = String($(id).value).replace(/[$,%\s]/g, '');
+  return v === '' ? NaN : parseFloat(v);
+};
+const numOr = (id, d) => { const v = num(id); return isNaN(v) ? d : v; };
+
+// IRS Uniform Lifetime Table (SECURE 2.0), ages 73–100; clamp beyond.
+const RMD = {73:26.5,74:25.5,75:24.6,76:23.7,77:22.9,78:22.0,79:21.1,80:20.2,81:19.4,82:18.5,83:17.7,84:16.8,85:16.0,86:15.2,87:14.4,88:13.7,89:12.9,90:12.2,91:11.5,92:10.8,93:10.1,94:9.5,95:8.9,96:8.4,97:7.8,98:7.3,99:6.8,100:6.4};
+const rmdDiv = age => age < 73 ? Infinity : (RMD[Math.min(age,100)]);
+
+// USPS/FERS agency TSP contribution: 1% automatic + 100% match on first 3% + 50% on next 2%.
+const agencyPct = emp => 0.01 + Math.min(emp, 0.03) + 0.5 * Math.max(0, Math.min(emp, 0.05) - 0.03);
+
+const CUR_YEAR = new Date().getFullYear();
+const FRA = 67;
+
+/* Rough federal tax tables (2026-era; thresholds and deduction are inflated
+   forward each projection year). SS provisional-income thresholds are NOT
+   indexed — that matches the actual law. */
+const FED = {
+  single: { ded: 16100, extra: 2050, t1: 25000, t2: 34000,
+    brackets: [[12400,.10],[50400,.12],[105700,.22],[201775,.24],[256225,.32],[640600,.35],[Infinity,.37]] },
+  mfj: { ded: 32200, extra: 1650, t1: 32000, t2: 44000,
+    brackets: [[24800,.10],[100800,.12],[211400,.22],[403550,.24],[512450,.32],[768700,.35],[Infinity,.37]] }
+};
+function estimateTax(inp, t, ordIncome, ssTotal) {
+  const f = inp.hasSpouse ? FED.mfj : FED.single;
+  const infl = Math.pow(1 + inp.inflation, t);
+  let taxSS = 0;
+  if (ssTotal > 0) {
+    const prov = ordIncome + 0.5 * ssTotal;
+    if (prov > f.t2) taxSS = Math.min(0.85 * ssTotal, 0.85 * (prov - f.t2) + Math.min(0.5 * (f.t2 - f.t1), 0.5 * ssTotal));
+    else if (prov > f.t1) taxSS = Math.min(0.5 * (prov - f.t1), 0.5 * ssTotal);
+  }
+  const myAge = inp.curAge + t;
+  let ded = f.ded + (myAge >= 65 ? f.extra : 0) + (inp.hasSpouse && inp.spAge + t >= 65 ? f.extra : 0);
+  ded *= infl;
+  const taxable = Math.max(0, ordIncome + taxSS - ded);
+  let tax = 0, lo = 0;
+  for (const [cap, rate] of f.brackets) {
+    const c = cap === Infinity ? Infinity : cap * infl;
+    tax += (Math.min(taxable, c) - lo) * rate;
+    if (taxable <= c) break;
+    lo = c;
+  }
+  return tax + taxable * inp.stateRate;
+}
+
+/* ================= the engine =================
+   A direct port of the workbook's PROJECTIONS sheet, run once per
+   (retireAge, claimAge) pair. Annual steps. */
+function readDebts() {
+  const rows = [['debtHomeBal','debtHomeMo','debtHomeYear','Home'],
+                ['debtCarBal','debtCarMo','debtCarYear','Cars'],
+                ['debtOtherBal','debtOtherMo','debtOtherYear','Other debt']];
+  const out = [];
+  for (const [b, m, y, label] of rows) {
+    const bal = numOr(b, 0), mo = numOr(m, 0);
+    if (bal <= 0 && mo <= 0) continue;
+    let payoff = num(y);
+    if (isNaN(payoff)) payoff = mo > 0 ? CUR_YEAR + Math.ceil(bal / (mo * 12)) : CUR_YEAR;
+    payoff = Math.max(CUR_YEAR, Math.min(CUR_YEAR + 40, payoff));
+    out.push({ label, bal, mo, payoff });
+  }
+  return out;
+}
+
+function readInputs() {
+  return {
+    curAge: num('curAge'),
+    yos: CUR_YEAR - num('poStart'),
+    salary: num('salary'),
+    high3: numOr('high3', num('salary')),
+    tspBal: numOr('tspBal', 0), empPct: numOr('tspPct', 5) / 100,
+    otherBal: numOr('otherBal', 0), otherContrib: numOr('otherContrib', 0),
+    ssFRA: num('ssFRA'),
+    ss62: numOr('ss62', num('ssFRA') * 0.70),
+    ss70: numOr('ss70', num('ssFRA') * 1.24),
+    spendMo: num('spendMo'),
+    debts: readDebts(),
+    sideInc: numOr('sideInc', 0), sideUntil: numOr('sideUntil', 0),
+    wfAmt: numOr('wfAmt', 0), wfYear: numOr('wfYear', 0),
+    poLoan: $('poLoan').value, poAmt: numOr('poAmt', 0), poYear: numOr('poYear', 0),
+    poSource: $('poSource').value,
+    hasSpouse: $('hasSpouse').checked,
+    spAge: numOr('spAge', 0), spSS: numOr('spSS', 0),
+    // Already drawing → treat benefits as active from today; otherwise use the planned start age.
+    spSSStart: $('spNow').value === 'yes' ? numOr('spAge', 0) : numOr('spSSStart', 62),
+    preRet: numOr('preRet', 7)/100, postRet: numOr('postRet', 4)/100,
+    otherRet: numOr('otherRet', 4)/100, inflation: numOr('inflation', 2.5)/100,
+    ssCola: numOr('ssCola', 2.5)/100, fersCola: numOr('fersCola', 2)/100,
+    salGrowth: numOr('salGrowth', 2)/100,
+    survivor: parseFloat($('survivor').value),
+    horizon: Math.max(80, Math.min(105, numOr('horizon', 95))),
+    suppOverride: num('suppOverride'),  // NaN → auto
+    taxOn: $('taxOn').checked,
+    stateRate: numOr('stateRate', 0) / 100
+  };
+}
+
+// Yearly loan payments still owed in `year`, and the balance remaining
+// (balance declines straight-line from today to the payoff year).
+// A loan chosen for early lump-sum payoff stops payments — and counts as gone — from that year on.
+function paidEarly(inp, d, year) {
+  return inp.poLoan && d.label === inp.poLoan && inp.poYear > 0 && year >= inp.poYear;
+}
+function debtPayments(inp, year) {
+  return inp.debts.reduce((a, d) => a + (!paidEarly(inp, d, year) && year <= d.payoff ? d.mo * 12 : 0), 0);
+}
+function debtRemaining(inp, year) {
+  return inp.debts.reduce((a, d) => {
+    if (paidEarly(inp, d, year) || year >= d.payoff) return a;
+    const span = Math.max(1, d.payoff - CUR_YEAR);
+    return a + d.bal * (d.payoff - year) / span;
+  }, 0);
+}
+
+function ssMonthlyAt(inp, claimAge) {
+  if (claimAge <= 62) return inp.ss62;
+  if (claimAge >= 70) return inp.ss70;
+  if (claimAge <= FRA) return inp.ss62 + (inp.ssFRA - inp.ss62) * (claimAge - 62) / (FRA - 62);
+  return inp.ssFRA + (inp.ss70 - inp.ssFRA) * (claimAge - FRA) / (70 - FRA);
+}
+
+function pensionInfo(inp, retireAge) {
+  const yosR = inp.yos + (retireAge - inp.curAge);
+  const high3R = inp.high3 * Math.pow(1 + inp.salGrowth, Math.max(0, retireAge - inp.curAge));
+  const mult = (retireAge >= 62 && yosR >= 20) ? 0.011 : 0.01;
+  const gross = mult * high3R * yosR;
+  const eligible = (retireAge >= 62 && yosR >= 5) || (retireAge >= 60 && yosR >= 20) || (retireAge >= 57 && yosR >= 30);
+  const suppEligible = retireAge < 62 && ((retireAge >= 57 && yosR >= 30) || (retireAge >= 60 && yosR >= 20));
+  const suppMo = isNaN(inp.suppOverride) ? inp.ss62 * Math.min(yosR, 40) / 40 : inp.suppOverride;
+  return { yosR, high3R, mult, gross, net: gross * (1 - inp.survivor), eligible, suppEligible, suppMo };
+}
+
+function simulate(inp, retireAge, claimAge) {
+  const pen = pensionInfo(inp, retireAge);
+  const ssAnnualAtClaim = ssMonthlyAt(inp, claimAge) * 12;
+  let tsp = inp.tspBal, other = inp.otherBal;
+  let runout = null;
+  const rows = [];
+
+  for (let age = inp.curAge; age <= inp.horizon; age++) {
+    const t = age - inp.curAge;
+    const year = CUR_YEAR + t;
+    const working = age < retireAge;
+    const spouseAge = inp.spAge + t;
+
+    // guaranteed income (retirement years)
+    const supp = (!working && pen.suppEligible && age < 62) ? pen.suppMo * 12 : 0;
+    const pension = !working ? pen.net * Math.pow(1 + inp.fersCola, Math.max(0, age - 62)) : 0;
+    const mySS = age >= claimAge ? ssAnnualAtClaim * Math.pow(1 + inp.ssCola, age - claimAge) : 0;
+    const spDrawing = inp.hasSpouse && spouseAge >= inp.spSSStart;
+    const spColaYears = Math.max(0, t - Math.max(0, inp.spSSStart - inp.spAge));
+    const spSS = spDrawing ? inp.spSS * 12 * Math.pow(1 + inp.ssCola, spColaYears) : 0;
+    const spInc = (inp.sideInc > 0 && year <= inp.sideUntil) ? inp.sideInc : 0;
+
+    const debtPay = working ? 0 : debtPayments(inp, year);
+    const debtLeft = debtRemaining(inp, year);
+    const spending = working ? 0 : inp.spendMo * 12 * Math.pow(1 + inp.inflation, t) + debtPay;
+
+    const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
+
+    // one-time early loan payoff planned for this year?
+    const payoffDue = (inp.poLoan && inp.poAmt > 0 && year === inp.poYear) ? inp.poAmt : 0;
+    let payoffOut = 0;
+    let tspIn = 0, tspGrow, tspWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0;
+    if (working) {
+      const sal = inp.salary * Math.pow(1 + inp.salGrowth, t);
+      tspIn = sal * (Math.min(inp.empPct, 1) + agencyPct(inp.empPct));
+      tspGrow = tsp * inp.preRet;
+      tsp = tsp + tspIn + tspGrow;
+      otherIn = inp.otherContrib + windfall;
+      other = other * (1 + inp.otherRet) + otherIn;
+      // a payoff during working years just leaves the account
+      // (taxes on a working-year TSP payoff are NOT estimated — flagged in assumptions)
+      if (payoffDue) {
+        if (inp.poSource === 'tsp') { payoffOut = Math.min(payoffDue, tsp); tsp -= payoffOut; }
+        else { payoffOut = Math.min(payoffDue, other); other -= payoffOut; }
+      }
+    } else {
+      tspGrow = tsp * inp.postRet;
+      const otherGrow = other * inp.otherRet;
+      const guaranteed = supp + pension + mySS + spSS + spInc;
+      const rmd = age >= 73 ? tsp / rmdDiv(age) : 0;
+      // the payoff lump comes out of its account first; it counts toward the RMD
+      // and (from TSP) toward taxable income
+      const payoffTsp = (payoffDue && inp.poSource === 'tsp') ? Math.min(payoffDue, Math.max(0, tsp + tspGrow)) : 0;
+      const payoffOther = (payoffDue && inp.poSource !== 'tsp') ? Math.min(payoffDue, Math.max(0, other + otherGrow + windfall)) : 0;
+      payoffOut = payoffTsp + payoffOther;
+      const tspAvail = Math.max(0, tsp + tspGrow - payoffTsp);
+      const otherAvail = Math.max(0, other + otherGrow + windfall - payoffOther);
+      // Taxes raise the amount needed, which raises TSP withdrawals, which raises
+      // taxes — loop a few times until it settles (converges fast).
+      for (let k = 0; k < 6; k++) {
+        const gap = spending + tax - guaranteed;
+        tspWd = Math.min(Math.max(Math.max(0, gap), rmd - payoffTsp), tspAvail);
+        otherWd = Math.min(Math.max(0, gap - tspWd), otherAvail);
+        if (!inp.taxOn) break;
+        const newTax = estimateTax(inp, t, supp + pension + spInc + tspWd + payoffTsp, mySS + spSS);
+        if (Math.abs(newTax - tax) < 1) { tax = newTax; break; }
+        tax = newTax;
+      }
+      // settle withdrawals against the final tax figure
+      const gap = spending + tax - guaranteed;
+      tspWd = Math.min(Math.max(Math.max(0, gap), rmd - payoffTsp), tspAvail);
+      otherWd = Math.min(Math.max(0, gap - tspWd), otherAvail);
+      const remaining = gap - tspWd;
+      tsp = Math.max(0, tsp + tspGrow - tspWd - payoffTsp);
+      if (remaining > 0) {
+        shortfall = Math.max(0, remaining - otherWd);
+        other = Math.max(0, other + otherGrow + windfall - payoffOther - otherWd);
+      } else {
+        otherIn = -remaining;               // surplus (incl. excess RMD) is saved
+        other = other + otherGrow + windfall - payoffOther + otherIn;
+      }
+      if (shortfall > 50 && runout === null) runout = age;
+    }
+
+    rows.push({ age, year, working, supp, pension, mySS, spSS, spInc,
+                tspWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
+                tsp, other, total: tsp + other, netWorth: tsp + other - debtLeft });
+  }
+  return { rows, runout, endBal: tsp + other, pen,
+           lastsTo: runout === null ? inp.horizon : runout,
+           ok: runout === null, retireAge, claimAge };
+}
+
+/* ================= grid & verdict ================= */
+let INP = null, GRID = null, SEL = null;
+
+function buildGrid(inp) {
+  const retStart = Math.max(inp.curAge, 55);
+  const retEnd = Math.max(70, inp.curAge + 2);
+  const claimAges = []; for (let c = Math.max(62, inp.curAge); c <= 70; c++) claimAges.push(c);
+  const rows = [];
+  for (let r = retStart; r <= retEnd; r++) {
+    const pen = pensionInfo(inp, r);
+    const cols = claimAges.map(c => {
+      if (!pen.eligible) return { na: 'At ' + r + ' you would not yet qualify for an immediate unreduced FERS pension (needs 62 with 5 yrs, 60 with 20 yrs, or 57 with 30 yrs). Ask HR about MRA+10 options.' };
+      if (c < r && c < FRA) return { na: 'Claiming at ' + c + ' while still working usually backfires — the Social Security earnings test withholds most of the benefit until age 67.' };
+      return simulate(inp, r, c);
+    });
+    rows.push({ retireAge: r, eligible: pen.eligible, cols });
+  }
+  return { rows, claimAges };
+}
+
+function bestCombo(grid) {
+  let best = null, firstOkRetire = null;
+  for (const row of grid.rows) {
+    for (const cell of row.cols) {
+      if (cell.na) continue;
+      if (cell.ok && firstOkRetire === null) firstOkRetire = row.retireAge;
+      if (cell.ok && row.retireAge === firstOkRetire) {
+        if (!best || cell.endBal > best.endBal) best = cell;
+      }
+    }
+    if (best) break;
+  }
+  if (!best) { // nothing lasts — pick the longest-lasting combo
+    for (const row of grid.rows) for (const cell of row.cols) {
+      if (cell.na) continue;
+      if (!best || cell.lastsTo > best.lastsTo || (cell.lastsTo === best.lastsTo && cell.endBal > best.endBal)) best = cell;
+    }
+  }
+  return best;
+}
+
+function renderGrid(grid) {
+  const t = document.createElement('table');
+  t.className = 'matrix';
+  const head = t.insertRow();
+  const corner = document.createElement('th');
+  corner.className = 'corner';
+  corner.innerHTML = 'Retire at ↓ &nbsp;·&nbsp; Claim SS at →';
+  head.appendChild(corner);
+  for (const c of grid.claimAges) { const th = document.createElement('th'); th.textContent = c; head.appendChild(th); }
+  for (const row of grid.rows) {
+    const tr = t.insertRow();
+    const th = document.createElement('th'); th.className = 'rowhead'; th.textContent = row.retireAge; tr.appendChild(th);
+    row.cols.forEach((cell, i) => {
+      const td = tr.insertCell();
+      const b = document.createElement('button');
+      b.className = 'cell';
+      if (cell.na) {
+        b.classList.add('na'); b.textContent = '—'; b.title = cell.na;
+        b.addEventListener('click', () => alert(cell.na));
+      } else {
+        if (cell.ok) { b.classList.add('ok'); b.textContent = '✓ ' + INP.horizon + '+'; }
+        else {
+          b.textContent = cell.lastsTo;
+          b.classList.add(cell.lastsTo >= 90 ? 'warn' : cell.lastsTo >= 80 ? 'serious' : 'crit');
+        }
+        b.title = 'Retire at ' + cell.retireAge + ', claim at ' + cell.claimAge +
+                  (cell.ok ? ' — lasts past ' + INP.horizon : ' — money runs out at ' + cell.lastsTo);
+        b.addEventListener('click', () => selectScenario(cell));
+      }
+      cell._btn = b;
+      td.appendChild(b);
+    });
+  }
+  const wrap = $('gridwrap'); wrap.innerHTML = ''; wrap.appendChild(t);
+}
+
+function renderVerdict(best) {
+  const v = $('verdict');
+  v.classList.toggle('bad', !best || !best.ok);
+  if (best && best.ok) {
+    v.innerHTML = '<h2>Good news — the numbers can work. ✓</h2>' +
+      '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
+      '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ' +
+      INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings.</p>' +
+      '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>';
+  } else if (best) {
+    v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
+      '<p class="big">Even the strongest combination (<b>retire at ' + best.retireAge + '</b>, <b>claim at ' + best.claimAge +
+      '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>.</p>' +
+      '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>';
+  } else {
+    v.innerHTML = '<h2>No eligible combinations found.</h2><p>Check your age and years of service — FERS immediate retirement needs age 62 with 5 years, 60 with 20, or 57 with 30.</p>';
+  }
+}
+
+/* ================= scenario detail ================= */
+function selectScenario(cell) {
+  if (SEL && SEL._btn) SEL._btn.classList.remove('sel');
+  SEL = cell; cell._btn.classList.add('sel');
+  cell._btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  $('scnTitle').textContent = 'Retire at ' + cell.retireAge + ' · Social Security at ' + cell.claimAge;
+  const pen = cell.pen;
+  const bits = ['Pension ' + fmt$(pen.net) + '/yr' + (pen.mult === 0.011 ? ' (1.1% bonus rate ✓)' : ''),
+                'Social Security ' + fmt$(ssMonthlyAt(INP, cell.claimAge)) + '/mo at ' + cell.claimAge];
+  if (pen.suppEligible) bits.push('FERS supplement ' + fmt$(pen.suppMo) + '/mo until 62');
+  $('scnSub').textContent = cell.ok
+    ? bits.join(' · ') + ' — lasts past ' + INP.horizon + ' with ' + fmt$(cell.endBal) + ' left.'
+    : bits.join(' · ') + ' — savings run out around age ' + cell.lastsTo + '.';
+  drawBalance(cell); drawIncome(cell); renderTable(cell); renderAssumptions(cell);
+}
+
+/* ================= charts ================= */
+const tip = $('viztip');
+let tipTimer = null;
+function showTip(html, x, y, autoHide) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  tip.style.left = Math.min(x + 14, window.innerWidth - r.width - 8) + 'px';
+  tip.style.top = Math.max(8, y - r.height - 12) + 'px';
+  clearTimeout(tipTimer);
+  if (autoHide) tipTimer = setTimeout(hideTip, 3500);   // taps have no "mouse leave" — fade on our own
+}
+function hideTip() { clearTimeout(tipTimer); tip.style.display = 'none'; }
+// A tap anywhere off the charts, or any scrolling, dismisses the tooltip.
+document.addEventListener('pointerdown', e => { if (!e.target.closest('figure.chart')) hideTip(); }, true);
+window.addEventListener('scroll', hideTip, { passive: true });
+const NS = 'http://www.w3.org/2000/svg';
+function el(name, attrs, parent) {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function ticks(max) {
+  const raw = max / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(m => m*mag).find(s => max/s <= 5) || 10*mag;
+  const out = []; for (let v = 0; v <= max + 1; v += step) out.push(v);
+  return out;
+}
+
+function drawBalance(cell) {
+  const svg = $('balChart'); svg.innerHTML = '';
+  const W = 840, H = 320, m = { t: 18, r: 70, b: 34, l: 58 };
+  const rows = cell.rows;
+  const maxBal = Math.max(1, ...rows.map(r => r.total));
+  const tk = ticks(maxBal);
+  const yMax = tk[tk.length-1];
+  const x = a => m.l + (a - rows[0].age) / (rows[rows.length-1].age - rows[0].age) * (W - m.l - m.r);
+  const y = v => H - m.b - v / yMax * (H - m.t - m.b);
+
+  for (const v of tk) {
+    el('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === 0 ? 'var(--baseline)' : 'var(--grid)', 'stroke-width': 1 }, svg);
+    el('text', { x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end', fill: 'var(--muted)', 'font-size': 12.5, style: 'font-variant-numeric:tabular-nums' }, svg).textContent = fmtK(v);
+  }
+  for (let a = Math.ceil(rows[0].age / 5) * 5; a <= rows[rows.length-1].age; a += 5)
+    el('text', { x: x(a), y: H - m.b + 20, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12.5 }, svg).textContent = a;
+
+  // retire / claim markers
+  for (const [age, label] of [[cell.retireAge, 'retire'], [cell.claimAge, 'claim SS']]) {
+    if (age >= rows[0].age && age <= rows[rows.length-1].age) {
+      el('line', { x1: x(age), x2: x(age), y1: m.t, y2: H - m.b, stroke: 'var(--baseline)', 'stroke-width': 1 }, svg);
+      el('text', { x: x(age) + 4, y: m.t + 12, fill: 'var(--muted)', 'font-size': 12 }, svg).textContent = label + ' ' + age;
+    }
+  }
+
+  const pts = rows.map(r => x(r.age) + ',' + y(r.total));
+  el('path', { d: 'M' + pts.join('L') + 'L' + x(rows[rows.length-1].age) + ',' + y(0) + 'L' + x(rows[0].age) + ',' + y(0) + 'Z',
+               fill: 'var(--series-1)', opacity: 0.1 }, svg);
+  el('path', { d: 'M' + pts.join('L'), fill: 'none', stroke: 'var(--series-1)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+
+  const hasDebt = INP.debts.length > 0;
+  $('balLegend').innerHTML = hasDebt
+    ? '<span><span style="display:inline-block;width:16px;height:0;border-top:2.5px solid var(--series-1)"></span>Savings</span>' +
+      '<span><span style="display:inline-block;width:16px;height:0;border-top:2.5px solid var(--series-3)"></span>Net worth (savings − debts)</span>'
+    : '';
+  $('balCaption').textContent = hasDebt
+    ? 'Savings are TSP + other accounts; net worth subtracts what you still owe. Hover or tap for details.'
+    : 'TSP + other savings at the end of each year. Hover or tap for details.';
+  if (hasDebt) {
+    const nwPts = rows.map(r => x(r.age) + ',' + y(Math.max(0, r.netWorth)));
+    el('path', { d: 'M' + nwPts.join('L'), fill: 'none', stroke: 'var(--series-3)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+  }
+
+  const last = rows[rows.length-1];
+  el('circle', { cx: x(last.age), cy: y(last.total), r: 4.5, fill: 'var(--series-1)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+  el('text', { x: x(last.age) + 8, y: y(last.total) + 4, fill: 'var(--ink)', 'font-size': 13, 'font-weight': 600 }, svg).textContent = fmtK(last.total);
+  if (cell.runout !== null)
+    el('text', { x: x(cell.runout), y: y(0) - 8, 'text-anchor': 'middle', fill: 'var(--critical)', 'font-size': 12.5, 'font-weight': 600 }, svg).textContent = '▼ runs out';
+
+  // hover crosshair
+  const cross = el('line', { y1: m.t, y2: H - m.b, stroke: 'var(--baseline)', 'stroke-width': 1, visibility: 'hidden' }, svg);
+  const dot = el('circle', { r: 4.5, fill: 'var(--series-1)', stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' }, svg);
+  const hit = el('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent' }, svg);
+  const move = ev => {
+    const pt = svg.createSVGPoint();
+    const e = ev.touches ? ev.touches[0] : ev;
+    pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const age = Math.round(rows[0].age + (p.x - m.l) / (W - m.l - m.r) * (rows[rows.length-1].age - rows[0].age));
+    const r = rows.find(rr => rr.age === Math.max(rows[0].age, Math.min(rows[rows.length-1].age, age)));
+    if (!r) return;
+    cross.setAttribute('x1', x(r.age)); cross.setAttribute('x2', x(r.age)); cross.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', x(r.age)); dot.setAttribute('cy', y(r.total)); dot.setAttribute('visibility', 'visible');
+    showTip('<b>Age ' + r.age + '</b> (' + r.year + ')<br>Savings: <b>' + fmt$(r.total) + '</b><br>TSP ' + fmt$(r.tsp) + ' · Other ' + fmt$(r.other) +
+      (r.windfall > 0.5 ? '<br>Windfall received: +' + fmt$(r.windfall) : '') +
+      (r.payoffOut > 0.5 ? '<br>Loan payoff: −' + fmt$(r.payoffOut) : '') +
+      (r.debtLeft > 0.5 ? '<br>Still owed: ' + fmt$(r.debtLeft) + '<br>Net worth: <b>' + fmt$(r.netWorth) + '</b>' : ''), e.clientX, e.clientY, !!ev.touches);
+  };
+  hit.addEventListener('mousemove', move);
+  hit.addEventListener('touchstart', move, { passive: true });
+  hit.addEventListener('touchmove', move, { passive: true });
+  hit.addEventListener('mouseleave', () => { hideTip(); cross.setAttribute('visibility','hidden'); dot.setAttribute('visibility','hidden'); });
+}
+
+function drawIncome(cell) {
+  const svg = $('incChart'); svg.innerHTML = '';
+  const W = 840, H = 340, m = { t: 16, r: 16, b: 34, l: 58 };
+  const rows = cell.rows.filter(r => !r.working);
+  if (!rows.length) return;
+  const series = [
+    { key: r => r.pension + r.supp, label: 'FERS pension + supplement', color: 'var(--series-1)' },
+    { key: r => r.mySS + r.spSS, label: 'Social Security', color: 'var(--series-2)' },
+    { key: r => r.spInc, label: 'Other household income', color: 'var(--series-3)' },
+    { key: r => r.tspWd + r.otherWd, label: 'From savings', color: 'var(--series-4)' }
+  ].filter(s => rows.some(r => s.key(r) > 0.5));
+  $('incLegend').innerHTML = series.map(s => '<span><span class="chip" style="background:' + s.color + '"></span>' + s.label + '</span>').join('') +
+    '<span><span style="display:inline-block;width:16px;height:0;border-top:2.5px solid var(--ink)"></span>' +
+    (INP.taxOn ? 'Spending + est. taxes' : 'Spending') + '</span>';
+
+  const outflow = r => r.spending + r.tax;
+  const maxV = Math.max(1, ...rows.map(r => Math.max(series.reduce((a,s) => a + s.key(r), 0), outflow(r))));
+  const tk = ticks(maxV); const yMax = tk[tk.length-1];
+  const y = v => H - m.b - v / yMax * (H - m.t - m.b);
+  const slot = (W - m.l - m.r) / rows.length;
+  const bw = Math.min(24, slot - 2);
+
+  for (const v of tk) {
+    el('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === 0 ? 'var(--baseline)' : 'var(--grid)', 'stroke-width': 1 }, svg);
+    el('text', { x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end', fill: 'var(--muted)', 'font-size': 12.5, style: 'font-variant-numeric:tabular-nums' }, svg).textContent = fmtK(v);
+  }
+  rows.forEach((r, i) => {
+    const cx = m.l + slot * i + slot / 2;
+    if (r.age % 5 === 0) el('text', { x: cx, y: H - m.b + 20, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12.5 }, svg).textContent = r.age;
+    let acc = 0;
+    const g = el('g', {}, svg);
+    series.forEach((s, si) => {
+      const v = s.key(r); if (v <= 0.5) return;
+      const y0 = y(acc), y1 = y(acc + v);
+      const gapTop = si < series.length - 1 ? 1 : 0;   // 2px surface gap split between segments
+      el('rect', { x: cx - bw/2, y: y1 + gapTop, width: bw, height: Math.max(0.5, y0 - y1 - gapTop - (acc > 0 ? 1 : 0)),
+                   fill: s.color, rx: acc + v >= series.reduce((a,ss)=>a+ss.key(r),0) - 0.6 ? 3 : 0 }, g);
+      acc += v;
+    });
+    const hit = el('rect', { x: m.l + slot * i, y: m.t, width: slot, height: H - m.t - m.b, fill: 'transparent' }, g);
+    const show = ev => {
+      const e = ev.touches ? ev.touches[0] : ev;
+      showTip('<b>Age ' + r.age + '</b> (' + r.year + ')<br>' +
+        series.map(s => s.label + ': <b>' + fmt$(s.key(r)) + '</b>').join('<br>') +
+        '<br>Spending: <b>' + fmt$(r.spending) + '</b>' +
+        (r.debtPay > 0.5 ? ' (incl. ' + fmt$(r.debtPay) + ' loan payments)' : '') +
+        (r.tax > 0.5 ? '<br>Taxes (est.): <b>' + fmt$(r.tax) + '</b>' : '') +
+        (r.shortfall > 1 ? '<br><b style="color:var(--critical)">Short by ' + fmt$(r.shortfall) + '</b>' : ''), e.clientX, e.clientY, !!ev.touches);
+    };
+    hit.addEventListener('mousemove', show);
+    hit.addEventListener('touchstart', show, { passive: true });
+    hit.addEventListener('mouseleave', hideTip);
+  });
+  const pts = rows.map((r, i) => (m.l + slot * i + slot/2) + ',' + y(outflow(r)));
+  el('path', { d: 'M' + pts.join('L'), fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2.5, 'stroke-linejoin': 'round' }, svg);
+}
+
+/* ================= table & assumptions ================= */
+function renderTable(cell) {
+  const t = $('yearTable');
+  const showDebt = INP.debts.length > 0;
+  const showTax = INP.taxOn;
+  let html = '<tr><th>Year</th><th>Age</th><th>Pension+Suppl.</th><th>Soc. Sec.</th><th>Other inc.</th><th>From savings</th><th>Spending</th>' +
+    (showTax ? '<th>Taxes (est.)</th>' : '') + '<th>TSP end</th><th>Other end</th>' +
+    (showDebt ? '<th>Debt left</th><th>Net worth</th>' : '') + '</tr>';
+  for (const r of cell.rows) {
+    if (r.working) continue;
+    html += '<tr' + (r.shortfall > 1 ? ' class="short"' : '') + '><td>' + r.year + '</td><td>' + r.age + '</td><td>' +
+      fmt$(r.pension + r.supp) + '</td><td>' + fmt$(r.mySS + r.spSS) + '</td><td>' + fmt$(r.spInc) + '</td><td>' +
+      fmt$(r.tspWd + r.otherWd) + '</td><td>' + fmt$(r.spending) + (r.shortfall > 1 ? ' ⚠' : '') + '</td>' +
+      (showTax ? '<td>' + fmt$(r.tax) + '</td>' : '') + '<td>' +
+      fmt$(r.tsp) + '</td><td>' + fmt$(r.other) + '</td>' +
+      (showDebt ? '<td>' + fmt$(r.debtLeft) + '</td><td>' + fmt$(r.netWorth) + '</td>' : '') + '</tr>';
+  }
+  t.innerHTML = html;
+}
+
+function renderAssumptions(cell) {
+  const p = cell.pen, i = INP;
+  const items = [
+    'FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' (High-3 at retirement) × ' + p.yosR.toFixed(1) +
+      ' years = ' + fmt$(p.gross) + '/yr gross; ' + fmt$(p.net) + '/yr after the survivor benefit you chose. COLA ' + (i.fersCola*100).toFixed(1) + '%/yr starting at 62.',
+    p.suppEligible
+      ? 'FERS supplement: ' + fmt$(p.suppMo) + '/mo from retirement until 62 (estimated as your age-62 SS × years of service ÷ 40; no COLA).'
+      : 'No FERS supplement in this plan (it only applies when retiring before 62 with an immediate pension).',
+    'Social Security at ' + cell.claimAge + ': ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo from your SSA estimates, then ' + (i.ssCola*100).toFixed(1) + '%/yr COLA after claiming.',
+    'TSP: grows ' + (i.preRet*100).toFixed(1) + '%/yr while working (you ' + (i.empPct*100).toFixed(0) + '% + USPS ' + (agencyPct(i.empPct)*100).toFixed(1) + '%), ' +
+      (i.postRet*100).toFixed(1) + '%/yr in retirement. Withdrawals only cover what pension, Social Security, and other income don\'t. Required minimum distributions start at 73.',
+    'Other savings grow ' + (i.otherRet*100).toFixed(1) + '%/yr and are tapped after TSP; any yearly surplus gets saved back into them.',
+    'Spending starts at ' + fmt$(i.spendMo * 12) + '/yr in today\'s dollars and rises ' + (i.inflation*100).toFixed(1) + '%/yr with inflation.',
+    i.debts.length
+      ? 'Loans: ' + i.debts.map(d => d.label + ' ' + fmt$(d.mo) + '/mo through ' + d.payoff).join('; ') + '. Payments are added on top of spending until paid off; balances count against net worth.'
+      : 'No loans or debts entered — spending is your monthly number alone.',
+    i.sideInc > 0 ? 'Extra household income of ' + fmt$(i.sideInc) + '/yr continues through ' + i.sideUntil + ' (not adjusted for inflation).' : null,
+    i.wfAmt > 0 ? 'A one-time windfall of ' + fmt$(i.wfAmt) + ' lands in your other savings in ' + i.wfYear + '.' : null,
+    (i.poLoan && i.poAmt > 0)
+      ? 'In ' + i.poYear + ' you pay off the ' + i.poLoan.toLowerCase() + ' loan with ' + fmt$(i.poAmt) + ' from ' +
+        (i.poSource === 'tsp' ? 'your TSP' : 'other savings') + '; its monthly payment stops that year.' +
+        (i.poSource === 'tsp'
+          ? (i.taxOn
+              ? (i.poYear < CUR_YEAR + (cell.retireAge - i.curAge)
+                  ? ' Your payoff year falls while still working, where this model does NOT estimate taxes — the real tax bill would be on top. Get tax advice first.'
+                  : ' The lump counts as taxable income that year — see the tax spike in the year-by-year table. Still verify with a tax pro before committing.')
+              : ' Heads up: a lump TSP withdrawal is taxable income and taxes are OFF in this plan — turn on the tax estimate in step 4 to see the bite, and get tax advice before doing this.')
+          : '')
+      : null,
+    i.hasSpouse && i.spSS > 0
+      ? ($('spNow').value === 'yes'
+          ? 'Spouse Social Security: ' + fmt$(i.spSS) + '/mo now, rising with the same COLA.'
+          : 'Spouse Social Security: ' + fmt$(i.spSS) + '/mo starting at their age ' + i.spSSStart + ', with the same COLA afterward.')
+      : null,
+    i.taxOn
+      ? 'Taxes (rough estimate, filed ' + (i.hasSpouse ? 'jointly' : 'single') + '): pension, FERS supplement, TSP withdrawals, and extra income count as taxable; the IRS provisional-income formula decides how much of Social Security is taxed; minus the standard deduction (with the 65+ extra); then federal brackets' +
+        (i.stateRate > 0 ? ' plus a flat ' + (i.stateRate*100).toFixed(1) + '% state rate' : ', no state tax') +
+        '. Brackets and deduction grow with inflation; other-savings withdrawals are treated as tax-free; working years are not taxed here (your paycheck already has withholding). A ballpark — not a tax return.'
+      : 'Taxes are not modeled — treat the spending number as what you need including taxes.',
+    'Health insurance (FEHB) and Medicare premiums should be inside your spending number.',
+    'The model plans for money to last to age ' + i.horizon + '.'
+  ];
+  $('assumpList').innerHTML = items.filter(Boolean).map(s => '<li>' + s + '</li>').join('');
+}
+
+/* ================= form plumbing ================= */
+function fmtField(input) {
+  const v = String(input.value).replace(/[$,\s]/g, '');
+  if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
+    input.value = parseFloat(v).toLocaleString('en-US');
+}
+const MONEY_IDS = ['salary','high3','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spSS','sideInc','suppOverride',
+                   'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
+MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
+
+const SAVE_IDS = ['curAge','poStart','salary','high3','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
+                  'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
+                  'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource',
+                  'spAge','spSS','spNow','spSSStart',
+                  'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate'];
+function saveForm() {
+  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked };
+  SAVE_IDS.forEach(id => o[id] = $(id).value);
+  try { localStorage.setItem('routeToRetirement', JSON.stringify(o)); } catch (e) {}
+}
+function loadForm() {
+  try {
+    const o = JSON.parse(localStorage.getItem('routeToRetirement') || 'null');
+    if (!o) return;
+    SAVE_IDS.forEach(id => { if (o[id] !== undefined && o[id] !== '') $(id).value = o[id]; });
+    $('hasSpouse').checked = !!o.hasSpouse;
+    $('spouseFields').style.display = o.hasSpouse ? '' : 'none';
+    $('taxOn').checked = !!o.taxOn;
+    $('taxFields').style.display = o.taxOn ? '' : 'none';
+  } catch (e) {}
+}
+$('hasSpouse').addEventListener('change', e => { $('spouseFields').style.display = e.target.checked ? '' : 'none'; });
+function syncSpouseSS() {
+  const drawing = $('spNow').value === 'yes';
+  $('spStartWrap').style.display = drawing ? 'none' : '';
+  $('spSSLabel').textContent = drawing ? 'Their monthly check' : 'Their estimated monthly benefit';
+  $('spSSHelp').textContent = drawing
+    ? 'The amount they get each month. Enter 0 if they won\'t get Social Security.'
+    : 'From their SSA statement at ssa.gov, for the age they plan to start.';
+}
+$('spNow').addEventListener('change', syncSpouseSS);
+function syncPayoff() {
+  const on = $('poLoan').value !== '';
+  document.querySelectorAll('.po-dep').forEach(d => d.style.display = on ? '' : 'none');
+}
+$('poLoan').addEventListener('change', syncPayoff);
+$('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
+
+$('goBtn').addEventListener('click', () => {
+  const required = [
+    ['curAge', 'your age', v => v >= 18 && v <= 80],
+    ['poStart', 'the year you started at the Post Office', v => v >= 1950 && v <= CUR_YEAR],
+    ['salary', 'current pay', v => v > 0],
+    ['ssFRA', 'Social Security at 67', v => v >= 0],
+    ['spendMo', 'monthly spending', v => v > 0]
+  ];
+  const yearOk = v => !isNaN(v) && v >= CUR_YEAR && v <= CUR_YEAR + 45;
+  if (numOr('wfAmt', 0) > 0) required.push(['wfYear', 'the year you expect the windfall', yearOk]);
+  if ($('poLoan').value !== '') {
+    required.push(['poAmt', 'the loan payoff amount', v => v > 0]);
+    required.push(['poYear', 'the year you pay off the loan', yearOk]);
+  }
+  const missing = [];
+  let firstBad = null;
+  for (const [id, label, okFn] of required) {
+    const v = num(id);
+    const bad = isNaN(v) || !okFn(v);
+    $(id).classList.toggle('bad', bad);
+    if (bad) { missing.push(label); firstBad = firstBad || id; }
+  }
+  if (missing.length) {
+    $('goErr').textContent = 'Please check: ' + missing.join(', ') + '.';
+    $(firstBad).focus();
+    return;
+  }
+  $('goErr').textContent = '';
+  saveForm();
+  INP = readInputs();
+  GRID = buildGrid(INP);
+  $('legendHorizon').textContent = INP.horizon;
+  renderGrid(GRID);
+  const best = bestCombo(GRID);
+  renderVerdict(best);
+  $('results').style.display = 'block';
+  if (best) selectScenario(best);
+  $('verdict').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+/* ================= printable report ================= */
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function buildPrintReport() {
+  if (!SEL || !INP) return;
+  const i = INP, cell = SEL, p = cell.pen;
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const retYear = CUR_YEAR + (cell.retireAge - i.curAge);
+  const claimYear = CUR_YEAR + (cell.claimAge - i.curAge);
+
+  const facts = [];
+  const add = (l, v) => facts.push('<div><span>' + esc(l) + '</span><b>' + esc(v) + '</b></div>');
+  add('Age today', i.curAge);
+  add('Started federal service', (CUR_YEAR - i.yos) + ' (' + i.yos + ' yrs so far)');
+  add('Current annual pay', fmt$(i.salary));
+  add('High-3 average salary', fmt$(i.high3));
+  add('TSP balance', fmt$(i.tspBal));
+  add('TSP contribution', (i.empPct*100).toFixed(0) + '% + ' + (agencyPct(i.empPct)*100).toFixed(1) + '% USPS');
+  add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr)' : ''));
+  add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
+  add('Monthly spending (today’s $)', fmt$(i.spendMo) + (i.taxOn ? ' before taxes' : ' incl. taxes'));
+  for (const d of i.debts) add(d.label + ' debt', fmt$(d.bal) + ' at ' + fmt$(d.mo) + '/mo to ' + d.payoff);
+  if (i.sideInc > 0) add('Extra income', fmt$(i.sideInc) + '/yr through ' + i.sideUntil);
+  if (i.wfAmt > 0) add('Expected windfall', fmt$(i.wfAmt) + ' in ' + i.wfYear);
+  if (i.poLoan && i.poAmt > 0) add('Early payoff: ' + i.poLoan, fmt$(i.poAmt) + ' in ' + i.poYear + ' from ' + (i.poSource === 'tsp' ? 'TSP' : 'other savings'));
+  if (i.hasSpouse) add('Spouse (age ' + i.spAge + ') Social Security', fmt$(i.spSS) + '/mo ' + ($('spNow').value === 'yes' ? '(drawing now)' : 'from age ' + i.spSSStart));
+  add('Returns: TSP pre/post, other', (i.preRet*100).toFixed(1) + '% / ' + (i.postRet*100).toFixed(1) + '% / ' + (i.otherRet*100).toFixed(1) + '%');
+  add('Inflation / SS COLA / FERS COLA', (i.inflation*100).toFixed(1) + '% / ' + (i.ssCola*100).toFixed(1) + '% / ' + (i.fersCola*100).toFixed(1) + '%');
+  add('Survivor benefit reduction', (i.survivor*100).toFixed(0) + '%');
+  add('Taxes', i.taxOn ? 'Estimated (state ' + (i.stateRate*100).toFixed(1) + '%)' : 'Not modeled');
+
+  let grid = '<table><tr><th>Retire ↓ / Claim SS →</th>' + GRID.claimAges.map(c => '<th>' + c + '</th>').join('') + '</tr>';
+  for (const row of GRID.rows) {
+    grid += '<tr><td>' + row.retireAge + '</td>' + row.cols.map(c => {
+      if (c.na) return '<td>—</td>';
+      const sel = c === cell ? ' style="outline:2px solid #000;font-weight:700"' : '';
+      return '<td' + sel + '>' + (c.ok ? '✓' : c.lastsTo) + '</td>';
+    }).join('') + '</tr>';
+  }
+  grid += '</table><p style="font-size:10.5px;color:#444">✓ = money lasts past ' + i.horizon + ' · number = age money runs out · — = not eligible or not advised · boxed = the plan shown below</p>';
+
+  const last = cell.rows[cell.rows.length - 1];
+  $('printReport').innerHTML =
+    '<h1>Route to Retirement — Planning Snapshot</h1>' +
+    '<p class="pr-sub">Prepared ' + today + ' · self-reported figures · all amounts are future (nominal) dollars unless noted</p>' +
+    '<h2>The plan under consideration</h2>' +
+    '<p><b>Retire at ' + cell.retireAge + ' (' + retYear + ') · start Social Security at ' + cell.claimAge + ' (' + claimYear + ').</b> ' +
+    (cell.ok ? 'Projected to last past age ' + i.horizon + ' with about ' + fmt$(cell.endBal) + ' remaining' +
+       (last.netWorth !== last.total ? ' (net worth ' + fmt$(last.netWorth) + ')' : '') + '.'
+             : 'Projected to run short around age ' + cell.lastsTo + '.') + '</p>' +
+    '<p>FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' × ' + p.yosR.toFixed(1) + ' yrs = ' + fmt$(p.gross) + '/yr gross, ' + fmt$(p.net) + '/yr after survivor election. ' +
+    (p.suppEligible ? 'FERS supplement ≈ ' + fmt$(p.suppMo) + '/mo until 62. ' : '') +
+    'Social Security at ' + cell.claimAge + ' ≈ ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo.</p>' +
+    '<h2>Information provided</h2><div class="pr-facts">' + facts.join('') + '</div>' +
+    '<h2>Every combination tested (age money lasts to)</h2>' + grid +
+    '<h2>Savings over time — selected plan</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
+    '<h2>Year-by-year projection — selected plan</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
+    '<h2>Model assumptions</h2><ul>' + [...document.querySelectorAll('#assumpList li')].map(li => '<li>' + esc(li.textContent) + '</li>').join('') + '</ul>' +
+    '<p class="pr-fine">Educational estimate produced with self-reported data — not financial, tax, or investment advice, and not affiliated with USPS, OPM, or SSA. Figures should be verified against an official FERS annuity estimate (HR/OPM), TSP statements, and SSA records. Taxes' + (i.taxOn ? ' are rough estimates' : ' are not modeled') + '; healthcare, survivor scenarios, and market volatility deserve professional review.</p>';
+}
+const REPORT_CSS = ':root{--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf7a;--series-4:#eda100;--ink:#000;--ink-2:#333;--muted:#555;--grid:#ddd;--baseline:#999;--surface:#fff;--surface-2:#f3f3f3;--hairline:#bbb;--critical:#b00020;--good:#0ca30c;--warning:#fab219;--serious:#ec835a}' +
+  'body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#000;background:#fff;margin:24px auto;max-width:820px;font-size:13px;line-height:1.5;padding:0 12px}' +
+  'h1{font-family:Georgia,serif;font-size:24px;margin:0}.pr-sub{color:#444;margin:2px 0 14px;font-size:12px}' +
+  'h2{font-family:Georgia,serif;font-size:16px;margin:18px 0 6px;padding-bottom:2px;border-bottom:1.5px solid #999;page-break-after:avoid}' +
+  'p{margin:4px 0}table{border-collapse:collapse;width:100%;font-size:11px;font-variant-numeric:tabular-nums}' +
+  'th,td{border:1px solid #ccc;padding:3px 5px;text-align:right}th:first-child,td:first-child{text-align:left}tr{page-break-inside:avoid}' +
+  '.pr-facts{columns:2;column-gap:28px;font-size:12px}.pr-facts div{break-inside:avoid;padding:2px 0;display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted #ddd}' +
+  '.pr-facts b{font-variant-numeric:tabular-nums;white-space:nowrap}ul{font-size:11.5px;margin:4px 0;padding-left:18px}li{margin-bottom:2px}' +
+  'svg{width:100%;height:auto}.pr-fine{font-size:10.5px;color:#444;margin-top:12px;border-top:1px solid #999;padding-top:6px}' +
+  '.toolbar{position:sticky;top:0;background:#fff;text-align:center;padding:10px 0;border-bottom:1px solid #ddd;margin-bottom:12px}' +
+  '.toolbar button{font-size:17px;padding:10px 20px;border-radius:8px;border:1.5px solid #1f4e79;background:#1f4e79;color:#fff;cursor:pointer}' +
+  '@media print{.toolbar{display:none}body{margin:0;max-width:none}}';
+
+function reportDocHTML() {
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Route to Retirement — Report</title><style>' + REPORT_CSS + '</style></head><body>' +
+    '<div class="toolbar"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>' +
+    $('printReport').innerHTML +
+    '<' + 'script>setTimeout(function(){ try { window.print(); } catch (e) {} }, 500);<' + '/script></body></html>';
+}
+
+$('printBtn').addEventListener('click', async () => {
+  if (!SEL) return;
+  buildPrintReport();
+  const note = m => { $('printNote').textContent = m; };
+  // 1) best: open the report in its own tab and print from there
+  try {
+    const w = window.open('', '_blank');
+    const d = w && w.document;             // may throw in a sandboxed frame
+    if (d) {
+      d.open(); d.write(reportDocHTML()); d.close();
+      note('The report opened in a new tab — print there, or choose "Save as PDF."');
+      return;
+    }
+  } catch (e) {}
+  // 2) if the runtime lets us, hand the viewer the report as a file to save
+  try {
+    const dl = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null;
+    if (dl) {
+      await dl.save({ filename: 'route-to-retirement-report.html', data: reportDocHTML() });
+      note('Report saved to your downloads — open that file, then print it or save as PDF.');
+      return;
+    }
+  } catch (err) { if (err && err.code === 'declined') { note(''); return; } }
+  // 3) opened directly (file copy): the print dialog works — use it
+  let embedded = true;
+  try { embedded = window.self !== window.top; } catch (e) {}
+  if (!embedded) { window.print(); note(''); return; }
+  // 4) embedded shared page: show the report full-screen instead
+  $('rvBody').innerHTML = $('printReport').innerHTML;
+  $('reportView').classList.add('open');
+  note('');
+});
+$('rvClose').addEventListener('click', () => { $('reportView').classList.remove('open'); });
+
+loadForm();
+syncSpouseSS();
+syncPayoff();
+</script>
