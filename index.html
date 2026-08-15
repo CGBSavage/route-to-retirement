@@ -1124,7 +1124,8 @@ function renderVerdict(best) {
       '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
       '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ' +
       INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings.</p>' +
-      '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>';
+      '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
+      '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>';
   } else if (best) {
     v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
       '<p class="big">Even the strongest combination (<b>retire at ' + best.retireAge + '</b>, <b>claim at ' + best.claimAge +
