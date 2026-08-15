@@ -426,6 +426,13 @@
   <section class="card">
     <h2><span class="stepnum">4</span>Your spending</h2>
     <p class="cardsub">Nobody spends evenly through retirement — the early "go-go" years (travel, projects, grandkids) usually cost more than the quieter years later, when most of us stay closer to home and live more simply. Enter what a typical month looks like in each stretch, <b>in today's dollars</b> — the math converts everything to future dollars for you. Only the first box is required; leave any box blank to keep the same amount as the stretch before. <b>Don't count loan payments</b> — those go in step 5 so they can stop when a loan is paid off.</p>
+    <div class="fields" style="padding-bottom:6px">
+      <div class="field">
+        <label for="spendNow">Monthly spending now, while working (optional)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spendNow" type="text" inputmode="numeric" placeholder="4,000"></div>
+        <div class="help" id="spendNowHelp">Everything you spend in a typical month today, not counting loan payments (those go in step 5) or money you put into savings. Leave it blank and we'll estimate it from your take-home pay.</div>
+      </div>
+    </div>
     <p class="anchor" id="spendAnchor"></p>
     <div class="fields">
       <div class="field">
@@ -876,6 +883,7 @@ function readInputs() {
     ss62: numOr('ss62', num('ssFRA') * 0.70),
     ss70: numOr('ss70', num('ssFRA') * 1.24),
     spendMo: num('spendMo'),
+    spendNow: num('spendNow'),   // NaN when blank; used for the 'now' anchor and checks only
     // later blocks fall back to the block before (today's dollars throughout)
     spend70s: numOr('spend70s', num('spendMo')),
     spend80s: numOr('spend80s', numOr('spend70s', num('spendMo'))),
@@ -1186,10 +1194,19 @@ function sanityChecks(inp) {
       notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (roughly ' + fmt$(bp) + '/mo after taxes, TSP, and health insurance). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
     if (saveMo > th * 0.5)
       notes.push('You said ' + fmt$(inp.otherContrib) + ' a year goes into other savings — that\'s more than half your take-home. Double-check that\'s what really happened last year.');
-    // What they actually live on now = take-home minus what goes into savings — compare to the retirement plan.
-    const liveOn = Math.max(0, th - saveMo);
+    // What they actually live on now (entered, or take-home minus savings) — compare to the retirement plan.
+    const liveOn = inp.spendNow > 0 ? inp.spendNow + debtMo : Math.max(0, th - saveMo);
+    if (inp.spendNow > 0) {
+      const outgo = inp.spendNow + saveMo + debtMo;
+      if (outgo > th * 1.1)
+        notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo — more than the ' + fmt$(th) + '/mo you take home. If that\'s really happening, savings are quietly shrinking; double-check the numbers.');
+      else if (outgo < th * 0.8)
+        notes.push('About ' + fmt$(th - outgo) + '/mo of your take-home isn\'t accounted for by spending, loans, or savings. That\'s fine — but if it\'s really piling up somewhere, count it in step 2 so the plan gets credit for it.');
+    }
     if (firstSpend > liveOn * 1.1)
-      notes.push('You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo of it into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today') +
+      notes.push((inp.spendNow > 0
+          ? 'You spend about ' + fmt$(liveOn) + '/mo today' + (debtMo ? ' including loan payments' : '')
+          : 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo of it into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today')) +
         '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement' + (debtMo ? ' (including loan payments)' : '') + ' — <b>more than that</b>. That can be right (no commute, no TSP coming out), but if it\'s just a guess, try the number you actually live on now.');
   } else if (inp.salary > 0 && inp.otherContrib + inp.salary * Math.min(inp.empPct, 1) > inp.salary * 0.4) {
     notes.push('TSP plus other savings add up to more than 40% of your pay — double-check the "put away last year" number. (Enter your monthly take-home in step 1 and we can check this more closely.)');
@@ -1524,12 +1541,12 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','takeHome','high3','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','spendNow','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
 
-const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
+const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
                   'spend70s','spend80s','spend90s',
                   'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
                   'p1What','p1Amt','p1Year','p1How','p2What','p2Amt','p2Year','p2How',
@@ -1578,10 +1595,13 @@ $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
 // live "quick check" summary above the button — mirrors what's been entered and flags anything odd
 function livingComparison(inp) {
-  const th = inp.takeHome, saveMo = inp.otherContrib / 12, liveOn = Math.max(0, th - saveMo);
-  const firstSpend = inp.spendMo + inp.debts.reduce((a, d) => a + d.mo, 0);
-  if (!(th > 0) || !(inp.spendMo > 0)) return '';
-  const base = 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today') +
+  const th = inp.takeHome, saveMo = inp.otherContrib / 12, debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
+  const liveOn = inp.spendNow > 0 ? inp.spendNow + debtMo : Math.max(0, th - saveMo);
+  const firstSpend = inp.spendMo + debtMo;
+  if (!(inp.spendNow > 0 || th > 0) || !(inp.spendMo > 0)) return '';
+  const base = (inp.spendNow > 0
+      ? 'You spend about ' + fmt$(liveOn) + '/mo today' + (debtMo ? ' including loan payments' : '')
+      : 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today')) +
     '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement — ';
   if (firstSpend > liveOn * 1.1) return '';   // the amber check covers this case
   return '<p class="compare">' + base + (firstSpend < liveOn * 0.9 ? 'less than that, which is comfortable.' : 'about the same, which hangs together.') + '</p>';
@@ -1601,7 +1621,7 @@ function renderSummary() {
   row('Other savings', fmt$(inp.otherBal) + (inp.otherContrib > 0 ? ' · +' + fmt$(inp.otherContrib) + '/yr' : '') + (inp.taxOn && inp.rothPct > 0 ? ' · ' + Math.round(inp.rothPct*100) + '% Roth' : ''));
   row('Social Security at 67', ok(inp.ssFRA) ? fmt$(inp.ssFRA) + '/mo (62: ' + fmt$(inp.ss62) + ', 70: ' + fmt$(inp.ss70) + ')' : need, !ok(inp.ssFRA));
   const L = liveOnNow();
-  if (L) row('Spending now (before retirement)', 'about ' + fmt$(L.liveOn) + '/mo' + (L.debtMo > 0 ? ' + ' + fmt$(L.debtMo) + '/mo loans' : '') + (L.useBp ? ' (our estimate)' : ''));
+  if (L) row('Spending now (before retirement)', (L.entered ? '' : 'about ') + fmt$(L.liveOn) + '/mo' + (L.debtMo > 0 ? ' + ' + fmt$(L.debtMo) + '/mo loans' : '') + (L.entered ? '' : ' (our estimate)'));
   row('Retirement spending', ok(inp.spendMo) ? fmt$(inp.spendMo) + '/mo until 70' +
       (inp.spend70s !== inp.spendMo || inp.spend80s !== inp.spend70s || inp.spend90s !== inp.spend80s
         ? ', then ' + fmt$(inp.spend70s) + ' / ' + fmt$(inp.spend80s) + ' / ' + fmt$(inp.spend90s) : ' and after') + (inp.taxOn ? ' + taxes' : '') : need, !ok(inp.spendMo));
@@ -1662,6 +1682,9 @@ function syncTakeHomeHint() {
 // step-4 anchor: what their numbers say they live on now, so the retirement spending boxes have a reference point
 // What the entered numbers say they live on now: take-home (or our ballpark) − savings-added − loan payments.
 function liveOnNow() {
+  const entered = num('spendNow');
+  const debtMoE = readDebts().reduce((a, d) => a + d.mo, 0);
+  if (entered > 0) return { liveOn: entered, useBp: false, entered: true, debtMo: debtMoE };
   const sal = numOr('salary', 0);
   if (!(sal > 0)) return null;
   const th = num('takeHome');
@@ -1673,20 +1696,24 @@ function liveOnNow() {
   const saveMo = numOr('otherContrib', 0) / 12;
   const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
   const liveOn = Math.max(0, takeHome - saveMo - debtMo);
-  return liveOn > 0 ? { liveOn: Math.round(liveOn / 10) * 10, useBp, debtMo } : null;
+  return liveOn > 0 ? { liveOn: Math.round(liveOn / 10) * 10, useBp, entered: false, debtMo } : null;
 }
 function syncSpendAnchor() {
   const el = $('spendAnchor');
   const L = liveOnNow();
   if (!L) { el.innerHTML = ''; return; }
-  const { liveOn, useBp, debtMo } = L;
-  el.innerHTML = 'Your numbers say you live on about <b>' + fmt$(liveOn) + ' a month</b> right now, before retirement' +
-    (useBp ? ' (our rough guess from your pay — enter your take-home in step 1 for a truer figure)' : '') +
-    (debtMo > 0 ? ', not counting the ' + fmt$(debtMo) + '/mo in loan payments from step 5' : '') +
-    '. Use that as your starting point — then think about what changes: no commute, no TSP coming out, more free time.' +
-    (debtMo === 0 ? ' If part of that is loan payments, leave those out here — they go in step 5.' : '');
+  const { liveOn, useBp, entered, debtMo } = L;
+  $('spendNow').placeholder = entered ? '4,000' : liveOn.toLocaleString('en-US');
+  const loanBit = debtMo > 0 ? ' (not counting the ' + fmt$(debtMo) + '/mo in loan payments from step 5)' : '';
+  el.innerHTML = (entered
+      ? 'You spend about <b>' + fmt$(liveOn) + ' a month</b> right now, before retirement' + loanBit + '.'
+      : 'We\'d guess you spend about <b>' + fmt$(liveOn) + ' a month</b> right now' + loanBit + ' — that\'s what\'s left of your ' +
+        (useBp ? 'estimated ' : '') + 'take-home after savings' + (debtMo > 0 ? ' and loan payments' : '') +
+        '. If that\'s off, type your real number in the box above.') +
+    ' Use it as your starting point for retirement — then think about what changes: no commute, no TSP coming out, more free time.' +
+    (debtMo === 0 ? ' If part of it is loan payments, leave those out here — they go in step 5.' : '');
 }
-['salary', 'takeHome', 'tspPct', 'curAge', 'otherContrib', 'stateRate',
+['salary', 'takeHome', 'spendNow', 'tspPct', 'curAge', 'otherContrib', 'stateRate',
  'debtHomeBal', 'debtHomeMo', 'debtHomeYear', 'debtCarBal', 'debtCarMo', 'debtCarYear', 'debtOtherBal', 'debtOtherMo', 'debtOtherYear'].forEach(id => $(id).addEventListener('input', syncSpendAnchor));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncSpendAnchor));
 
@@ -1762,6 +1789,7 @@ function buildPrintReport() {
   add('Age today', i.curAge);
   add('Started federal service', (CUR_YEAR - i.yos) + ' (' + i.yos + ' yrs so far)');
   add('Current annual pay', fmt$(i.salary) + (i.takeHome > 0 ? ' (take-home ' + fmt$(i.takeHome) + '/mo)' : ''));
+  if (i.spendNow > 0) add('Spending now (while working)', fmt$(i.spendNow) + '/mo');
   add('High-3 average salary', fmt$(i.high3));
   add('TSP balance', fmt$(i.tspBal));
   add('TSP contribution', (i.empPct*100).toFixed(0) + '% + ' + (agencyPct(i.empPct)*100).toFixed(1) + '% USPS');
