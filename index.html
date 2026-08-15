@@ -827,9 +827,19 @@ function readDebts() {
     const bal = numOr(b, 0), mo = numOr(m, 0);
     if (bal <= 0 && mo <= 0) continue;
     let payoff = num(y);
-    if (isNaN(payoff)) payoff = mo > 0 ? CUR_YEAR + Math.ceil(bal / (mo * 12)) : CUR_YEAR;
-    payoff = Math.max(CUR_YEAR, Math.min(CUR_YEAR + 40, payoff));
-    out.push({ label, bal, mo, payoff });
+    // Years the payments could possibly need (ignoring interest — a floor, not an estimate).
+    const minYears = mo > 0 ? Math.ceil(bal / (mo * 12)) : 0;
+    let noPay = false;
+    if (isNaN(payoff)) {
+      if (mo > 0) payoff = CUR_YEAR + minYears;
+      else { payoff = CUR_YEAR + 60; noPay = true; }   // owed but never paid — stays a liability
+    } else if (mo > 0 && payoff < CUR_YEAR + minYears) {
+      payoff = CUR_YEAR + minYears;                    // can't be gone before the payments cover it
+    } else if (mo <= 0 && bal > 0 && payoff <= CUR_YEAR) {
+      payoff = CUR_YEAR + 60; noPay = true;
+    }
+    payoff = Math.max(CUR_YEAR, Math.min(CUR_YEAR + 60, payoff));
+    out.push({ label, bal, mo, payoff, noPay, adjusted: !isNaN(num(y)) && payoff !== num(y) });
   }
   return out;
 }
@@ -858,7 +868,7 @@ function readPurchases() {
     const how = $('p' + n + 'How').value;
     out.push({
       what: $('p' + n + 'What').value.trim() || 'Purchase ' + n,
-      amt, year: isNaN(year) ? 0 : year,
+      amt, year: isNaN(year) ? 0 : Math.max(CUR_YEAR, year),
       term: how === 'cash' ? 0 : parseInt(how, 10)   // 0 = pay cash
     });
   }
@@ -931,6 +941,7 @@ function debtPayments(inp, year, funded) {
 function debtRemaining(inp, year, funded) {
   return inp.debts.reduce((a, d) => {
     if (paidEarly(inp, d, year, funded) || year >= d.payoff) return a;
+    if (d.noPay) return a + d.bal;                       // owed, never paid down
     const span = Math.max(1, d.payoff - CUR_YEAR);
     return a + d.bal * (d.payoff - year) / span;
   }, 0);
@@ -1000,13 +1011,19 @@ function simulate(inp, retireAge, claimAge, order) {
     const spouseAge = inp.spAge + t;
 
     // guaranteed income (retirement years)
-    const supp = (!working && pen.suppEligible && age < 62) ? pen.suppMo * 12 : 0;
+    const spInc = (inp.sideInc > 0 && year <= inp.sideUntil) ? inp.sideInc : 0;
+    // Social Security earnings test: before full retirement age (67), earned income over the
+    // yearly limit (~$23,400, rising with inflation) cuts the FERS supplement and any Social
+    // Security check by $1 for every $2 over. Extra income counts as earned income here.
+    const earnLimit = 23400 * Math.pow(1 + inp.inflation, t);
+    let earnCut = (!working && age < FRA && spInc > earnLimit) ? (spInc - earnLimit) / 2 : 0;
+    let supp = (!working && pen.suppEligible && age < 62) ? pen.suppMo * 12 : 0;
     const pension = !working ? pen.net * Math.pow(1 + inp.fersCola, Math.max(0, age - 62)) : 0;
-    const mySS = age >= claimAge ? ssAnnualAtClaim * Math.pow(1 + inp.ssCola, age - claimAge) : 0;
+    let mySS = age >= claimAge ? ssAnnualAtClaim * Math.pow(1 + inp.ssCola, age - claimAge) : 0;
+    if (earnCut > 0) { const c1 = Math.min(supp, earnCut); supp -= c1; earnCut -= c1; const c2 = Math.min(mySS, earnCut); mySS -= c2; earnCut -= c2; }
     const spDrawing = inp.hasSpouse && spouseAge >= inp.spSSStart;
     const spColaYears = Math.max(0, t - Math.max(0, inp.spSSStart - inp.spAge));
     const spSS = spDrawing ? inp.spSS * 12 * Math.pow(1 + inp.ssCola, spColaYears) : 0;
-    const spInc = (inp.sideInc > 0 && year <= inp.sideUntil) ? inp.sideInc : 0;
 
     // Early payoff planned for this year? It only counts if the money is really there
     // (checked against the account after this year's growth), else the loan just continues.
@@ -1037,24 +1054,28 @@ function simulate(inp, retireAge, claimAge, order) {
       // How much can really go into savings this year: what they said, capped by what the
       // paycheck leaves after today's spending and loan payments (when we know those).
       // If that's negative, savings get drawn down instead of built up.
+      // Savings can never exceed what the paycheck leaves: take-home (entered, or our ballpark)
+      // minus loan and purchase-loan payments, and minus today's spending when we know it.
+      // A negative "left" means overspending — that comes out of other savings.
       let contrib = inp.otherContrib, drawdown = 0;
-      if (inp.spendNow > 0) {
-        const takeHome = inp.takeHomeYr * Math.pow(1 + inp.salGrowth, t);
-        const spendNowYr = inp.spendNow * 12 * Math.pow(1 + inp.inflation, t);
-        const left = takeHome - spendNowYr - debtPayments(inp, year, payoffFunded);
-        contrib = Math.min(inp.otherContrib, left);
-        if (contrib < 0) { drawdown = -contrib; contrib = 0; }
-      }
+      const takeHome = inp.takeHomeYr * Math.pow(1 + inp.salGrowth, t);
+      const spendNowYr = inp.spendNow > 0 ? inp.spendNow * 12 * Math.pow(1 + inp.inflation, t) : 0;
+      const left = takeHome + spSS + spInc - spendNowYr - debtPayments(inp, year, payoffFunded) - purch.pay;   // household money in
+      contrib = Math.min(inp.otherContrib, Math.max(0, left));
+      if (inp.spendNow > 0 && left < 0) drawdown = -left;
       taxb = taxb * (1 + inp.otherRet) + contrib * (1 - inp.rothPct) + windfall;
       roth = roth * (1 + inp.otherRet) + contrib * inp.rothPct;
       // Nothing ever comes out of TSP before retirement. Overspending, cash purchases, and
-      // early payoffs while working all come from other savings only; whatever other savings
-      // can't cover simply isn't modeled (flagged in the assumptions).
-      if (drawdown > 0) drawdown = takeOther(drawdown);
+      // early payoffs while working all come from other savings only. If other savings can't
+      // cover overspending or a cash purchase, that's money you don't have — the plan fails there.
+      let uncovered = 0;
+      if (drawdown > 0) { const got = takeOther(drawdown); uncovered += drawdown - got; drawdown = got; }
       otherIn = contrib + windfall - drawdown;
       contribUsed = contrib;
       if (payoffDue) payoffOut = takeOther(payoffDue);
-      if (purch.cash > 0) takeOther(purch.cash);
+      if (purch.cash > 0) uncovered += purch.cash - takeOther(purch.cash);
+      shortfall = uncovered;
+      if (shortfall > 50 && runout === null) runout = age;
       other = taxb + roth;
     } else {
       tspGrow = tsp * inp.postRet;
@@ -1204,10 +1225,15 @@ function ballparkTakeHome(inp) {
 }
 
 // What this year's paycheck leaves after today's spending and loan payments (per year), when we know spending now.
+function householdExtraNow(inp) {   // yearly household income already coming in besides the paycheck
+  const sp = (inp.hasSpouse && inp.spSS > 0 && inp.spSSStart <= inp.spAge) ? inp.spSS * 12 : 0;
+  const side = (inp.sideInc > 0 && inp.sideUntil >= CUR_YEAR) ? inp.sideInc : 0;
+  return sp + side;
+}
 function paycheckLeft(inp) {
   if (!(inp.spendNow > 0) || !(inp.takeHomeYr > 0)) return null;
   const debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
-  return inp.takeHomeYr - inp.spendNow * 12 - debtMo * 12;
+  return inp.takeHomeYr + householdExtraNow(inp) - inp.spendNow * 12 - debtMo * 12 - purchaseFlows(inp, CUR_YEAR).pay;
 }
 function planNote(inp) {   // sentence explaining how the plan treated the savings-added number
   const left = paycheckLeft(inp);
@@ -1220,6 +1246,10 @@ function planNote(inp) {   // sentence explaining how the plan treated the savin
 // Soft "worth a second look" checks — never block the plan, just flag numbers that don't hang together.
 function sanityChecks(inp) {
   const notes = [];
+  for (const d of inp.debts) {
+    if (d.noPay) notes.push('The ' + d.label.toLowerCase() + ' loan has a balance but no monthly payment or payoff year, so it\'s counted as owed but never paid down. Enter the payment (or the payoff year) so the plan can retire it.');
+    else if (d.adjusted) notes.push('At ' + fmt$(d.mo) + '/mo, the ' + d.label.toLowerCase() + ' loan can\'t be gone by the year you entered — the plan uses ' + d.payoff + ' instead (the earliest the payments could cover the balance).');
+  }
   const th = inp.takeHome;
   const saveMo = inp.otherContrib / 12;
   const debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
@@ -1234,12 +1264,13 @@ function sanityChecks(inp) {
     const liveOn = inp.spendNow > 0 ? inp.spendNow + debtMo : Math.max(0, th - saveMo);
     if (inp.spendNow > 0) {
       const outgo = inp.spendNow + saveMo + debtMo;
-      if (outgo > th * 1.1)
-        notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo — more than the ' + fmt$(th) + '/mo you take home.' + planNote(inp) + ' Double-check the numbers if that\'s not what\'s really happening.');
+      const thh = th + householdExtraNow(inp) / 12;   // take-home plus other household income coming in
+      if (outgo > thh * 1.1)
+        notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo — more than the ' + fmt$(thh) + '/mo coming in' + (thh > th ? ' (take-home plus other household income)' : '') + '.' + planNote(inp) + ' Double-check the numbers if that\'s not what\'s really happening.');
       else if (planNote(inp))
-        notes.push('Your take-home doesn\'t quite stretch to ' + fmt$(inp.otherContrib) + '/yr of savings on top of spending' + (debtMo ? ' and loans' : '') + '.' + planNote(inp));
-      else if (outgo < th * 0.8)
-        notes.push('About ' + fmt$(th - outgo) + '/mo of your take-home isn\'t accounted for by spending, loans, or savings. That\'s fine — but if it\'s really piling up somewhere, count it in step 2 so the plan gets credit for it.');
+        notes.push('Your income doesn\'t quite stretch to ' + fmt$(inp.otherContrib) + '/yr of savings on top of spending' + (debtMo ? ' and loans' : '') + '.' + planNote(inp));
+      else if (outgo < thh * 0.8)
+        notes.push('About ' + fmt$(thh - outgo) + '/mo of your income isn\'t accounted for by spending, loans, or savings. That\'s fine — but if it\'s really piling up somewhere, count it in step 2 so the plan gets credit for it.');
     }
     if (firstSpend > liveOn * 1.1)
       notes.push((inp.spendNow > 0
@@ -1318,9 +1349,11 @@ function renderVerdict(best) {
       '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
       hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) + checkHtml;
   } else if (best) {
+    const preRet = best.lastsTo < best.retireAge;
     v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
       '<p class="big">Even the strongest combination (<b>retire at ' + best.retireAge + '</b>, <b>claim at ' + best.claimAge +
-      '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>.</p>' +
+      '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>' +
+      (preRet ? ' — <b>before you even retire</b>. Your take-home doesn\'t cover today\'s spending, loan payments, and cash purchases, and other savings run dry making up the difference (nothing comes out of TSP before retirement).' : '.') + '</p>' +
       '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>' +
       hustleHtml(INP, cheapestFix(INP, GRID.rows.find(r => r.retireAge === best.retireAge)), 'Everyone has a side hustle these days —', true) + checkHtml;
   } else {
@@ -1551,7 +1584,7 @@ function renderTable(cell) {
   const t = $('yearTable');
   const showDebt = INP.debts.length > 0;
   const showTax = INP.taxOn;
-  let html = '<tr><th>Year</th><th>Age</th><th>Pension+Suppl.</th><th>Soc. Sec.</th><th>Other inc.</th><th>From savings</th><th>Spending</th>' +
+  let html = '<tr><th>Year</th><th>Age</th><th>Pension+Suppl.</th><th>Soc. Sec.' + (INP.hasSpouse && INP.spSS > 0 ? ' (you + spouse)' : '') + '</th><th>Other inc.</th><th>From savings</th><th>Spending</th>' +
     (showTax ? '<th>Taxes (est.)</th>' : '') + '<th>TSP end</th><th>Other end</th>' +
     (showDebt ? '<th>Debt left</th><th>Net worth</th>' : '') + '</tr>';
   for (const r of cell.rows) {
@@ -1578,10 +1611,10 @@ function renderAssumptions(cell) {
     'TSP: grows ' + (i.preRet*100).toFixed(1) + '%/yr while working (you ' + (i.empPct*100).toFixed(0) + '% + USPS ' + (agencyPct(i.empPct)*100).toFixed(1) + '%), ' +
       (i.postRet*100).toFixed(1) + '%/yr in retirement. Withdrawals only cover what pension, Social Security, and other income don\'t. Required minimum distributions start at 73.',
     (paycheckLeft(i) !== null
-      ? 'While working: take-home ' + fmt$(i.takeHomeYr / 12) + '/mo' + (i.takeHome > 0 ? '' : ' (our estimate)') + ' minus ' + fmt$(i.spendNow) + '/mo spending' +
+      ? 'While working: take-home ' + fmt$(i.takeHomeYr / 12) + '/mo' + (i.takeHome > 0 ? '' : ' (our estimate)') + ((i.hasSpouse && i.spSS > 0) || i.sideInc > 0 ? ' plus household income already coming in (spouse Social Security, extra income)' : '') + ' minus ' + fmt$(i.spendNow) + '/mo spending' +
         (i.debts.length ? ' and loan payments' : '') + ' leaves ' + fmt$(Math.max(0, paycheckLeft(i)) / 12) + '/mo — savings added each year is the smaller of that and the ' + fmt$(i.otherContrib) + ' you entered' +
         (paycheckLeft(i) < 0 ? ', and the shortfall (' + fmt$(-paycheckLeft(i)) + '/yr) comes out of savings' : '') + '. Take-home rises with pay raises; spending with inflation.'
-      : 'While working, ' + fmt$(i.otherContrib) + '/yr goes into other savings as entered (fill in spending now in step 4 and we\'ll check that against your take-home).'),
+      : 'While working, ' + fmt$(i.otherContrib) + '/yr goes into other savings as entered, capped at what take-home leaves after loan payments (fill in spending now in step 4 and we\'ll check it against your spending too).'),
     'Other savings grow ' + (i.otherRet*100).toFixed(1) + '%/yr' +
       (i.rothPct > 0 ? ' (' + Math.round(i.rothPct*100) + '% treated as Roth — tax-free and drawn last; the rest as taxable, its growth counted as taxable interest' + (i.taxOn ? '' : ' when the tax estimate is on') + ')' : '') +
       '. Withdrawal order: ' + (cell.order === 'other' ? 'other savings first, then TSP' : 'TSP first, then other savings') +
@@ -1632,6 +1665,7 @@ function renderAssumptions(cell) {
         (i.stateRate > 0 ? ' plus a flat ' + (i.stateRate*100).toFixed(1) + '% state rate' : ', no state tax') +
         '. Brackets and deduction grow with inflation. Other-savings withdrawals aren\'t taxed (Roth is tax-free; for the taxable part, only its yearly growth is taxed, as interest). Working years are not taxed here (your paycheck already has withholding). A ballpark — not a tax return.'
       : 'Taxes are not modeled — treat the spending number as what you need including taxes.',
+    (i.sideInc > 0 ? 'Extra income counts as earned income for the Social Security earnings test: before 67, anything over about ' + fmt$(23400) + '/yr (rising with inflation) trims the FERS supplement and any Social Security check by $1 for every $2 over.' : null),
     'Nothing comes out of TSP before you retire. Anything that has to be paid from savings while working — a cash purchase, an early payoff, or overspending — comes from other savings only; if other savings can\'t cover it, the model doesn\'t invent the money (that gap isn\'t shown).',
     'Health insurance (FEHB) and Medicare premiums should be inside your spending number.',
     'The model plans for money to last to age ' + i.horizon + '.'
@@ -1812,8 +1846,10 @@ function liveOnNow() {
     : th;
   const saveMo = numOr('otherContrib', 0) / 12;
   const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
-  const liveOn = Math.max(0, takeHome - saveMo - debtMo);
-  return liveOn > 0 ? { liveOn: Math.round(liveOn / 10) * 10, useBp, entered: false, debtMo } : null;
+  let extraMo = 0;
+  try { extraMo = householdExtraNow(readInputs()) / 12; } catch (e) {}
+  const liveOn = Math.max(0, takeHome + extraMo - saveMo - debtMo);
+  return liveOn > 0 ? { liveOn: Math.round(liveOn / 10) * 10, useBp, entered: false, debtMo, extraMo } : null;
 }
 function syncSpendAnchor() {
   const el = $('spendAnchor');
@@ -1825,7 +1861,7 @@ function syncSpendAnchor() {
   el.innerHTML = (entered
       ? 'You spend about <b>' + fmt$(liveOn) + ' a month</b> right now, before retirement' + loanBit + '.'
       : 'We\'d guess you spend about <b>' + fmt$(liveOn) + ' a month</b> right now' + loanBit + ' — that\'s what\'s left of your ' +
-        (useBp ? 'estimated ' : '') + 'take-home after savings' + (debtMo > 0 ? ' and loan payments' : '') +
+        (useBp ? 'estimated ' : '') + 'take-home' + (L.extraMo > 0 ? ' plus other household income' : '') + ' after savings' + (debtMo > 0 ? ' and loan payments' : '') +
         '. If that\'s off, type your real number in the box above.') +
     ' Use it as your starting point for retirement — then think about what changes: no commute, no TSP coming out, more free time.' +
     (debtMo === 0 ? ' If part of it is loan payments, leave those out here — they go in step 5.' : '');
