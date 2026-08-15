@@ -107,6 +107,9 @@
   }
   .viewbar button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   html.bigtext .wrap { zoom: 1.18; }
+  section.about { border-left: 6px solid var(--accent); padding-bottom: 14px; }
+  section.about p { margin: 8px 0; font-size: 16.5px; }
+  .linkbtn { background: none; border: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
   @media print { .viewbar { display: none; } }
   .stamp {
     font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
@@ -349,6 +352,7 @@
   <header class="hero">
     <div class="brandline"><span class="stamp">For letter carriers &amp; USPS employees</span>
       <span class="viewbar">
+        <button type="button" id="aboutBtn" aria-expanded="false" aria-controls="aboutCard" title="What this tool is and who made it">ℹ️ About this tool</button>
         <button type="button" id="themeBtn" title="Switch between dark and light">🌙 Switch to dark</button>
         <button type="button" id="bigBtn" aria-pressed="false" title="Make everything larger">A+ Bigger text</button>
       </span>
@@ -357,6 +361,14 @@
     <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
     <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a></p>
   </header>
+
+  <section class="card about" id="aboutCard" hidden>
+    <h2>About this tool</h2>
+    <p>A member of the postal family built this to help with two big decisions: <b>when to retire</b> and <b>when to start drawing Social Security</b> — for a conservative, fairly straightforward financial situation. It doesn't include every factor that might be part of your big picture, but it does offer a rich set of tools, including what a working spouse needs: their own tax-deferred savings, and their own retirement and Social Security decisions to make.</p>
+    <p>We've made it public so our small group of postal friends and family can plug in their numbers and think through their own retirement planning. <b>I am not a financial planner.</b> The decision of when to start Social Security goes well beyond "wait longer and the check is bigger" — many things need to be weighed together, and my hope is that this grows into a genuinely useful place to <i>start</i>: a way to make your own finances help you plan a realistic, doable retirement, one where you might not have to scrimp as much as you feared.</p>
+    <p>It's amazing what a difference even trimming a few hundred dollars a month off your spending now makes to your long-term plans. Try it and see.</p>
+    <p>I hope this is useful, and I look forward to hearing your feedback. <a href="#privacy">Privacy &amp; terms</a> · <button type="button" class="linkbtn" id="aboutClose">Close</button></p>
+  </section>
 
   <section class="card">
     <h2><span class="stepnum">1</span>About you</h2>
@@ -2083,6 +2095,17 @@ $('clearBtn').addEventListener('click', () => {
   $('clearMsg').textContent = 'Cleared. Your entries stay on screen until you leave this page.';
   setTimeout(() => { $('clearMsg').textContent = ''; }, 5000);
 });
+
+// About card
+function toggleAbout(show) {
+  const card = $('aboutCard');
+  const open = show === undefined ? card.hidden : show;
+  card.hidden = !open;
+  $('aboutBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+$('aboutBtn').addEventListener('click', () => toggleAbout());
+$('aboutClose').addEventListener('click', () => toggleAbout(false));
 
 // dark/light + bigger-text toggles (remembered on this device; localStorage is guarded — it throws in data: URLs)
 const PREF_KEY = 'routeToRetirementView';
