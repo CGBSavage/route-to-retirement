@@ -160,6 +160,7 @@
   .debthead { font-size: 13.5px; font-weight: 600; color: var(--ink-2); line-height: 1.25; }
   .debtlabel { font-weight: 600; font-size: 16px; }
   .debtgrid input { font-size: 17px; padding: 9px 8px; }
+  .debtgrid input.debtwhat { font-size: 15px; padding: 9px 6px; }
   .debtgrid .prefix { left: 8px; }
   .debtgrid .prefix + input { padding-left: 22px; }
   @media (max-width: 560px) {
@@ -178,6 +179,7 @@
     .purchgrid .debthead { display: none; }
     .purchgrid input[id$="What"] { grid-column: 1 / -1; }
   }
+  h3.subhead { font-size: 18px; margin: 6px 0 8px; color: var(--ink-2); }
   .spouse-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0 16px; font-size: 17px; }
   .spouse-toggle input { width: 22px; height: 22px; margin-top: 3px; accent-color: var(--accent); }
   details.advanced { margin-top: 22px; border: 1px dashed var(--hairline); border-radius: 12px; padding: 4px 18px; background: none; }
@@ -246,6 +248,11 @@
   .scenario-sub { color: var(--ink-2); font-size: 15.5px; margin: 0 0 10px; }
   .ordernote { background: var(--surface-2); border-left: 4px solid var(--accent); border-radius: 6px; padding: 8px 12px; }
   .ordernote:empty { display: none; }
+  .spgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin: 8px 0; }
+  @media (max-width: 520px) { .spgrid { grid-template-columns: 1fr; } }
+  .spgrid div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dotted var(--hairline); padding: 3px 0; }
+  .spgrid div.sel { font-weight: 700; }
+  .spgrid b { font-variant-numeric: tabular-nums; text-align: right; }
 
   figure.chart { margin: 8px 0 18px; }
   figure.chart svg { display: block; width: 100%; height: auto; }
@@ -269,6 +276,10 @@
   table.years td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
   table.years th:first-child, table.years td:first-child { text-align: left; }
   table.years tr.short td { color: var(--critical); font-weight: 600; }
+  table.years tr.work td { color: var(--ink-2); }
+  table.years tr.milestone td { text-align: left; font-weight: 700; color: var(--accent); background: var(--surface-2); padding: 8px; border-top: 2px solid var(--accent); }
+  table.years .muted { color: var(--muted); }
+  table.years th small { font-weight: 400; color: var(--muted); }
   table.years .saved { color: var(--good); font-weight: 600; white-space: nowrap; }
   .assumptions ul { font-size: 15.5px; color: var(--ink-2); line-height: 1.7; padding-left: 22px; }
 
@@ -497,7 +508,8 @@
       <div class="inputrow"><span class="prefix">$</span><input id="debtOtherMo" type="text" inputmode="numeric" placeholder="0"></div>
       <div class="inputrow"><input id="debtOtherYear" type="text" inputmode="numeric" placeholder="auto"></div>
     </div>
-    <p class="help" style="font-size:14.5px;color:var(--muted);margin:10px 0 4px">Credit cards, personal loans, family loans — anything with a monthly payment. Leave the year blank and we'll estimate it from the balance and payment.</p>
+    <div style="padding:10px 0 4px"><button type="button" id="addDebtRow" class="ghostbtn">＋ Add another loan</button></div>
+    <p class="help" style="font-size:14.5px;color:var(--muted);margin:6px 0 4px">Credit cards, personal loans, family loans, a second car — anything with a monthly payment. Leave the year blank and we'll estimate it from the balance and payment.</p>
     <div class="fields" style="margin-top:10px">
       <div class="field">
         <label for="poLoan">Pay one off early, all at once?</label>
@@ -572,6 +584,30 @@
         <div class="inputrow"><input id="sideUntil" type="text" inputmode="numeric" placeholder="2032"></div>
       </div>
       <div class="field">
+        <label for="pen2Mo">Another pension of your own, monthly</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="pen2Mo" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Military retired pay, a pension from a job before the Post Office, a union pension. Before taxes. Leave 0 if none.</div>
+      </div>
+      <div class="field pen2-dep" style="display:none">
+        <label for="pen2When">Is it coming in already?</label>
+        <select id="pen2When">
+          <option value="now" selected>Yes — already coming in</option>
+          <option value="age">Not yet — it starts at an age</option>
+        </select>
+      </div>
+      <div class="field pen2-dep pen2-age" style="display:none">
+        <label for="pen2Age">Age it starts</label>
+        <div class="inputrow"><input id="pen2Age" type="text" inputmode="numeric" placeholder="60"><span class="suffix">years</span></div>
+      </div>
+      <div class="field pen2-dep" style="display:none">
+        <label for="pen2Cola">Does it get yearly cost-of-living raises?</label>
+        <select id="pen2Cola">
+          <option value="yes" selected>Yes (military retired pay does)</option>
+          <option value="no">No — fixed amount</option>
+        </select>
+        <label class="spouse-toggle" style="padding:8px 0 0"><input type="checkbox" id="pen2TaxFree"><span>This pension is tax-free (e.g. VA disability compensation)</span></label>
+      </div>
+      <div class="field">
         <label for="wfAmt">One-time windfall or inheritance</label>
         <div class="inputrow"><span class="prefix">$</span><input id="wfAmt" type="text" inputmode="numeric" value="0"></div>
         <div class="help">Money you expect to receive once — an inheritance, a property sale, a settlement. It gets added to your savings in the year you pick. Leave 0 if none.</div>
@@ -585,12 +621,26 @@
 
   <section class="card">
     <h2><span class="stepnum">8</span>Spouse or partner</h2>
-    <label class="spouse-toggle"><input type="checkbox" id="hasSpouse"><span>Include a spouse or partner's Social Security in the plan</span></label>
-    <div class="fields" id="spouseFields" style="display:none">
+    <label class="spouse-toggle"><input type="checkbox" id="hasSpouse"><span>Include a spouse or partner in the plan</span></label>
+    <div id="spouseFields" style="display:none">
+    <p class="cardsub">Their income, savings, and Social Security all flow into the same household plan. Fill in what applies; leave the rest at 0.</p>
+    <div class="fields">
       <div class="field">
         <label for="spAge">Their age today</label>
         <div class="inputrow"><input id="spAge" type="text" inputmode="numeric" placeholder="63"><span class="suffix">years</span></div>
       </div>
+      <div class="field">
+        <label for="spTakeHome">Their take-home pay per month (0 if not working)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spTakeHome" type="text" inputmode="numeric" value="0"></div>
+      </div>
+      <div class="field sp-work" style="display:none">
+        <label for="spRetireAge">Age they plan to stop working</label>
+        <div class="inputrow"><input id="spRetireAge" type="text" inputmode="numeric" value="65"><span class="suffix">years</span></div>
+        <div class="help">Their paycheck counts as household income until then.</div>
+      </div>
+    </div>
+    <h3 class="subhead">Their Social Security</h3>
+    <div class="fields">
       <div class="field">
         <label for="spNow">Are they getting Social Security now?</label>
         <select id="spNow">
@@ -603,11 +653,61 @@
         <div class="inputrow"><span class="prefix">$</span><input id="spSS" type="text" inputmode="numeric" value="0"></div>
         <div class="help" id="spSSHelp">The amount they get each month. Enter 0 if they won't get Social Security.</div>
       </div>
-      <div class="field" id="spStartWrap" style="display:none">
+      <div class="field sp-notyet" style="display:none">
+        <label for="spSS62">Their benefit at 62 (optional)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spSS62" type="text" inputmode="numeric" placeholder="auto"></div>
+        <div class="help">Blank = about 70% of the age-67 amount.</div>
+      </div>
+      <div class="field sp-notyet" style="display:none">
+        <label for="spSS70">Their benefit at 70 (optional)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spSS70" type="text" inputmode="numeric" placeholder="auto"></div>
+        <div class="help">Blank = about 124% of the age-67 amount.</div>
+      </div>
+      <div class="field sp-notyet" id="spStartWrap" style="display:none">
         <label for="spSSStart">Age they plan to start</label>
         <div class="inputrow"><input id="spSSStart" type="text" inputmode="numeric" value="62"><span class="suffix">years</span></div>
-        <div class="help">Any age from 62 to 70.</div>
+        <div class="help">Any age from 62 to 70. The plan below shows how other start ages would turn out.</div>
       </div>
+    </div>
+    <h3 class="subhead">Their savings and pension</h3>
+    <div class="fields">
+      <div class="field">
+        <label for="sp401k">Their 401(k), 403(b), or traditional IRA balance</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="sp401k" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Pre-tax retirement money — taxed when withdrawn, with required withdrawals from their age 73, like your TSP.</div>
+      </div>
+      <div class="field sp-work" style="display:none">
+        <label for="sp401kContrib">Added to it per year while they work (theirs + employer)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="sp401kContrib" type="text" inputmode="numeric" value="0"></div>
+      </div>
+      <div class="field">
+        <label for="spRoth">Their Roth IRA balance</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spRoth" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Tax-free money; drawn last, like your own Roth.</div>
+      </div>
+      <div class="field">
+        <label for="spPenMo">Their pension, monthly (0 if none)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="spPenMo" type="text" inputmode="numeric" value="0"></div>
+      </div>
+      <div class="field sppen-dep" style="display:none">
+        <label for="spPenWhen">Is it coming in already?</label>
+        <select id="spPenWhen">
+          <option value="now" selected>Yes — already coming in</option>
+          <option value="age">Not yet — it starts at an age</option>
+        </select>
+      </div>
+      <div class="field sppen-dep sppen-age" style="display:none">
+        <label for="spPenAge">Age it starts</label>
+        <div class="inputrow"><input id="spPenAge" type="text" inputmode="numeric" placeholder="65"><span class="suffix">years</span></div>
+      </div>
+      <div class="field sppen-dep" style="display:none">
+        <label for="spPenCola">Does it get yearly cost-of-living raises?</label>
+        <select id="spPenCola">
+          <option value="yes" selected>Yes</option>
+          <option value="no">No — fixed amount</option>
+        </select>
+      </div>
+    </div>
     </div>
   </section>
 
@@ -709,6 +809,7 @@
       <p class="scenario-title" id="scnTitle"></p>
       <p class="scenario-sub" id="scnSub"></p>
       <p class="scenario-sub ordernote" id="orderNote"></p>
+      <div class="scenario-sub ordernote" id="spStrip"></div>
 
       <figure class="chart">
         <div class="legendrow"><b style="font-family:Charter,Georgia,serif;font-size:17px;color:var(--ink)">Your savings over time</b><span id="balLegend" style="display:contents"></span></div>
@@ -725,6 +826,7 @@
 
       <details class="yeartable">
         <summary>Year-by-year numbers (table)</summary>
+        <p class="help" style="font-size:14.5px;color:var(--muted);margin:0 0 8px">Starts this year and runs to the end of the plan. Rows before you retire show your paycheck covering the bills, with what goes into (or comes out of) savings. Balances are what's left at the end of each year, in future dollars.</p>
         <div class="tablewrap"><table class="years" id="yearTable"></table></div>
       </details>
 
@@ -818,10 +920,40 @@ function estimateTax(inp, t, ordIncome, ssTotal) {
 /* ================= the engine =================
    A direct port of the workbook's PROJECTIONS sheet, run once per
    (retireAge, claimAge) pair. Annual steps. */
-function readDebts() {
+let debtRows = 0;
+const DEBT_MAX = 8;
+function addDebtRow() {
+  if (debtRows >= DEBT_MAX) return 0;
+  const n = ++debtRows;
+  document.querySelector('.debtgrid').insertAdjacentHTML('beforeend',
+    '<input id="d' + n + 'What" type="text" placeholder="Loan ' + n + '" class="debtwhat">' +
+    '<div class="inputrow"><span class="prefix">$</span><input id="d' + n + 'Bal" type="text" inputmode="numeric" placeholder="0"></div>' +
+    '<div class="inputrow"><span class="prefix">$</span><input id="d' + n + 'Mo" type="text" inputmode="numeric" placeholder="0"></div>' +
+    '<div class="inputrow"><input id="d' + n + 'Year" type="text" inputmode="numeric" placeholder="auto"></div>');
+  ['Bal', 'Mo'].forEach(sfx => $('d' + n + sfx).addEventListener('blur', e => fmtField(e.target)));
+  ['What', 'Bal', 'Mo', 'Year'].forEach(sfx => $('d' + n + sfx).addEventListener('input', () => { syncPayoffOptions(); if (typeof syncSpendAnchor === 'function') syncSpendAnchor(); }));
+  if (debtRows >= DEBT_MAX) $('addDebtRow').style.display = 'none';
+  syncPayoffOptions();
+  return n;
+}
+function debtRowDefs() {
   const rows = [['debtHomeBal','debtHomeMo','debtHomeYear','Home'],
                 ['debtCarBal','debtCarMo','debtCarYear','Cars'],
                 ['debtOtherBal','debtOtherMo','debtOtherYear','Other debt']];
+  for (let n = 1; n <= debtRows; n++) rows.push(['d' + n + 'Bal', 'd' + n + 'Mo', 'd' + n + 'Year', ($('d' + n + 'What').value.trim() || 'Loan ' + n)]);
+  return rows;
+}
+// keep the "pay one off early" dropdown in step with the loans that exist
+function syncPayoffOptions() {
+  const sel = $('poLoan'), cur = sel.value;
+  const labels = ['Home', 'Cars', 'Other debt'];
+  for (let n = 1; n <= debtRows; n++) labels.push($('d' + n + 'What').value.trim() || 'Loan ' + n);
+  const nice = l => l === 'Home' ? 'the home loan' : l === 'Cars' ? 'the car loan(s)' : l === 'Other debt' ? 'the other debt' : '"' + l + '"';
+  sel.innerHTML = '<option value="">No</option>' + labels.map(l => '<option value="' + l.replace(/"/g, '&quot;') + '">Yes — ' + nice(l) + '</option>').join('');
+  if (labels.includes(cur)) sel.value = cur; else sel.value = '';
+}
+function readDebts() {
+  const rows = debtRowDefs();
   const out = [];
   for (const [b, m, y, label] of rows) {
     const bal = numOr(b, 0), mo = numOr(m, 0);
@@ -906,10 +1038,21 @@ function readInputs() {
     wfAmt: numOr('wfAmt', 0), wfYear: numOr('wfYear', 0),
     poLoan: $('poLoan').value, poAmt: numOr('poAmt', 0), poYear: numOr('poYear', 0),
     poSource: $('poSource').value,
+    // your second pension (military, a prior job)
+    pen2Mo: numOr('pen2Mo', 0),
+    pen2Age: $('pen2When').value === 'now' ? num('curAge') : numOr('pen2Age', 60),
+    pen2Cola: $('pen2Cola').value !== 'no',
+    pen2Tax: !$('pen2TaxFree').checked,
     hasSpouse: $('hasSpouse').checked,
     spAge: numOr('spAge', 0), spSS: numOr('spSS', 0),
+    spDrawingNow: $('spNow').value === 'yes',
+    // when not yet drawing, spSS is their estimate at 67; 62/70 default to the usual ratios
+    spSSFRA: numOr('spSS', 0), spSS62: numOr('spSS62', numOr('spSS', 0) * 0.70), spSS70: numOr('spSS70', numOr('spSS', 0) * 1.24),
     // Already drawing → treat benefits as active from today; otherwise use the planned start age.
-    spSSStart: $('spNow').value === 'yes' ? numOr('spAge', 0) : numOr('spSSStart', 62),
+    spSSStart: $('spNow').value === 'yes' ? numOr('spAge', 0) : Math.max(62, Math.min(70, numOr('spSSStart', 62))),
+    spTakeHome: numOr('spTakeHome', 0), spRetireAge: numOr('spRetireAge', 65),
+    sp401k: numOr('sp401k', 0), sp401kContrib: numOr('sp401kContrib', 0), spRoth: numOr('spRoth', 0),
+    spPenMo: numOr('spPenMo', 0), spPenAge: $('spPenWhen').value === 'now' ? numOr('spAge', 0) : numOr('spPenAge', 65), spPenCola: $('spPenCola').value !== 'no',
     preRet: numOr('preRet', 7)/100, postRet: numOr('postRet', 4)/100,
     otherRet: numOr('otherRet', 4)/100, inflation: numOr('inflation', 2.5)/100,
     ssCola: numOr('ssCola', 2.5)/100, fersCola: numOr('fersCola', 2)/100,
@@ -971,6 +1114,16 @@ function ssMonthlyAt(inp, claimAge) {
   return inp.ssFRA + (inp.ss70 - inp.ssFRA) * (claimAge - FRA) / (70 - FRA);
 }
 
+// spouse's benefit at a claim age: their monthly check if already drawing, else interpolated from their 62/67/70 estimates
+function spSSMonthlyAt(inp, claimAge) {
+  if (inp.spDrawingNow) return inp.spSS;
+  const fra = inp.spSSFRA, s62 = inp.spSS62, s70 = inp.spSS70;
+  if (claimAge <= 62) return s62;
+  if (claimAge >= 70) return s70;
+  if (claimAge <= FRA) return s62 + (fra - s62) * (claimAge - 62) / (FRA - 62);
+  return fra + (s70 - fra) * (claimAge - FRA) / (70 - FRA);
+}
+
 function pensionInfo(inp, retireAge) {
   const yosR = inp.yos + (retireAge - inp.curAge);
   const high3R = inp.high3 * Math.pow(1 + inp.salGrowth, Math.max(0, retireAge - inp.curAge));
@@ -992,8 +1145,10 @@ function simulate(inp, retireAge, claimAge, order) {
   const pen = pensionInfo(inp, retireAge);
   const ssAnnualAtClaim = ssMonthlyAt(inp, claimAge) * 12;
   let tsp = inp.tspBal;
-  let roth = inp.otherBal * inp.rothPct, taxb = inp.otherBal - roth;
+  let roth = inp.otherBal * inp.rothPct + (inp.hasSpouse ? inp.spRoth : 0), taxb = inp.otherBal * (1 - inp.rothPct);
   let other = taxb + roth;
+  let sp401k = inp.hasSpouse ? inp.sp401k : 0;          // spouse's pre-tax account (401k/403b/trad. IRA) — its own RMD clock
+  const spSSAtClaim = inp.hasSpouse ? spSSMonthlyAt(inp, inp.spSSStart) * 12 : 0;
   let runout = null;
   let payoffFunded = false, payoffSkipped = false;   // early loan payoff: did it actually happen?
   const rows = [];
@@ -1023,7 +1178,19 @@ function simulate(inp, retireAge, claimAge, order) {
     if (earnCut > 0) { const c1 = Math.min(supp, earnCut); supp -= c1; earnCut -= c1; const c2 = Math.min(mySS, earnCut); mySS -= c2; earnCut -= c2; }
     const spDrawing = inp.hasSpouse && spouseAge >= inp.spSSStart;
     const spColaYears = Math.max(0, t - Math.max(0, inp.spSSStart - inp.spAge));
-    const spSS = spDrawing ? inp.spSS * 12 * Math.pow(1 + inp.ssCola, spColaYears) : 0;
+    const spSS = spDrawing ? spSSAtClaim * Math.pow(1 + inp.ssCola, spColaYears) : 0;
+    // a second pension of your own (military, a prior job): starts at pen2Age (or already coming in)
+    const pen2On = inp.pen2Mo > 0 && age >= inp.pen2Age;
+    const pen2 = pen2On ? inp.pen2Mo * 12 * (inp.pen2Cola ? Math.pow(1 + inp.fersCola, Math.max(0, t - Math.max(0, inp.pen2Age - inp.curAge))) : 1) : 0;
+    // spouse: their pension, and their take-home while they're still working
+    const spPenOn = inp.hasSpouse && inp.spPenMo > 0 && spouseAge >= inp.spPenAge;
+    const spPen = spPenOn ? inp.spPenMo * 12 * (inp.spPenCola ? Math.pow(1 + inp.fersCola, Math.max(0, t - Math.max(0, inp.spPenAge - inp.spAge))) : 1) : 0;
+    const spWorking = inp.hasSpouse && inp.spTakeHome > 0 && spouseAge < inp.spRetireAge;
+    const spWork = spWorking ? inp.spTakeHome * 12 * Math.pow(1 + inp.salGrowth, t) : 0;
+    // spouse pre-tax account: contributions while they work; required minimum distributions from their age 73
+    const spContrib = spWorking ? inp.sp401kContrib : 0;
+    const spGrow = sp401k * (spWorking ? inp.preRet : inp.postRet);
+    const spRmd = (inp.hasSpouse && spouseAge >= 73) ? sp401k / rmdDiv(spouseAge) : 0;
 
     // Early payoff planned for this year? It only counts if the money is really there
     // (checked against the account after this year's growth), else the loan just continues.
@@ -1045,7 +1212,7 @@ function simulate(inp, retireAge, claimAge, order) {
     const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
 
     let payoffOut = 0;
-    let tspIn = 0, tspGrow, tspWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0;
+    let tspIn = 0, tspGrow, tspWd = 0, spWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0, drawdownUsed = 0;
     if (working) {
       const sal = inp.salary * Math.pow(1 + inp.salGrowth, t);
       tspIn = sal * (Math.min(inp.empPct, 1) + agencyPct(inp.empPct));
@@ -1060,7 +1227,9 @@ function simulate(inp, retireAge, claimAge, order) {
       let contrib = inp.otherContrib, drawdown = 0;
       const takeHome = inp.takeHomeYr * Math.pow(1 + inp.salGrowth, t);
       const spendNowYr = inp.spendNow > 0 ? inp.spendNow * 12 * Math.pow(1 + inp.inflation, t) : 0;
-      const left = takeHome + spSS + spInc - spendNowYr - debtPayments(inp, year, payoffFunded) - purch.pay;   // household money in
+      // spouse's forced RMD (if they're 73+ while you still work) lands in taxable savings
+      sp401k = sp401k + spGrow + spContrib - spRmd;
+      const left = takeHome + spWork + spSS + spPen + pen2 + spInc + spRmd - spendNowYr - debtPayments(inp, year, payoffFunded) - purch.pay;   // household money in
       contrib = Math.min(inp.otherContrib, Math.max(0, left));
       if (inp.spendNow > 0 && left < 0) drawdown = -left;
       taxb = taxb * (1 + inp.otherRet) + contrib * (1 - inp.rothPct) + windfall;
@@ -1071,7 +1240,7 @@ function simulate(inp, retireAge, claimAge, order) {
       let uncovered = 0;
       if (drawdown > 0) { const got = takeOther(drawdown); uncovered += drawdown - got; drawdown = got; }
       otherIn = contrib + windfall - drawdown;
-      contribUsed = contrib;
+      contribUsed = contrib; drawdownUsed = drawdown;
       if (payoffDue) payoffOut = takeOther(payoffDue);
       if (purch.cash > 0) uncovered += purch.cash - takeOther(purch.cash);
       shortfall = uncovered;
@@ -1082,8 +1251,10 @@ function simulate(inp, retireAge, claimAge, order) {
       const taxInterest = taxb * inp.otherRet;    // growth on the taxable bucket is taxable income
       taxb = taxb * (1 + inp.otherRet) + windfall;
       roth = roth * (1 + inp.otherRet);
-      const guaranteed = supp + pension + mySS + spSS + spInc;
+      const guaranteed = supp + pension + pen2 + spPen + mySS + spSS + spInc + spWork;
       const rmd = age >= 73 ? tsp / rmdDiv(age) : 0;
+      sp401k = sp401k + spGrow + spContrib;
+      const spAvail = Math.max(0, sp401k);
       // the payoff lump comes out of its account first; it counts toward the RMD
       // and (from TSP) toward taxable income
       const payoffTsp = (payoffDue && inp.poSource === 'tsp') ? Math.min(payoffDue, Math.max(0, tsp + tspGrow)) : 0;
@@ -1092,48 +1263,68 @@ function simulate(inp, retireAge, claimAge, order) {
       const tspAvail = Math.max(0, tsp + tspGrow - payoffTsp);
       const otherAvail = taxb + roth;
       const rmdNet = Math.max(0, rmd - payoffTsp);
-      // how much comes from each account for a given gap, honoring the draw order
+      // Pre-tax money = your TSP + spouse's 401k, treated as one pool for the draw order
+      // (each account's own RMD is always taken; beyond that TSP is tapped before the spouse's account).
+      const preAvail = tspAvail + spAvail, rmdTot = Math.min(preAvail, rmdNet + Math.min(spRmd, spAvail));
       const draw = (gap) => {
-        let tw, ow;
+        let pw, ow;
         if (order === 'other') {
-          tw = Math.min(rmdNet, tspAvail);                       // forced RMD first
-          ow = Math.min(Math.max(0, gap - tw), otherAvail);
-          tw = Math.min(Math.max(tw, gap - ow), tspAvail);       // then TSP for what's left
+          pw = rmdTot;                                           // forced RMDs first
+          ow = Math.min(Math.max(0, gap - pw), otherAvail);
+          pw = Math.min(Math.max(pw, gap - ow), preAvail);       // then pre-tax for what's left
         } else {
-          tw = Math.min(Math.max(Math.max(0, gap), rmdNet), tspAvail);
-          ow = Math.min(Math.max(0, gap - tw), otherAvail);
+          pw = Math.min(Math.max(Math.max(0, gap), rmdTot), preAvail);
+          ow = Math.min(Math.max(0, gap - pw), otherAvail);
         }
-        return [tw, ow];
+        return [pw, ow];
       };
+      // split a pre-tax withdrawal between TSP and the spouse's account: RMDs first, then TSP, then spouse
+      const splitPre = (pw) => {
+        let tw = Math.min(rmdNet, tspAvail), sw = Math.min(spRmd, spAvail);
+        let rest = Math.max(0, pw - tw - sw);
+        const moreT = Math.min(rest, tspAvail - tw); tw += moreT; rest -= moreT;
+        const moreS = Math.min(rest, spAvail - sw); sw += moreS;
+        return [tw, sw];
+      };
+      let preWd = 0;
       // Taxes raise the amount needed, which raises TSP withdrawals, which raises
       // taxes — loop a few times until it settles (converges fast).
+      // (spouse take-home is after-tax money and isn't taxed again here; a second pension is taxed unless marked tax-free)
+      const ordBase = supp + pension + (inp.pen2Tax ? pen2 : 0) + spPen + spInc + payoffTsp + taxInterest;
       for (let k = 0; k < 6; k++) {
-        [tspWd, otherWd] = draw(spending + tax - guaranteed);
+        [preWd, otherWd] = draw(spending + tax - guaranteed);
         if (!inp.taxOn) break;
-        const newTax = estimateTax(inp, t, supp + pension + spInc + tspWd + payoffTsp + taxInterest, mySS + spSS);
+        const newTax = estimateTax(inp, t, ordBase + preWd, mySS + spSS);
         if (Math.abs(newTax - tax) < 1) { tax = newTax; break; }
         tax = newTax;
       }
       // settle withdrawals against the final tax figure
       const gap = spending + tax - guaranteed;
-      [tspWd, otherWd] = draw(gap);
+      [preWd, otherWd] = draw(gap);
+      [tspWd, spWd] = splitPre(preWd);
       tsp = Math.max(0, tsp + tspGrow - tspWd - payoffTsp);
+      sp401k = Math.max(0, sp401k - spWd);
       takeOther(otherWd);
-      const remaining = gap - tspWd - otherWd;
+      const remaining = gap - preWd - otherWd;
       if (remaining > 0) shortfall = remaining;
       else { otherIn = -remaining; taxb += otherIn; }   // surplus (incl. excess RMD) is saved
       other = taxb + roth;
       if (shortfall > 50 && runout === null) runout = age;
     }
 
-    rows.push({ age, year, working, supp, pension, mySS, spSS, spInc,
-                tspWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
+    // For display, pensions are folded together (FERS + second + spouse), "other income" is side
+    // income + spouse take-home, "TSP" withdrawals/balances include the spouse's pre-tax account.
+    // The detail fields (fersPen, pen2, spPen, spWork, spWd, sp401k) stay available.
+    rows.push({ age, year, working, supp, pension: pension + pen2 + spPen, fersPen: pension, pen2, spPen,
+                mySS, spSS, spInc: spInc + spWork, sideInc: spInc, spWork,
+                tspWd: tspWd + spWd, ownTspWd: tspWd, spWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
                 saved: working ? 0 : otherIn,   // retired-year surplus reinvested into other savings
-                contribUsed,                    // working-year savings actually credited (after the paycheck cap)
+                contribUsed, drawdown: drawdownUsed,   // working-year savings actually credited / pulled out (after the paycheck cap)
                 purchCash: purch.cash, purchPay: purch.pay,
-                tsp, other, roth, total: tsp + other, netWorth: tsp + other - debtLeft });
+                tsp: tsp + sp401k, ownTsp: tsp, sp401k, other, roth,
+                total: tsp + sp401k + other, netWorth: tsp + sp401k + other - debtLeft });
   }
-  return { rows, runout, endBal: tsp + other, pen, order, payoffSkipped,
+  return { rows, runout, endBal: tsp + sp401k + other, pen, order, payoffSkipped,
            lastsTo: runout === null ? inp.horizon : runout,
            ok: runout === null, retireAge, claimAge };
 }
@@ -1225,10 +1416,13 @@ function ballparkTakeHome(inp) {
 }
 
 // What this year's paycheck leaves after today's spending and loan payments (per year), when we know spending now.
-function householdExtraNow(inp) {   // yearly household income already coming in besides the paycheck
-  const sp = (inp.hasSpouse && inp.spSS > 0 && inp.spSSStart <= inp.spAge) ? inp.spSS * 12 : 0;
+function householdExtraNow(inp) {   // yearly household income already coming in besides your paycheck
+  const sp = (inp.hasSpouse && inp.spDrawingNow && inp.spSS > 0) ? inp.spSS * 12 : 0;
+  const spWork = (inp.hasSpouse && inp.spTakeHome > 0 && inp.spAge < inp.spRetireAge) ? inp.spTakeHome * 12 : 0;
+  const spPen = (inp.hasSpouse && inp.spPenMo > 0 && inp.spPenAge <= inp.spAge) ? inp.spPenMo * 12 : 0;
+  const pen2 = (inp.pen2Mo > 0 && inp.pen2Age <= inp.curAge) ? inp.pen2Mo * 12 : 0;
   const side = (inp.sideInc > 0 && inp.sideUntil >= CUR_YEAR) ? inp.sideInc : 0;
-  return sp + side;
+  return sp + spWork + spPen + pen2 + side;
 }
 function paycheckLeft(inp) {
   if (!(inp.spendNow > 0) || !(inp.takeHomeYr > 0)) return null;
@@ -1276,7 +1470,7 @@ function sanityChecks(inp) {
       notes.push((inp.spendNow > 0
           ? 'You spend about ' + fmt$(liveOn) + '/mo today' + (debtMo ? ' including loan payments' : '')
           : 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo of it into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today')) +
-        '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement' + (debtMo ? ' (including loan payments)' : '') + ' — <b>more than that</b>. That can be right (no commute, no TSP coming out), but if it\'s just a guess, try the number you actually live on now.');
+        '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement' + (debtMo ? ' (including loan payments)' : '') + ' — <b>more than that</b>. That can be right (no commute, for one), but if it\'s just a guess, try the number you actually live on now.');
   } else if (inp.salary > 0) {
     // No take-home entered — use our ballpark so big spending + big savings still gets caught.
     const bp = ballparkTakeHome(inp);
@@ -1375,7 +1569,30 @@ function selectScenario(cell) {
     ? bits.join(' · ') + ' — lasts past ' + INP.horizon + ' with ' + fmt$(cell.endBal) + ' left.'
     : bits.join(' · ') + ' — savings run out around age ' + cell.lastsTo + '.';
   $('orderNote').innerHTML = orderComparison(cell);
+  $('spStrip').innerHTML = spouseStrip(cell);
   drawBalance(cell); drawIncome(cell); renderTable(cell); renderAssumptions(cell);
+}
+
+// For the selected plan, try the spouse's Social Security start ages and show how each turns out.
+function spouseStrip(cell) {
+  const i = INP;
+  if (!i.hasSpouse || i.spDrawingNow || !(i.spSSFRA > 0)) return '';
+  const ages = [62, 65, 67, 70].filter(a => a >= i.spAge);
+  if (i.spSSStart >= i.spAge && !ages.includes(i.spSSStart)) ages.push(i.spSSStart);
+  ages.sort((a, b) => a - b);
+  if (ages.length < 2) return '';
+  const rows = ages.map(a => {
+    const t = Object.assign({}, i, { spSSStart: a });
+    const r = simulate(t, cell.retireAge, cell.claimAge, cell.order);
+    return { a, r, sel: a === i.spSSStart };
+  });
+  const best = rows.reduce((b, x) => (!b || (x.r.ok && !b.r.ok) || (x.r.ok === b.r.ok && (x.r.ok ? x.r.endBal > b.r.endBal : x.r.lastsTo > b.r.lastsTo))) ? x : b, null);
+  return '<b>Your spouse\'s Social Security start age</b> — this plan uses ' + i.spSSStart + '. Same plan with other start ages:' +
+    '<div class="spgrid">' + rows.map(x =>
+      '<div' + (x.sel ? ' class="sel"' : '') + '><span>Start at ' + x.a + (x.sel ? ' (chosen)' : '') + '</span><b>' +
+      (x.r.ok ? 'lasts past ' + i.horizon + ', ' + fmt$(x.r.endBal) + ' left' : 'runs out at ' + x.r.lastsTo) + '</b></div>').join('') + '</div>' +
+    (best && !best.sel ? ' Starting at <b>' + best.a + '</b> comes out best here. ' : ' ') +
+    'Change it in step 8. (Survivor and spousal-benefit rules aren\'t modeled — ask a planner or ssa.gov about those.)';
 }
 
 // Re-run the selected plan with the opposite draw order and say which comes out ahead.
@@ -1516,7 +1733,7 @@ function drawIncome(cell) {
   const rows = cell.rows.filter(r => !r.working);
   if (!rows.length) return;
   const series = [
-    { key: r => r.pension + r.supp, label: 'FERS pension + supplement', color: 'var(--series-1)' },
+    { key: r => r.pension + r.supp, label: (INP.pen2Mo > 0 || (INP.hasSpouse && INP.spPenMo > 0)) ? 'Pensions + supplement' : 'FERS pension + supplement', color: 'var(--series-1)' },
     { key: r => r.mySS + r.spSS, label: 'Social Security', color: 'var(--series-2)' },
     { key: r => r.spInc, label: 'Other household income', color: 'var(--series-3)' },
     { key: r => r.tspWd + r.otherWd, label: 'From savings', color: 'var(--series-4)' }
@@ -1573,6 +1790,13 @@ function drawIncome(cell) {
 // "From savings" cell: withdrawals taken, plus any leftover that got saved back
 // (both can happen in one year when a required minimum distribution exceeds the gap).
 function savedCell(r) {
+  if (r.working) {
+    const parts = [];
+    if (r.drawdown > 1) parts.push(fmt$(r.drawdown));
+    if (r.contribUsed > 1) parts.push('<span class="saved">+' + fmt$(r.contribUsed) + ' saved</span>');
+    if (r.shortfall > 1) parts.push('<span class="short">short ' + fmt$(r.shortfall) + '</span>');
+    return parts.length ? parts.join('<br>') : fmt$(0);
+  }
   const wd = r.tspWd + r.otherWd;
   const parts = [];
   if (wd > 1 || !(r.saved > 1)) parts.push(fmt$(wd));
@@ -1584,15 +1808,23 @@ function renderTable(cell) {
   const t = $('yearTable');
   const showDebt = INP.debts.length > 0;
   const showTax = INP.taxOn;
-  let html = '<tr><th>Year</th><th>Age</th><th>Pension+Suppl.</th><th>Soc. Sec.' + (INP.hasSpouse && INP.spSS > 0 ? ' (you + spouse)' : '') + '</th><th>Other inc.</th><th>From savings</th><th>Spending</th>' +
-    (showTax ? '<th>Taxes (est.)</th>' : '') + '<th>TSP end</th><th>Other end</th>' +
+  const hasSp = INP.hasSpouse;
+  const spName = 'spouse';
+  const cols = 7 + (showTax ? 1 : 0) + 2 + (showDebt ? 2 : 0);
+  let html = '<tr><th>Year</th><th>Age' + (hasSp ? ' (' + spName + ')' : '') + '</th><th>Pension' + ((INP.pen2Mo > 0 || (hasSp && INP.spPenMo > 0)) ? 's' : '') + '+Suppl.</th><th>Soc. Sec.' + (hasSp && (INP.spSS > 0 || INP.spSSFRA > 0) ? ' (you + ' + spName + ')' : '') + '</th><th>Other inc.</th><th>From savings</th><th>Spending</th>' +
+    (showTax ? '<th>Taxes (est.)</th>' : '') + '<th>TSP' + (hasSp && INP.sp401k > 0 ? ' + 401k' : '') + ' balance<br><small>end of year</small></th><th>Other savings<br><small>end of year</small></th>' +
     (showDebt ? '<th>Debt left</th><th>Net worth</th>' : '') + '</tr>';
+  const milestone = txt => '<tr class="milestone"><td colspan="' + cols + '">' + txt + '</td></tr>';
+  let retMarked = false, spMarked = false, spRetYear = null;
+  if (hasSp && INP.spTakeHome > 0 && INP.spRetireAge > INP.spAge) spRetYear = CUR_YEAR + (INP.spRetireAge - INP.spAge);
   for (const r of cell.rows) {
-    if (r.working) continue;
-    html += '<tr' + (r.shortfall > 1 ? ' class="short"' : '') + '><td>' + r.year + '</td><td>' + r.age + '</td><td>' +
+    if (spRetYear !== null && !spMarked && r.year >= spRetYear) { spMarked = true; html += milestone('▶ Your ' + spName + ' stops working (' + spRetYear + ', their age ' + INP.spRetireAge + ')'); }
+    if (!r.working && !retMarked) { retMarked = true; html += milestone('▶ You retire — ' + r.year + ', age ' + r.age + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')); }
+    const spAgeTxt = hasSp ? ' <small>(' + (INP.spAge + r.age - INP.curAge) + ')</small>' : '';
+    html += '<tr class="' + (r.working ? 'work' : '') + (r.shortfall > 1 ? ' short' : '') + '"><td>' + r.year + '</td><td>' + r.age + spAgeTxt + '</td><td>' +
       fmt$(r.pension + r.supp) + '</td><td>' + fmt$(r.mySS + r.spSS) + '</td><td>' + fmt$(r.spInc) + '</td><td>' +
-      savedCell(r) + '</td><td>' + fmt$(r.spending) + (r.shortfall > 1 ? ' ⚠' : '') + '</td>' +
-      (showTax ? '<td>' + fmt$(r.tax) + '</td>' : '') + '<td>' +
+      savedCell(r) + '</td><td>' + (r.working ? '<span class="muted">paycheck</span>' : fmt$(r.spending)) + (r.shortfall > 1 ? ' ⚠' : '') + '</td>' +
+      (showTax ? '<td>' + (r.working ? '<span class="muted">—</span>' : fmt$(r.tax)) + '</td>' : '') + '<td>' +
       fmt$(r.tsp) + '</td><td>' + fmt$(r.other) + '</td>' +
       (showDebt ? '<td>' + fmt$(r.debtLeft) + '</td><td>' + fmt$(r.netWorth) + '</td>' : '') + '</tr>';
   }
@@ -1655,10 +1887,18 @@ function renderAssumptions(cell) {
               : '');
         })()
       : null,
-    i.hasSpouse && i.spSS > 0
-      ? ($('spNow').value === 'yes'
-          ? 'Spouse Social Security: ' + fmt$(i.spSS) + '/mo now, rising with the same COLA.'
-          : 'Spouse Social Security: ' + fmt$(i.spSS) + '/mo starting at their age ' + i.spSSStart + ', with the same COLA afterward.')
+    i.pen2Mo > 0
+      ? 'Your other pension: ' + fmt$(i.pen2Mo) + '/mo ' + (i.pen2Age <= i.curAge ? 'already coming in' : 'starting at age ' + i.pen2Age) + (i.pen2Cola ? ', with ' + (i.fersCola*100).toFixed(1) + '%/yr raises' : ', no raises') + (i.pen2Tax ? ', taxable.' : ', tax-free.')
+      : null,
+    i.hasSpouse
+      ? 'Spouse: ' +
+        (i.spTakeHome > 0 ? 'take-home ' + fmt$(i.spTakeHome) + '/mo counts as household income until they stop working at ' + i.spRetireAge + ' (after-tax money, not taxed again here). ' : '') +
+        (i.spDrawingNow && i.spSS > 0 ? 'Social Security ' + fmt$(i.spSS) + '/mo now, rising with the same COLA. '
+          : i.spSSFRA > 0 ? 'Social Security ' + fmt$(spSSMonthlyAt(i, i.spSSStart)) + '/mo starting at their age ' + i.spSSStart + ' (from their 62/67/70 estimates), same COLA afterward. ' : 'No Social Security entered. ') +
+        (i.spPenMo > 0 ? 'Pension ' + fmt$(i.spPenMo) + '/mo ' + (i.spPenAge <= i.spAge ? 'now' : 'from age ' + i.spPenAge) + (i.spPenCola ? ' with raises' : ', fixed') + ', taxable. ' : '') +
+        (i.sp401k > 0 || i.sp401kContrib > 0 ? 'Their 401(k)/IRA (' + fmt$(i.sp401k) + (i.sp401kContrib > 0 && i.spTakeHome > 0 ? ', +' + fmt$(i.sp401kContrib) + '/yr while they work' : '') + ') grows like TSP, is taxed when withdrawn, required withdrawals from their age 73, and is tapped after your TSP. ' : '') +
+        (i.spRoth > 0 ? 'Their Roth (' + fmt$(i.spRoth) + ') is tax-free and drawn last. ' : '') +
+        'Survivor and spousal Social Security rules are not modeled.'
       : null,
     i.taxOn
       ? 'Taxes (rough estimate, filed ' + (i.hasSpouse ? 'jointly' : 'single') + '): pension, FERS supplement, TSP withdrawals, and extra income count as taxable; the IRS provisional-income formula decides how much of Social Security is taxed; minus the standard deduction (with the 65+ extra); then federal brackets' +
@@ -1679,7 +1919,7 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','takeHome','high3','spendNow','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','spendNow','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
@@ -1690,14 +1930,17 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'p1What','p1Amt','p1Year','p1How','p2What','p2Amt','p2Year','p2How',
                   'p3What','p3Amt','p3Year','p3How','p4What','p4Amt','p4Year','p4How','borrowRate',
                   'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource',
-                  'spAge','spSS','spNow','spSSStart',
+                  'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spPenMo','spPenWhen','spPenAge','spPenCola',
+                  'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
                   'rothPct','drawOrder'];
 function saveForm() {
-  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, purchRows };
+  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, purchRows, debtRows };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
   for (let n = 5; n <= purchRows; n++)
     ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
+  for (let n = 1; n <= debtRows; n++)
+    ['What','Bal','Mo','Year'].forEach(s => o['d' + n + s] = $('d' + n + s).value);
   try { localStorage.setItem('routeToRetirement', JSON.stringify(o)); } catch (e) {}
 }
 function loadForm() {
@@ -1705,6 +1948,10 @@ function loadForm() {
     const o = JSON.parse(localStorage.getItem('routeToRetirement') || 'null');
     if (!o) return;
     while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow();
+    while (debtRows < Math.min(o.debtRows || 0, DEBT_MAX)) addDebtRow();
+    for (let n = 1; n <= debtRows; n++)
+      ['What','Bal','Mo','Year'].forEach(s => { if (o['d' + n + s]) $('d' + n + s).value = o['d' + n + s]; });
+    syncPayoffOptions();
     SAVE_IDS.forEach(id => { if (o[id] !== undefined && o[id] !== '') $(id).value = o[id]; });
     for (let n = 5; n <= purchRows; n++)
       ['What','Amt','Year','How'].forEach(s => { if (o['p' + n + s]) $('p' + n + s).value = o['p' + n + s]; });
@@ -1713,18 +1960,27 @@ function loadForm() {
     $('spouseFields').style.display = o.hasSpouse ? '' : 'none';
     $('taxOn').checked = !!o.taxOn;
     $('taxFields').style.display = o.taxOn ? '' : 'none';
+    $('pen2TaxFree').checked = !!o.pen2TaxFree;
   } catch (e) {}
 }
 $('hasSpouse').addEventListener('change', e => { $('spouseFields').style.display = e.target.checked ? '' : 'none'; });
 function syncSpouseSS() {
   const drawing = $('spNow').value === 'yes';
-  $('spStartWrap').style.display = drawing ? 'none' : '';
-  $('spSSLabel').textContent = drawing ? 'Their monthly check' : 'Their estimated monthly benefit';
+  document.querySelectorAll('.sp-notyet').forEach(d => d.style.display = drawing ? 'none' : '');
+  $('spSSLabel').textContent = drawing ? 'Their monthly check' : 'Their estimated monthly benefit at 67';
   $('spSSHelp').textContent = drawing
     ? 'The amount they get each month. Enter 0 if they won\'t get Social Security.'
-    : 'From their SSA statement at ssa.gov, for the age they plan to start.';
+    : 'From their SSA statement at ssa.gov/myaccount (the full-retirement-age amount).';
+  document.querySelectorAll('.sp-work').forEach(d => d.style.display = numOr('spTakeHome', 0) > 0 ? '' : 'none');
+  const spPen = numOr('spPenMo', 0) > 0;
+  document.querySelectorAll('.sppen-dep').forEach(d => d.style.display = spPen ? '' : 'none');
+  if (spPen) document.querySelectorAll('.sppen-age').forEach(d => d.style.display = $('spPenWhen').value === 'age' ? '' : 'none');
+  const p2 = numOr('pen2Mo', 0) > 0;
+  document.querySelectorAll('.pen2-dep').forEach(d => d.style.display = p2 ? '' : 'none');
+  if (p2) document.querySelectorAll('.pen2-age').forEach(d => d.style.display = $('pen2When').value === 'age' ? '' : 'none');
 }
-$('spNow').addEventListener('change', syncSpouseSS);
+['spNow', 'spPenWhen', 'pen2When'].forEach(id => $(id).addEventListener('change', syncSpouseSS));
+['spTakeHome', 'spPenMo', 'pen2Mo'].forEach(id => $(id).addEventListener('input', syncSpouseSS));
 function syncPayoff() {
   const on = $('poLoan').value !== '';
   document.querySelectorAll('.po-dep').forEach(d => d.style.display = on ? '' : 'none');
@@ -1747,7 +2003,7 @@ function livingComparison(inp) {
     '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement — ';
   if (firstSpend > liveOn * 1.1) return '';   // the amber check covers this case
   return '<p class="compare">' + base + (firstSpend < liveOn * 0.9
-    ? '<b>less than you spend today</b>. That\'s a cautious target if you really expect to cut back (no commute, no TSP coming out). If you plan to live much the same way, use today\'s number instead — a plan that only works on less than you spend now isn\'t much of a plan.'
+    ? '<b>less than you spend today</b>. That\'s a cautious target if you really expect to cut back (no commute, for one). If you plan to live much the same way, use today\'s number instead — a plan that only works on less than you spend now isn\'t much of a plan.'
     : '<b>about the same as today</b> — a solid, realistic starting point.') + '</p>';
 }
 function renderSummary() {
@@ -1782,7 +2038,13 @@ function renderSummary() {
   row('Big purchases', purch.length ? purch.map(p => (p.what || 'purchase') + ' ' + fmt$(p.amt) + ' in ' + p.year).join('; ') : 'none');
   if (inp.sideInc > 0) row('Extra income', fmt$(inp.sideInc) + '/yr through ' + inp.sideUntil);
   if (inp.wfAmt > 0) row('Windfall', fmt$(inp.wfAmt) + ' in ' + inp.wfYear);
-  if (inp.hasSpouse) row('Spouse Social Security', fmt$(inp.spSS) + '/mo' + ($('spNow').value === 'yes' ? ' now' : ' from age ' + inp.spSSStart));
+  if (inp.pen2Mo > 0) row('Your other pension', fmt$(inp.pen2Mo) + '/mo ' + (inp.pen2Age <= inp.curAge ? 'now' : 'from age ' + inp.pen2Age) + (inp.pen2Tax ? '' : ' (tax-free)'));
+  if (inp.hasSpouse) {
+    row('Spouse Social Security', inp.spDrawingNow ? fmt$(inp.spSS) + '/mo now' : (inp.spSSFRA > 0 ? fmt$(spSSMonthlyAt(inp, inp.spSSStart)) + '/mo from age ' + inp.spSSStart : 'none'));
+    if (inp.spTakeHome > 0) row('Spouse take-home', fmt$(inp.spTakeHome) + '/mo until age ' + inp.spRetireAge);
+    if (inp.spPenMo > 0) row('Spouse pension', fmt$(inp.spPenMo) + '/mo ' + (inp.spPenAge <= inp.spAge ? 'now' : 'from age ' + inp.spPenAge));
+    if (inp.sp401k > 0 || inp.spRoth > 0) row('Spouse savings', fmt$(inp.sp401k) + ' pre-tax' + (inp.sp401kContrib > 0 && inp.spTakeHome > 0 ? ' (+' + fmt$(inp.sp401kContrib) + '/yr)' : '') + (inp.spRoth > 0 ? ' · ' + fmt$(inp.spRoth) + ' Roth' : ''));
+  }
   if (inp.poLoan && inp.poAmt > 0) row('Early payoff', inp.poLoan + ' — ' + fmt$(inp.poAmt) + ' in ' + inp.poYear + ' from ' + (inp.poSource === 'tsp' ? 'TSP' : 'other savings'));
   row('Taxes', inp.taxOn ? 'estimated' + (inp.stateRate > 0 ? ' (state ' + (inp.stateRate*100).toFixed(1) + '%)' : '') : 'not included — spending should cover them');
   $('sumGrid').innerHTML = rows.join('');
@@ -1863,7 +2125,7 @@ function syncSpendAnchor() {
       : 'We\'d guess you spend about <b>' + fmt$(liveOn) + ' a month</b> right now' + loanBit + ' — that\'s what\'s left of your ' +
         (useBp ? 'estimated ' : '') + 'take-home' + (L.extraMo > 0 ? ' plus other household income' : '') + ' after savings' + (debtMo > 0 ? ' and loan payments' : '') +
         '. If that\'s off, type your real number in the box above.') +
-    ' Use it as your starting point for retirement — then think about what changes: no commute, no TSP coming out, more free time.' +
+    ' Use it as your starting point for retirement — then think about what changes: no commute, more free time.' +
     (debtMo === 0 ? ' If part of it is loan payments, leave those out here — they go in step 5.' : '');
 }
 ['salary', 'takeHome', 'spendNow', 'tspPct', 'curAge', 'otherContrib', 'stateRate',
@@ -1884,6 +2146,7 @@ $('gnLink').addEventListener('click', e => {
   setTimeout(() => $('preRet').focus({ preventScroll: true }), 400);
 });
 $('addPurchRow').addEventListener('click', () => { const n = addPurchaseRow(); if (n) $('p' + n + 'What').focus(); });
+$('addDebtRow').addEventListener('click', () => { const n = addDebtRow(); if (n) $('d' + n + 'What').focus(); });
 
 $('goBtn').addEventListener('click', () => {
   const required = [
@@ -1955,7 +2218,14 @@ function buildPrintReport() {
   if (i.sideInc > 0) add('Extra income', fmt$(i.sideInc) + '/yr through ' + i.sideUntil);
   if (i.wfAmt > 0) add('Expected windfall', fmt$(i.wfAmt) + ' in ' + i.wfYear);
   if (i.poLoan && i.poAmt > 0) add('Early payoff: ' + i.poLoan, fmt$(i.poAmt) + ' in ' + i.poYear + ' from ' + (i.poSource === 'tsp' ? 'TSP' : 'other savings'));
-  if (i.hasSpouse) add('Spouse (age ' + i.spAge + ') Social Security', fmt$(i.spSS) + '/mo ' + ($('spNow').value === 'yes' ? '(drawing now)' : 'from age ' + i.spSSStart));
+  if (i.pen2Mo > 0) add('Other pension (yours)', fmt$(i.pen2Mo) + '/mo ' + (i.pen2Age <= i.curAge ? 'now' : 'from age ' + i.pen2Age) + (i.pen2Cola ? ', COLA' : ', fixed') + (i.pen2Tax ? '' : ', tax-free'));
+  if (i.hasSpouse) {
+    add('Spouse age', i.spAge);
+    if (i.spTakeHome > 0) add('Spouse take-home', fmt$(i.spTakeHome) + '/mo until age ' + i.spRetireAge);
+    add('Spouse Social Security', i.spDrawingNow ? fmt$(i.spSS) + '/mo now' : (i.spSSFRA > 0 ? fmt$(i.spSSFRA) + '/mo at 67; starts at ' + i.spSSStart : 'none'));
+    if (i.spPenMo > 0) add('Spouse pension', fmt$(i.spPenMo) + '/mo ' + (i.spPenAge <= i.spAge ? 'now' : 'from age ' + i.spPenAge));
+    if (i.sp401k > 0 || i.spRoth > 0) add('Spouse savings', fmt$(i.sp401k) + ' pre-tax · ' + fmt$(i.spRoth) + ' Roth');
+  }
   add('Returns: TSP pre/post, other', (i.preRet*100).toFixed(1) + '% / ' + (i.postRet*100).toFixed(1) + '% / ' + (i.otherRet*100).toFixed(1) + '%');
   add('Inflation / SS COLA / FERS COLA', (i.inflation*100).toFixed(1) + '% / ' + (i.ssCola*100).toFixed(1) + '% / ' + (i.fersCola*100).toFixed(1) + '%');
   add('Survivor benefit reduction', (i.survivor*100).toFixed(0) + '%');
@@ -1996,7 +2266,7 @@ const REPORT_CSS = ':root{--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf
   'h1{font-family:Georgia,serif;font-size:24px;margin:0}.pr-sub{color:#444;margin:2px 0 14px;font-size:12px}' +
   'h2{font-family:Georgia,serif;font-size:16px;margin:18px 0 6px;padding-bottom:2px;border-bottom:1.5px solid #999;page-break-after:avoid}' +
   'p{margin:4px 0}table{border-collapse:collapse;width:100%;font-size:11px;font-variant-numeric:tabular-nums}' +
-  'th,td{border:1px solid #ccc;padding:3px 5px;text-align:right}tr.short td{color:#b00020;font-weight:600}.saved{color:#0ca30c;font-weight:600;white-space:nowrap}th:first-child,td:first-child{text-align:left}tr{page-break-inside:avoid}' +
+  'th,td{border:1px solid #ccc;padding:3px 5px;text-align:right}tr.short td{color:#b00020;font-weight:600}.saved{color:#0ca30c;font-weight:600;white-space:nowrap}tr.milestone td{text-align:left;font-weight:700;background:#eee;border-top:2px solid #333}tr.work td{color:#444}.muted{color:#777}th:first-child,td:first-child{text-align:left}tr{page-break-inside:avoid}' +
   '.pr-facts{columns:2;column-gap:28px;font-size:12px}.pr-facts div{break-inside:avoid;padding:2px 0;display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted #ddd}' +
   '.pr-facts b{font-variant-numeric:tabular-nums;white-space:nowrap}ul{font-size:11.5px;margin:4px 0;padding-left:18px}li{margin-bottom:2px}' +
   'svg{width:100%;height:auto}.pr-fine{font-size:10.5px;color:#444;margin-top:12px;border-top:1px solid #999;padding-top:6px}' +
