@@ -203,6 +203,7 @@
   .verdict h2 { margin: 0 0 6px; font-size: 26px; }
   .verdict p { margin: 6px 0; font-size: 17.5px; }
   .verdict .big { font-size: 19px; }
+  .verdict .compare { color: var(--ink-2); font-size: 15.5px; }
   .verdict .checks { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--warning-wash); font-size: 15.5px; }
   .verdict .checks ul { margin: 4px 0 0; padding-left: 20px; }
   .verdict .checks li { margin: 3px 0; }
@@ -1164,8 +1165,11 @@ function sanityChecks(inp) {
       notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (roughly ' + fmt$(bp) + '/mo after taxes, TSP, and health insurance). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
     if (saveMo > th * 0.5)
       notes.push('You said ' + fmt$(inp.otherContrib) + ' a year goes into other savings — that\'s more than half your take-home. Double-check that\'s what really happened last year.');
-    if (firstSpend > th * 1.15)
-      notes.push('You plan to spend ' + fmt$(firstSpend) + '/mo in early retirement' + (debtMo ? ' (including loan payments)' : '') + ', which is more than the ' + fmt$(th) + '/mo you take home now. That can be right — no commute, no TSP contributions — but make sure it\'s not more than you actually live on today.');
+    // What they actually live on now = take-home minus what goes into savings — compare to the retirement plan.
+    const liveOn = Math.max(0, th - saveMo);
+    if (firstSpend > liveOn * 1.1)
+      notes.push('You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo of it into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today') +
+        '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement' + (debtMo ? ' (including loan payments)' : '') + ' — <b>more than that</b>. That can be right (no commute, no TSP coming out), but if it\'s just a guess, try the number you actually live on now.');
   } else if (inp.salary > 0 && inp.otherContrib + inp.salary * Math.min(inp.empPct, 1) > inp.salary * 0.4) {
     notes.push('TSP plus other savings add up to more than 40% of your pay — double-check the "put away last year" number. (Enter your monthly take-home in step 1 and we can check this more closely.)');
   }
@@ -1176,8 +1180,13 @@ function renderVerdict(best) {
   const v = $('verdict');
   v.classList.toggle('bad', !best || !best.ok);
   const checks = sanityChecks(INP);
-  const checkHtml = checks.length
-    ? '<div class="checks"><b>Worth a second look:</b><ul>' + checks.map(n => '<li>' + n + '</li>').join('') + '</ul></div>' : '';
+  const th = INP.takeHome, saveMo = INP.otherContrib / 12, liveOn = Math.max(0, th - saveMo);
+  const firstSpend = INP.spendMo + INP.debts.reduce((a, d) => a + d.mo, 0);
+  const compareHtml = (th > 0 && firstSpend <= liveOn * 1.1)
+    ? '<p class="compare">For comparison: you take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today') +
+      '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement — ' + (firstSpend < liveOn * 0.9 ? 'less than that, which is comfortable.' : 'about the same, which hangs together.') + '</p>' : '';
+  const checkHtml = compareHtml + (checks.length
+    ? '<div class="checks"><b>Worth a second look:</b><ul>' + checks.map(n => '<li>' + n + '</li>').join('') + '</ul></div>' : '');
   if (best && best.ok) {
     v.innerHTML = '<h2>Good news — the numbers can work. ✓</h2>' +
       '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
