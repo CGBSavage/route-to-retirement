@@ -185,6 +185,24 @@
     .purchgrid input[id$="What"] { grid-column: 1 / -1; }
   }
   h3.subhead { font-size: 18px; margin: 6px 0 8px; color: var(--ink-2); }
+  .infobtn {
+    display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 8px;
+    border-radius: 50%; border: 1.5px solid var(--accent); background: none; color: var(--accent);
+    font: italic 700 15px Charter, Georgia, serif; cursor: pointer; vertical-align: 3px;
+  }
+  .infobtn:hover { background: var(--accent); color: var(--accent-ink); }
+  summary .infobtn { font-style: italic; }
+  .infopop {
+    position: fixed; z-index: 40; left: 50%; bottom: 16px; transform: translateX(-50%);
+    width: min(560px, calc(100vw - 24px)); max-height: 70vh; overflow: auto;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--hairline); border-left: 6px solid var(--accent);
+    border-radius: 12px; box-shadow: var(--shadow); padding: 14px 16px; font-size: 16px;
+  }
+  .infopop-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; font-size: 18px; }
+  .infopop ul { margin: 6px 0 0; padding-left: 20px; }
+  .infopop li { margin: 5px 0; }
+  .infopop a { color: var(--accent); font-weight: 600; }
+  @media print { .infobtn, .infopop { display: none !important; } }
   .spouse-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0 16px; font-size: 17px; }
   .spouse-toggle input { width: 22px; height: 22px; margin-top: 3px; accent-color: var(--accent); }
   details.advanced { margin-top: 22px; border: 1px dashed var(--hairline); border-radius: 12px; padding: 4px 18px; background: none; }
@@ -349,6 +367,11 @@
 </style>
 
 <div class="wrap">
+  <div class="infopop" id="infoPop" hidden role="dialog" aria-label="Where to go for more information">
+    <div class="infopop-head"><b id="infoTitle"></b><button type="button" class="linkbtn" id="infoClose">Close</button></div>
+    <div id="infoBody"></div>
+    <p class="help" style="margin:8px 0 0">These links leave this site and open official pages in a new tab. Nothing you've typed here goes with you.</p>
+  </div>
   <header class="hero">
     <div class="brandline"><span class="stamp">For letter carriers &amp; USPS employees</span>
       <span class="viewbar">
@@ -374,14 +397,17 @@
 
   <section class="card about" id="aboutCard" hidden>
     <h2>About this tool</h2>
-    <p>A member of the postal family built this to help with two big decisions: <b>when to retire</b> and <b>when to start drawing Social Security</b> — for a conservative, fairly straightforward financial situation. It doesn't include every factor that might be part of your big picture, but it does offer a rich set of tools, including what a working spouse needs: their own tax-deferred savings, and their own retirement and Social Security decisions to make.</p>
-    <p>We've made it public so our small group of postal friends and family can plug in their numbers and think through their own retirement planning. <b>I am not a financial planner.</b> The decision of when to start Social Security goes well beyond "wait longer and the check is bigger" — many things need to be weighed together, and my hope is that this grows into a genuinely useful place to <i>start</i>: a way to make your own finances help you plan a realistic, doable retirement, one where you might not have to scrimp as much as you feared.</p>
-    <p>It's amazing what a difference even trimming a few hundred dollars a month off your spending now makes to your long-term plans. Try it and see.</p>
-    <p>I hope this is useful, and I look forward to hearing your feedback. <a href="#privacy">Privacy &amp; terms</a> · <button type="button" class="linkbtn" id="aboutClose">Close</button></p>
+    <p>I created this tool as the spouse of a small-town postmaster nearing retirement. We’ve tried online calculators, general financial advice and a conglomeration of spreadsheets to hone in on the decisions of when to retire, and when to start drawing Social Security. The decisions are not simple, and along with other factors in a person or a couple’s overall financial picture, the factors to consider in the calculations go beyond assumptions that the longer you wait to retire and the longer you wait to start drawing Social Security, the better off you will be.</p>
+    <p>The definition of “better off” is very specific and personal, and goes beyond finances — especially with postal jobs that can take a real toll on the physical body, particularly in those years leading up to retirement. But there is no question that having more information about your own finances will help you make other decisions, and may open up possibilities you might not have considered or thought would apply to you.</p>
+    <p>We have found that to be the case. Small changes in income, savings rates and ways to save, and those break-even points that used to be just about all anyone had to make sense of the true implications of drawing SS early vs. later, can make a really almost puzzling amount of difference in some scenarios, and an equally puzzling <i>lack</i> of real difference in other scenarios.</p>
+    <p>So enter your numbers, and play around with the things you can do — save a little more, spend a little less, spend a little or a lot more at a planned later date — and see what it does to the numbers and the retirement dates.</p>
+    <p><b>A note about me:</b> I am not a financial planner. Use this tool to try different scenarios and discuss them with your own financial planner. Compare them with the tools and processes you have previously used to plan. Verify any big or strange differences with a professional advisor. Send me feedback through the Feedback button and I’ll continue to hone and refine this tool.</p>
+    <p><b>About the AI I use to build and update this:</b> This tool was built using Claude Code running its highest current model, Fable 5. It uses standard and publicly available information from USPS, IRS, SSA and other sources — all accessible through the little <span class="infobtn" style="cursor:default;vertical-align:0">i</span> button beside nearly everything — wrapped in an accessible user interface that I tried to make as streamlined as possible. What started out in my mind as a very simple tool has quickly evolved into a rich set of tools for truly honing in on your own retirement wishes and details. The site’s tools will evolve based on feedback and any laws or regulations that may change.</p>
+    <p><a href="#privacy">Privacy &amp; terms</a> · <button type="button" class="linkbtn" id="aboutClose">Close</button></p>
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">1</span>About you</h2>
+    <h2><span class="stepnum">1</span>About you <button type="button" class="infobtn" data-info="about" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Your basic USPS work history. Your High-3 salary is on your latest annuity estimate from LiteBlue or HR.</p>
     <div class="fields">
       <div class="field">
@@ -411,7 +437,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">2</span>Your savings</h2>
+    <h2><span class="stepnum">2</span>Your savings <button type="button" class="infobtn" data-info="savings" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Your TSP balance is at <b>tsp.gov</b> or on your quarterly statement.</p>
     <div class="fields">
       <div class="field">
@@ -458,7 +484,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">3</span>Your Social Security</h2>
+    <h2><span class="stepnum">3</span>Your Social Security <button type="button" class="infobtn" data-info="ss" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Log in at <b>ssa.gov/myaccount</b> and open your Statement. It lists your estimated monthly benefit at different ages.</p>
     <div class="fields">
       <div class="field">
@@ -480,7 +506,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">4</span>Your spending</h2>
+    <h2><span class="stepnum">4</span>Your spending <button type="button" class="infobtn" data-info="spending" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Nobody spends evenly through retirement — the early "go-go" years (travel, projects, grandkids) usually cost more than the quieter years later, when most of us stay closer to home and live more simply. Enter what a typical month looks like in each stretch, <b>in today's dollars</b> — the math converts everything to future dollars for you. Only the first box is required; leave any box blank to keep the same amount as the stretch before. <b>Don't count loan payments</b> — those go in step 5 so they can stop when a loan is paid off.</p>
     <div class="fields" style="padding-bottom:6px">
       <div class="field">
@@ -524,7 +550,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">5</span>What you owe</h2>
+    <h2><span class="stepnum">5</span>What you owe <button type="button" class="infobtn" data-info="debts" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Loans you're still paying on. We add the payments to your spending until each one is paid off, and subtract what's owed when we show your net worth. Leave rows blank if they don't apply.</p>
     <div class="debtgrid">
       <span></span>
@@ -581,7 +607,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">6</span>Big future purchases</h2>
+    <h2><span class="stepnum">6</span>Big future purchases <button type="button" class="infobtn" data-info="purchases" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Cars wear out, kitchens age, cruises call, kids get help. Plan the big one-time costs here so the numbers stay honest. Enter <b>today's prices</b> — the math adjusts them for inflation to the year you pick. "Cash" means it's paid from savings that year; "borrow" spreads monthly loan payments over the term instead.</p>
     <div class="purchgrid">
       <span class="debthead">What</span>
@@ -610,7 +636,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">7</span>Extra income</h2>
+    <h2><span class="stepnum">7</span>Extra income <button type="button" class="infobtn" data-info="income" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Side work, self-employment, rental income — money the two of you expect to keep earning in retirement. Skip it if there's none.</p>
     <div class="fields">
       <div class="field">
@@ -659,7 +685,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="stepnum">8</span>Spouse or partner</h2>
+    <h2><span class="stepnum">8</span>Spouse or partner <button type="button" class="infobtn" data-info="spouse" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <label class="spouse-toggle"><input type="checkbox" id="hasSpouse"><span>Include a spouse or partner in the plan</span></label>
     <div id="spouseFields" style="display:none">
     <p class="cardsub">Their income, savings, and Social Security all flow into the same household plan. Fill in what applies; leave the rest at 0.</p>
@@ -761,7 +787,7 @@
   </section>
 
   <details class="advanced">
-    <summary>Advanced settings — fine if you never touch these</summary>
+    <summary>Advanced settings — fine if you never touch these <button type="button" class="infobtn" data-info="advanced" aria-label="Where to find more information" title="Where to go for more">i</button></summary>
     <div class="fields">
       <div class="field">
         <label for="preRet">TSP yearly growth while working</label>
@@ -912,7 +938,8 @@
       <div class="goerr" id="printNote" style="color:var(--ink-2);font-weight:400"></div>
     </div>
 
-    <section class="card" id="privacy">
+  
+  <section class="card" id="privacy">
     <h2>Privacy &amp; terms</h2>
     <p class="cardsub"><b>What's stored, and where.</b> To save you retyping, the numbers you enter are kept in this browser's own storage on this device — not on any server, and never sent anywhere. Nothing you type includes your name, Social Security number, or account numbers. On a shared or borrowed device, turn saving off or clear your entries when you're done.</p>
     <label class="spouse-toggle"><input type="checkbox" id="rememberOn" checked><span>Remember my entries on this device</span></label>
@@ -2237,7 +2264,7 @@ $('clearBtn').addEventListener('click', () => {
 // Feedback card — the tool itself never sends anything; these are plain links out.
 // Set FEEDBACK_FORM_URL to an anonymous survey (e.g. a Google Form) and/or FEEDBACK_EMAIL.
 const FEEDBACK_FORM_URL = '';
-const FEEDBACK_EMAIL = 'carolynchristmas@gmail.com';
+const FEEDBACK_EMAIL = 'feedback@route2retirement.com';   // forwards to Carolyn (Namecheap email forwarding) — her real address is never shown
 (function setupFeedback() {
   if (FEEDBACK_FORM_URL) { $('fbSurveyLink').href = FEEDBACK_FORM_URL; $('fbSurveyLine').hidden = false; }
   if (FEEDBACK_EMAIL) {
@@ -2259,6 +2286,66 @@ $('verdict').addEventListener('click', e => {
     setTimeout(() => $('verdict').scrollIntoView({ block: 'start', behavior: 'smooth' }), 100);
   }
 });
+
+// ⓘ "where to go for more" popovers — plain links to official sources (open in a new tab; nothing leaves this page)
+const INFO = {
+  about: { t: 'About you — where to look', items: [
+    ['LiteBlue (USPS employee site)', 'https://liteblue.usps.gov', 'Your service history, pay, and an annuity estimate under "My HR".'],
+    ['OPM — FERS retirement basics', 'https://www.opm.gov/retirement-center/fers-information/', 'Eligibility ages, how the pension is figured, and the FERS supplement.'],
+    ['OPM — Retirement Services', 'https://www.opm.gov/retirement-center/', 'How to apply and what happens after you file.'],
+    ['Military buyback (OPM)', 'https://www.opm.gov/retirement-center/fers-information/creditable-service/', 'How military service can count toward your years.'] ] },
+  savings: { t: 'Your savings — where to look', items: [
+    ['tsp.gov (log in)', 'https://www.tsp.gov', 'Your TSP balance, contribution %, and withdrawal options.'],
+    ['TSP — contribution limits and matching', 'https://www.tsp.gov/making-contributions/', 'What USPS adds and this year\'s IRS limits.'],
+    ['IRS — Roth IRA contribution limits', 'https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-ira-contribution-limits', 'The yearly limits, including the 50+ catch-up.'],
+    ['IRS — Roth IRA basics', 'https://www.irs.gov/retirement-plans/roth-iras', 'Who can contribute, income limits, the 5-year rule.'],
+    ['Investor.gov (SEC)', 'https://www.investor.gov', 'Plain-English basics on saving and investing, and how to check an adviser.'] ] },
+  ss: { t: 'Social Security — where to look', items: [
+    ['my Social Security (ssa.gov/myaccount)', 'https://www.ssa.gov/myaccount/', 'Create an account to see your Statement with the 62 / 67 / 70 estimates.'],
+    ['SSA — when to start retirement benefits', 'https://www.ssa.gov/benefits/retirement/planner/agereduction.html', 'How your check changes by starting age.'],
+    ['SSA — earnings test (working while collecting)', 'https://www.ssa.gov/benefits/retirement/planner/whileworking.html', 'The limit that trims early benefits if you keep earning.'],
+    ['SSA — apply for benefits', 'https://www.ssa.gov/apply', 'When you\'re ready to file.'] ] },
+  spending: { t: 'Spending — where to look', items: [
+    ['CFPB — planning for retirement', 'https://www.consumerfinance.gov/consumer-tools/retirement/', 'Free budgeting and retirement tools from the government\'s consumer bureau.'],
+    ['IRS — tax withholding estimator', 'https://www.irs.gov/individuals/tax-withholding-estimator', 'A closer look at what taxes will actually be.'],
+    ['Medicare — costs at a glance', 'https://www.medicare.gov/basics/costs/medicare-costs', 'Part B and other premiums to plan for at 65.'] ] },
+  debts: { t: 'What you owe — where to look', items: [
+    ['AnnualCreditReport.com', 'https://www.annualcreditreport.com', 'Free official credit reports — a full list of what you owe.'],
+    ['CFPB — paying down debt', 'https://www.consumerfinance.gov/consumer-tools/debt-collection/', 'Plain-English help and your rights.'] ] },
+  purchases: { t: 'Big purchases — where to look', items: [
+    ['CFPB — auto loans', 'https://www.consumerfinance.gov/consumer-tools/auto-loans/', 'Shopping for a car loan without getting taken.'],
+    ['CFPB — mortgages and home equity', 'https://www.consumerfinance.gov/consumer-tools/mortgages/', 'If a home project means borrowing against the house.'] ] },
+  income: { t: 'Extra income & pensions — where to look', items: [
+    ['DFAS — military retired pay', 'https://www.dfas.mil/retiredmilitary/', 'Your military pension statement and COLA.'],
+    ['VA — disability compensation', 'https://www.va.gov/disability/', 'Tax-free; enter it as your "other pension" and tick tax-free.'],
+    ['SSA — earnings test', 'https://www.ssa.gov/benefits/retirement/planner/whileworking.html', 'How side income affects Social Security before 67.'],
+    ['IRS — self-employment basics', 'https://www.irs.gov/businesses/small-businesses-self-employed', 'If the side hustle is real, taxes are too.'] ] },
+  spouse: { t: 'Spouse or partner — where to look', items: [
+    ['my Social Security (for them)', 'https://www.ssa.gov/myaccount/', 'Their own Statement with 62 / 67 / 70 estimates.'],
+    ['SSA — spousal and survivor benefits', 'https://www.ssa.gov/benefits/retirement/planner/applying7.html', 'Rules this tool doesn\'t model — worth reading together.'],
+    ['IRS — spousal IRA', 'https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-ira-contribution-limits', 'A non-working spouse can still fund a Roth IRA on household earnings.'] ] },
+  advanced: { t: 'Advanced settings — where to look', items: [
+    ['OPM — PSHB (Postal Service Health Benefits)', 'https://www.opm.gov/healthcare-insurance/pshb/', 'Keeping health insurance into retirement; the 5-year rule.'],
+    ['OPM — PSHB and Medicare for retirees', 'https://www.opm.gov/healthcare-insurance/medicare/pshb-annuitant/', 'Who must enroll in Part B, and the exemptions.'],
+    ['Medicare.gov — sign up for Part B', 'https://www.medicare.gov/basics/get-started-with-medicare/sign-up', 'When and how to enroll (and the 8-month window after leaving a job).'],
+    ['IRS — qualified charitable distributions', 'https://www.irs.gov/newsroom/qualified-charitable-distributions-allow-eligible-ira-owners-up-to-100000-in-tax-free-gifts-to-charity', 'Giving straight from an IRA after 70½.'],
+    ['TSP — withdrawals and rollovers', 'https://www.tsp.gov/withdrawals-in-retirement/', 'Including moving money to an IRA (needed for charitable distributions).'],
+    ['OPM — survivor benefit election', 'https://www.opm.gov/retirement-center/fers-information/survivors/', 'What the survivor choice in these settings means for your spouse.'] ] }
+};
+function showInfo(key, anchor) {
+  const d = INFO[key]; if (!d) return;
+  $('infoTitle').textContent = d.t;
+  $('infoBody').innerHTML = '<ul>' + d.items.map(([label, url, why]) =>
+    '<li><a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + ' ↗</a><br><span class="help">' + why + '</span></li>').join('') + '</ul>';
+  $('infoPop').hidden = false;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('.infobtn');
+  if (b) { e.preventDefault(); e.stopPropagation(); showInfo(b.dataset.info, b); return; }
+  if (e.target.id === 'infoClose') { $('infoPop').hidden = true; return; }
+  if (!$('infoPop').hidden && !e.target.closest('#infoPop')) $('infoPop').hidden = true;
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('infoPop').hidden = true; });
 
 // About card
 function toggleAbout(show) {
