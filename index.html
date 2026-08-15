@@ -353,6 +353,7 @@
     <div class="brandline"><span class="stamp">For letter carriers &amp; USPS employees</span>
       <span class="viewbar">
         <button type="button" id="aboutBtn" aria-expanded="false" aria-controls="aboutCard" title="What this tool is and who made it">ℹ️ About this tool</button>
+        <button type="button" id="fbBtn" aria-expanded="false" aria-controls="fbCard" title="Tell us what worked and what didn't">💬 Feedback</button>
         <button type="button" id="themeBtn" title="Switch between dark and light">🌙 Switch to dark</button>
         <button type="button" id="bigBtn" aria-pressed="false" title="Make everything larger">A+ Bigger text</button>
       </span>
@@ -361,6 +362,15 @@
     <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
     <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a></p>
   </header>
+
+  <section class="card about" id="fbCard" hidden>
+    <h2>Feedback</h2>
+    <p>This is version one, and it will get better with your help. What confused you? What didn't match your situation? What's missing? A couple of sentences is plenty.</p>
+    <p id="fbSurveyLine" hidden>📝 <a id="fbSurveyLink" href="#" target="_blank" rel="noopener">Answer a short anonymous survey</a> — no name or email asked; opens in a new tab.</p>
+    <p id="fbMailLine" hidden>✉️ <a id="fbMailLink" href="#">Email your thoughts</a> — opens your mail app with the subject filled in.</p>
+    <p class="help">Please don't include account numbers or anything private in feedback. Your planner entries are never sent — only what you choose to write.</p>
+    <p><button type="button" class="linkbtn" id="fbClose">Close</button></p>
+  </section>
 
   <section class="card about" id="aboutCard" hidden>
     <h2>About this tool</h2>
@@ -2096,13 +2106,28 @@ $('clearBtn').addEventListener('click', () => {
   setTimeout(() => { $('clearMsg').textContent = ''; }, 5000);
 });
 
+// Feedback card — the tool itself never sends anything; these are plain links out.
+// Set FEEDBACK_FORM_URL to an anonymous survey (e.g. a Google Form) and/or FEEDBACK_EMAIL.
+const FEEDBACK_FORM_URL = '';
+const FEEDBACK_EMAIL = 'carolynchristmas@gmail.com';
+(function setupFeedback() {
+  if (FEEDBACK_FORM_URL) { $('fbSurveyLink').href = FEEDBACK_FORM_URL; $('fbSurveyLine').hidden = false; }
+  if (FEEDBACK_EMAIL) {
+    $('fbMailLink').href = 'mailto:' + FEEDBACK_EMAIL + '?subject=' + encodeURIComponent('Route2Retirement feedback');
+    $('fbMailLine').hidden = false;
+  }
+  const toggle = show => { const c = $('fbCard'); const open = show === undefined ? c.hidden : show; c.hidden = !open; $('fbBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { $('aboutCard').hidden = true; c.scrollIntoView({ block: 'start', behavior: 'smooth' }); } };
+  $('fbBtn').addEventListener('click', () => toggle());
+  $('fbClose').addEventListener('click', () => toggle(false));
+})();
+
 // About card
 function toggleAbout(show) {
   const card = $('aboutCard');
   const open = show === undefined ? card.hidden : show;
   card.hidden = !open;
   $('aboutBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (open) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (open) { $('fbCard').hidden = true; card.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
 }
 $('aboutBtn').addEventListener('click', () => toggleAbout());
 $('aboutClose').addEventListener('click', () => toggleAbout(false));
