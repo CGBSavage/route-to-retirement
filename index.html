@@ -1614,7 +1614,9 @@ function livingComparison(inp) {
       : 'You take home about ' + fmt$(th) + '/mo' + (saveMo > 0 ? ' and put ' + fmt$(saveMo) + '/mo into savings, so you live on roughly ' + fmt$(liveOn) + '/mo today' : ' today')) +
     '. Your plan spends ' + fmt$(firstSpend) + '/mo in early retirement — ';
   if (firstSpend > liveOn * 1.1) return '';   // the amber check covers this case
-  return '<p class="compare">' + base + (firstSpend < liveOn * 0.9 ? 'less than that, which is comfortable.' : 'about the same, which hangs together.') + '</p>';
+  return '<p class="compare">' + base + (firstSpend < liveOn * 0.9
+    ? '<b>less than you spend today</b>. That\'s a cautious target if you really expect to cut back (no commute, no TSP coming out). If you plan to live much the same way, use today\'s number instead — a plan that only works on less than you spend now isn\'t much of a plan.'
+    : '<b>about the same as today</b> — a solid, realistic starting point.') + '</p>';
 }
 function renderSummary() {
   let inp;
