@@ -194,6 +194,9 @@
   #sumChecks .checks { margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: var(--warning-wash); font-size: 15.5px; }
   #sumChecks .checks ul { margin: 4px 0 0; padding-left: 20px; }
   #sumChecks .compare { margin: 12px 0 0; color: var(--ink-2); font-size: 15.5px; }
+  .anchor { background: var(--surface-2); border-left: 4px solid var(--accent); border-radius: 6px; padding: 10px 14px; font-size: 16px; margin: 0 0 16px; }
+  .anchor:empty { display: none; }
+  .anchor b { font-variant-numeric: tabular-nums; }
   .gobar { margin: 28px 0 8px; text-align: center; }
   #goBtn {
     font-size: 21px; font-weight: 700; padding: 16px 36px; border-radius: 12px; border: none;
@@ -423,6 +426,7 @@
   <section class="card">
     <h2><span class="stepnum">4</span>Your spending</h2>
     <p class="cardsub">Nobody spends evenly through retirement — the early "go-go" years (travel, projects, grandkids) usually cost more than the quieter years later, when most of us stay closer to home and live more simply. Enter what a typical month looks like in each stretch, <b>in today's dollars</b> — the math converts everything to future dollars for you. Only the first box is required; leave any box blank to keep the same amount as the stretch before. <b>Don't count loan payments</b> — those go in step 5 so they can stop when a loan is paid off.</p>
+    <p class="anchor" id="spendAnchor"></p>
     <div class="fields">
       <div class="field">
         <label for="spendMo">Monthly spending in retirement, until age 70</label>
@@ -1653,6 +1657,31 @@ function syncTakeHomeHint() {
 ['salary', 'tspPct', 'curAge', 'stateRate'].forEach(id => $(id).addEventListener('input', syncTakeHomeHint));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncTakeHomeHint));
 
+// step-4 anchor: what their numbers say they live on now, so the retirement spending boxes have a reference point
+function syncSpendAnchor() {
+  const sal = numOr('salary', 0);
+  const el = $('spendAnchor');
+  if (!(sal > 0)) { el.innerHTML = ''; return; }
+  const th = num('takeHome');
+  const useBp = !(th > 0);
+  const takeHome = useBp
+    ? ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
+        curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: $('taxOn').checked ? numOr('stateRate', 0) / 100 : 0 })
+    : th;
+  const saveMo = numOr('otherContrib', 0) / 12;
+  const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
+  const liveOn = Math.max(0, takeHome - saveMo - debtMo);
+  if (!(liveOn > 0)) { el.innerHTML = ''; return; }
+  el.innerHTML = 'Your numbers say you live on about <b>' + fmt$(Math.round(liveOn / 10) * 10) + ' a month</b> right now, before retirement' +
+    (useBp ? ' (our rough guess from your pay — enter your take-home in step 1 for a truer figure)' : '') +
+    (debtMo > 0 ? ', not counting the ' + fmt$(debtMo) + '/mo in loan payments from step 5' : '') +
+    '. Use that as your starting point — then think about what changes: no commute, no TSP coming out, more free time.' +
+    (debtMo === 0 ? ' If part of that is loan payments, leave those out here — they go in step 5.' : '');
+}
+['salary', 'takeHome', 'tspPct', 'curAge', 'otherContrib', 'stateRate',
+ 'debtHomeBal', 'debtHomeMo', 'debtHomeYear', 'debtCarBal', 'debtCarMo', 'debtCarYear', 'debtOtherBal', 'debtOtherMo', 'debtOtherYear'].forEach(id => $(id).addEventListener('input', syncSpendAnchor));
+['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncSpendAnchor));
+
 // step-2 note that mirrors the growth rates in advanced settings
 function syncGrowthNote() {
   const show = (id, v, d) => { const n = parseFloat(String($(id).value).replace(/[,\s%]/g, '')); $(v).textContent = String(isNaN(n) ? d : n); };
@@ -1831,6 +1860,7 @@ $('rvClose').addEventListener('click', () => { $('reportView').classList.remove(
 loadForm();
 syncGrowthNote();
 syncTakeHomeHint();
+syncSpendAnchor();
 renderSummary();
 syncSpouseSS();
 syncPayoff();
