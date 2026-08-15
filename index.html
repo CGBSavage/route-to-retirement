@@ -540,8 +540,8 @@
       </div>
       <div class="field">
         <label for="horizon">Plan for money to last to age</label>
-        <div class="inputrow"><input id="horizon" type="text" inputmode="numeric" value="95"><span class="suffix">years</span></div>
-        <div class="help">95 is a safe planning target — many of us get there.</div>
+        <div class="inputrow"><input id="horizon" type="text" inputmode="numeric" value="101"><span class="suffix">years</span></div>
+        <div class="help">101 is a very safe planning target — better to plan long than run short.</div>
       </div>
       <div class="field">
         <label for="suppOverride">FERS supplement, monthly (optional)</label>
@@ -1225,6 +1225,7 @@ function loadForm() {
     const o = JSON.parse(localStorage.getItem('routeToRetirement') || 'null');
     if (!o) return;
     SAVE_IDS.forEach(id => { if (o[id] !== undefined && o[id] !== '') $(id).value = o[id]; });
+    if (o.horizon === '95') $('horizon').value = '101';   // migrate the old default forward
     $('hasSpouse').checked = !!o.hasSpouse;
     $('spouseFields').style.display = o.hasSpouse ? '' : 'none';
     $('taxOn').checked = !!o.taxOn;
