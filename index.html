@@ -217,6 +217,7 @@
   .verdict p { margin: 6px 0; font-size: 17.5px; }
   .verdict .big { font-size: 19px; }
   .verdict .compare { color: var(--ink-2); font-size: 15.5px; }
+  .verdict .hustle { background: var(--surface-2); border-left: 4px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin-top: 12px; font-size: 16px; }
   .verdict .checks { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--warning-wash); font-size: 15.5px; }
   .verdict .checks ul { margin: 4px 0 0; padding-left: 20px; }
   .verdict .checks li { margin: 3px 0; }
@@ -919,15 +920,17 @@ function readInputs() {
 // Yearly loan payments still owed in `year`, and the balance remaining
 // (balance declines straight-line from today to the payoff year).
 // A loan chosen for early lump-sum payoff stops payments — and counts as gone — from that year on.
-function paidEarly(inp, d, year) {
-  return inp.poLoan && d.label === inp.poLoan && inp.poYear > 0 && year >= inp.poYear;
+// `funded` = whether the early payoff actually happened (there was money to cover it); the
+// simulation passes this in — an unfunded payoff leaves the loan running as if never planned.
+function paidEarly(inp, d, year, funded) {
+  return funded && inp.poLoan && d.label === inp.poLoan && inp.poYear > 0 && year >= inp.poYear;
 }
-function debtPayments(inp, year) {
-  return inp.debts.reduce((a, d) => a + (!paidEarly(inp, d, year) && year <= d.payoff ? d.mo * 12 : 0), 0);
+function debtPayments(inp, year, funded) {
+  return inp.debts.reduce((a, d) => a + (!paidEarly(inp, d, year, funded) && year <= d.payoff ? d.mo * 12 : 0), 0);
 }
-function debtRemaining(inp, year) {
+function debtRemaining(inp, year, funded) {
   return inp.debts.reduce((a, d) => {
-    if (paidEarly(inp, d, year) || year >= d.payoff) return a;
+    if (paidEarly(inp, d, year, funded) || year >= d.payoff) return a;
     const span = Math.max(1, d.payoff - CUR_YEAR);
     return a + d.bal * (d.payoff - year) / span;
   }, 0);
@@ -981,6 +984,7 @@ function simulate(inp, retireAge, claimAge, order) {
   let roth = inp.otherBal * inp.rothPct, taxb = inp.otherBal - roth;
   let other = taxb + roth;
   let runout = null;
+  let payoffFunded = false, payoffSkipped = false;   // early loan payoff: did it actually happen?
   const rows = [];
   // pull `amt` from taxable first, then Roth; returns what was actually taken
   const takeOther = (amt) => {
@@ -1004,17 +1008,25 @@ function simulate(inp, retireAge, claimAge, order) {
     const spSS = spDrawing ? inp.spSS * 12 * Math.pow(1 + inp.ssCola, spColaYears) : 0;
     const spInc = (inp.sideInc > 0 && year <= inp.sideUntil) ? inp.sideInc : 0;
 
-    const debtPay = working ? 0 : debtPayments(inp, year);
+    // Early payoff planned for this year? It only counts if the money is really there
+    // (checked against the account after this year's growth), else the loan just continues.
+    let payoffDue = 0;
+    if (inp.poLoan && inp.poAmt > 0 && year === inp.poYear) {
+      const otherNow = (taxb + roth) * (1 + inp.otherRet) + ((inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0);
+      const tspNow = tsp * (1 + inp.postRet);
+      const canPay = (inp.poSource === 'tsp' && !working) ? tspNow >= inp.poAmt : otherNow >= inp.poAmt;
+      if (canPay) { payoffDue = inp.poAmt; payoffFunded = true; }
+      else payoffSkipped = true;
+    }
+    const debtPay = working ? 0 : debtPayments(inp, year, payoffFunded);
     const purch = purchaseFlows(inp, year);
-    const debtLeft = debtRemaining(inp, year) + purch.owed;
+    const debtLeft = debtRemaining(inp, year, payoffFunded) + purch.owed;
     // spending blocks are in today's dollars; inflate to this year's future dollars
     const spendBase = age < 70 ? inp.spendMo : age < 80 ? inp.spend70s : age < 90 ? inp.spend80s : inp.spend90s;
     const spending = working ? 0 : spendBase * 12 * Math.pow(1 + inp.inflation, t) + debtPay + purch.cash + purch.pay;
 
     const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
 
-    // one-time early loan payoff planned for this year?
-    const payoffDue = (inp.poLoan && inp.poAmt > 0 && year === inp.poYear) ? inp.poAmt : 0;
     let payoffOut = 0;
     let tspIn = 0, tspGrow, tspWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0;
     if (working) {
@@ -1029,7 +1041,7 @@ function simulate(inp, retireAge, claimAge, order) {
       if (inp.spendNow > 0) {
         const takeHome = inp.takeHomeYr * Math.pow(1 + inp.salGrowth, t);
         const spendNowYr = inp.spendNow * 12 * Math.pow(1 + inp.inflation, t);
-        const left = takeHome - spendNowYr - debtPayments(inp, year);
+        const left = takeHome - spendNowYr - debtPayments(inp, year, payoffFunded);
         contrib = Math.min(inp.otherContrib, left);
         if (contrib < 0) { drawdown = -contrib; contrib = 0; }
       }
@@ -1100,7 +1112,7 @@ function simulate(inp, retireAge, claimAge, order) {
                 purchCash: purch.cash, purchPay: purch.pay,
                 tsp, other, roth, total: tsp + other, netWorth: tsp + other - debtLeft });
   }
-  return { rows, runout, endBal: tsp + other, pen, order,
+  return { rows, runout, endBal: tsp + other, pen, order, payoffSkipped,
            lastsTo: runout === null ? inp.horizon : runout,
            ok: runout === null, retireAge, claimAge };
 }
@@ -1246,6 +1258,51 @@ function sanityChecks(inp) {
   return notes;
 }
 
+// Smallest extra yearly income (a side hustle, from retirement until age `untilAge`) that makes
+// this retire/claim combination last to the horizon. Returns the extra per month, or null if
+// even $3,000/mo wouldn't do it. Works on top of any extra income already entered.
+function sideHustleNeeded(inp, retireAge, claimAge, untilAge) {
+  const untilYear = CUR_YEAR + (untilAge - inp.curAge);
+  const trial = (extraYr) => {
+    const t = Object.assign({}, inp);
+    // extra income runs from retirement through untilAge; keep any existing side income too
+    // (existing side income has its own end year; the model needs one — use the later of the two)
+    t.sideInc = inp.sideInc + extraYr;
+    t.sideUntil = Math.max(inp.sideInc > 0 ? inp.sideUntil : 0, untilYear);
+    return simulate(t, retireAge, claimAge).ok;
+  };
+  if (untilAge <= retireAge) return null;
+  const cap = 36000;
+  if (!trial(cap)) return null;
+  let lo = 0, hi = cap;
+  for (let k = 0; k < 14; k++) { const mid = (lo + hi) / 2; if (trial(mid)) hi = mid; else lo = mid; }
+  return Math.ceil(hi / 12 / 25) * 25;   // per month, rounded up to $25
+}
+// Among the failing cells in a grid row, the one that needs the least side income to work.
+function cheapestFix(inp, row) {
+  let pick = null;
+  for (const c of row.cols) {
+    if (c.na || c.ok) continue;
+    const until = Math.min(inp.horizon - 1, Math.max(70, c.retireAge + 3));
+    const perMo = sideHustleNeeded(inp, c.retireAge, c.claimAge, until);
+    if (perMo !== null && (!pick || perMo < pick.perMo)) pick = { cell: c, perMo, until };
+  }
+  return pick;
+}
+function earlierPlan(grid, best) {
+  const row = grid.rows.find(r => r.retireAge === best.retireAge - 1);
+  return row ? cheapestFix(INP, row) : null;
+}
+function hustleHtml(inp, fix, lead, sayNo) {
+  if (!fix) return sayNo
+    ? '<p class="hustle">💡 Even about $3,000 a month of extra income after retiring wouldn\'t close this gap — spending and retirement age are the levers here.</p>' : '';
+  const { cell, perMo, until } = fix;
+  const yrs = until - cell.retireAge;
+  return '<p class="hustle">💡 ' + lead + ' about <b>' + fmt$(perMo) + ' a month</b> of extra income' + (inp.sideInc > 0 ? ' on top of what you already entered' : '') +
+    ' — a side hustle, part-time work, a rental — from when you retire until age ' + until + ' (' + yrs + ' year' + (yrs === 1 ? '' : 's') + ') would make ' +
+    '<b>retiring at ' + cell.retireAge + '</b> with Social Security at ' + cell.claimAge + ' work. Try it in step 7 (extra income ' + fmt$(perMo * 12) + '/yr through ' + (CUR_YEAR + until - inp.curAge) + ') and press the button again.</p>';
+}
+
 function renderVerdict(best) {
   const v = $('verdict');
   v.classList.toggle('bad', !best || !best.ok);
@@ -1258,12 +1315,14 @@ function renderVerdict(best) {
       '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ' +
       INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings.</p>' +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
-      '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' + checkHtml;
+      '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
+      hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) + checkHtml;
   } else if (best) {
     v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
       '<p class="big">Even the strongest combination (<b>retire at ' + best.retireAge + '</b>, <b>claim at ' + best.claimAge +
       '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>.</p>' +
-      '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>' + checkHtml;
+      '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>' +
+      hustleHtml(INP, cheapestFix(INP, GRID.rows.find(r => r.retireAge === best.retireAge)), 'Everyone has a side hustle these days —', true) + checkHtml;
   } else {
     v.innerHTML = '<h2>No eligible combinations found.</h2><p>Check your age and years of service — FERS immediate retirement needs age 62 with 5 years, 60 with 20, or 57 with 30.</p>';
   }
@@ -1547,6 +1606,10 @@ function renderAssumptions(cell) {
     }),
     (i.poLoan && i.poAmt > 0)
       ? (() => {
+          if (cell.payoffSkipped)
+            return 'You planned to pay off the ' + i.poLoan.toLowerCase() + ' loan with ' + fmt$(i.poAmt) + ' in ' + i.poYear + ', but in this plan ' +
+              (i.poSource === 'tsp' && i.poYear >= CUR_YEAR + (cell.retireAge - i.curAge) ? 'TSP' : 'other savings') +
+              ' doesn\'t have that much by then — so the payoff doesn\'t happen and the loan keeps running to its normal end.';
           const whileWorking = i.poYear < CUR_YEAR + (cell.retireAge - i.curAge);
           const fromTsp = i.poSource === 'tsp' && !whileWorking;
           return 'In ' + i.poYear + ' you pay off the ' + i.poLoan.toLowerCase() + ' loan with ' + fmt$(i.poAmt) + ' from ' +
