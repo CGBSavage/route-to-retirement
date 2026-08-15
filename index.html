@@ -361,7 +361,7 @@
       <div class="field">
         <label for="takeHome">Take-home pay per month, on average (optional)</label>
         <div class="inputrow"><span class="prefix">$</span><input id="takeHome" type="text" inputmode="numeric" placeholder="3,800"></div>
-        <div class="help">What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.</div>
+        <div class="help" id="takeHomeHelp">What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.</div>
       </div>
       <div class="field">
         <label for="high3">High-3 average salary</label>
@@ -392,7 +392,7 @@
       <div class="field">
         <label for="otherContrib">Outside TSP, how much did you actually put away last year?</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherContrib" type="text" inputmode="numeric" value="0"></div>
-        <div class="help">Look at last year's bank or IRA statements — what really went in, not what you hope to. 0 is common and fine. We assume the same each year until you retire; after that, the plan works out on its own whether money is left over.</div>
+        <div class="help">Look at last year's bank or IRA statements — what really went in, not what you hope to. We assume the same each year until you retire; after that, the plan works out on its own whether money is left over.</div>
       </div>
     </div>
     <p class="help" id="growthNote" style="font-size:14.5px;color:var(--muted);margin:-6px 0 16px">📈 Yes, growth is counted: we assume TSP earns <b id="gnPre">7</b>%/yr while you work and <b id="gnPost">4</b>%/yr once retired, and other savings earn <b id="gnOther">4</b>%/yr. <a href="#" id="gnLink">Change these</a> in the advanced settings.</p>
@@ -1639,6 +1639,20 @@ $('bigBtn').addEventListener('click', () => { const p = loadPrefs(); p.big = !p.
 if (window.matchMedia) { try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyView(loadPrefs())); } catch (e) {} }
 applyView(loadPrefs());
 
+// the take-home box's grey suggestion is our own ballpark from the pay figures (updates as they type)
+function syncTakeHomeHint() {
+  const sal = numOr('salary', 0);
+  const base = 'What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.';
+  if (!(sal > 0)) { $('takeHome').placeholder = '3,800'; $('takeHomeHelp').textContent = base; return; }
+  const bp = ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
+    curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: $('taxOn').checked ? numOr('stateRate', 0) / 100 : 0 });
+  const r = Math.max(0, Math.round(bp / 50) * 50);
+  $('takeHome').placeholder = r.toLocaleString('en-US');
+  $('takeHomeHelp').textContent = base + ' The grey number is our rough guess for your pay and TSP percentage — if yours is very different, one of the numbers may need a look.';
+}
+['salary', 'tspPct', 'curAge', 'stateRate'].forEach(id => $(id).addEventListener('input', syncTakeHomeHint));
+['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncTakeHomeHint));
+
 // step-2 note that mirrors the growth rates in advanced settings
 function syncGrowthNote() {
   const show = (id, v, d) => { const n = parseFloat(String($(id).value).replace(/[,\s%]/g, '')); $(v).textContent = String(isNaN(n) ? d : n); };
@@ -1816,6 +1830,7 @@ $('rvClose').addEventListener('click', () => { $('reportView').classList.remove(
 
 loadForm();
 syncGrowthNote();
+syncTakeHomeHint();
 renderSummary();
 syncSpouseSS();
 syncPayoff();
