@@ -817,6 +817,28 @@
         <div class="inputrow"><input id="borrowRate" type="text" inputmode="decimal" value="7" class="has-suffix"><span class="suffix">% / yr</span></div>
         <div class="help">Used when a big purchase in step 6 is set to "borrow."</div>
       </div>
+      <div class="field" style="grid-column:1 / -1">
+        <label class="spouse-toggle" style="padding:0 0 6px"><input type="checkbox" id="fehbOn"><span>Keep your health insurance (FEHB / PSHB) into retirement — model the premiums separately</span></label>
+        <div class="help">Postal retirees can keep their plan for life if they retire on an immediate pension after 5 straight years enrolled. The premium is <b>deducted from your FERS pension</b> each month (after-tax in retirement). At 65, most postal retirees must also enroll in <b>Medicare Part B</b> to keep PSHB — about $203/mo per person in 2026 (people who were 64+ on Jan 1 2025 are exempt; many PSHB plans give Part B credits back). If you turn this on, <b>leave health insurance out of your monthly spending</b> so it isn't counted twice. Which plan covers a particular medication is a plan-brochure question — check before you retire.</div>
+      </div>
+      <div class="field fehb-dep" style="display:none">
+        <label for="fehbMo">Your share of the premium now, per month</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="fehbMo" type="text" inputmode="numeric" placeholder="350"></div>
+        <div class="help">From your pay stub / LiteBlue. We raise it 5%/yr (medical costs outrun general inflation).</div>
+      </div>
+      <div class="field fehb-dep" style="display:none">
+        <label for="partB">Add Medicare Part B at 65?</label>
+        <select id="partB">
+          <option value="yes" selected>Yes — required for most (about $203/mo each, rising)</option>
+          <option value="no">No — I'm exempt (64+ on Jan 1, 2025) or will skip it</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1 / -1">
+        <label for="qcdYr">Giving to church or charity straight from your TSP/IRA each year, from age 70½</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="qcdYr" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">A "qualified charitable distribution": from 70½ you can send up to $111,000 a year (2026) directly to a charity from a retirement account — it counts toward your required withdrawal and is <b>never taxed</b>. <b>Catch: TSP itself doesn't offer this</b> — you'd roll some TSP into a traditional IRA first (a routine, tax-free move). Enter today's dollars; we inflate it. Only matters when the tax estimate is on.</div>
+        <label class="spouse-toggle" style="padding:8px 0 0"><input type="checkbox" id="qcdInSpend" checked><span>This giving is already part of my monthly spending (so it just becomes tax-free, not extra)</span></label>
+      </div>
       <div class="field">
         <label for="suppOverride">FERS supplement, monthly (optional)</label>
         <div class="inputrow"><span class="prefix">$</span><input id="suppOverride" type="text" inputmode="numeric" placeholder="auto"></div>
@@ -1124,6 +1146,8 @@ function readInputs() {
     taxOn: $('taxOn').checked,
     stateRate: numOr('stateRate', 0) / 100,
     rothPct: 0,   // (retired input — Roth balances are entered directly now)
+    fehbOn: $('fehbOn').checked, fehbMo: numOr('fehbMo', 0), partB: $('partB').value !== 'no', medInfl: 0.05,
+    qcdYr: numOr('qcdYr', 0), qcdInSpend: $('qcdInSpend').checked,
     drawOrder: $('drawOrder').value === 'other' ? 'other' : 'tsp'
   };
   out.spRothContrib = out.hasSpouse ? out.spRothContrib : 0;
@@ -1277,7 +1301,18 @@ function simulate(inp, retireAge, claimAge, order) {
     const debtLeft = debtRemaining(inp, year, payoffFunded) + purch.owed;
     // spending blocks are in today's dollars; inflate to this year's future dollars
     const spendBase = age < 70 ? inp.spendMo : age < 80 ? inp.spend70s : age < 90 ? inp.spend80s : inp.spend90s;
-    const spending = working ? 0 : spendBase * 12 * Math.pow(1 + inp.inflation, t) + debtPay + purch.cash + purch.pay;
+    // health insurance kept into retirement: your premium share (deducted from the pension) + Medicare Part B at 65 (per person)
+    let health = 0;
+    if (!working && inp.fehbOn) {
+      const med = Math.pow(1 + inp.medInfl, t);
+      health = inp.fehbMo * 12 * med;
+      if (inp.partB) {
+        if (age >= 65) health += 203 * 12 * med;
+        if (inp.hasSpouse && spouseAge >= 65) health += 203 * 12 * med;
+      }
+    }
+    let spending = working ? 0 : spendBase * 12 * Math.pow(1 + inp.inflation, t) + debtPay + purch.cash + purch.pay + health;
+    let qcd = 0;
 
     const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
 
@@ -1340,9 +1375,15 @@ function simulate(inp, retireAge, claimAge, order) {
       const payoffTsp = (payoffDue && inp.poSource === 'tsp') ? Math.min(payoffDue, Math.max(0, tsp + tspGrow)) : 0;
       const payoffOther = (payoffDue && inp.poSource !== 'tsp') ? takeOther(payoffDue) : 0;
       payoffOut = payoffTsp + payoffOther;
-      const tspAvail = Math.max(0, tsp + tspGrow - payoffTsp);
+      // qualified charitable distribution: from 70½ (age 71 in this yearly model), leaves the pre-tax pool
+      // untaxed, counts toward the RMD; if it's already inside spending, that much spending is now paid this way
+      if (inp.qcdYr > 0 && age >= 71) {
+        qcd = Math.min(inp.qcdYr * Math.pow(1 + inp.inflation, t), Math.max(0, tsp + tspGrow - payoffTsp));
+        if (inp.qcdInSpend) spending = Math.max(0, spending - qcd);
+      }
+      const tspAvail = Math.max(0, tsp + tspGrow - payoffTsp - qcd);
       const otherAvail = taxb + (rothOpen(inp.rothStart) ? rothMine : 0) + (rothOpen(inp.spRothStart) ? rothSp : 0);
-      const rmdNet = Math.max(0, rmd - payoffTsp);
+      const rmdNet = Math.max(0, rmd - payoffTsp - qcd);
       // Pre-tax money = your TSP + spouse's 401k, treated as one pool for the draw order
       // (each account's own RMD is always taken; beyond that TSP is tapped before the spouse's account).
       const preAvail = tspAvail + spAvail, rmdTot = Math.min(preAvail, rmdNet + Math.min(spRmd, spAvail));
@@ -1382,7 +1423,7 @@ function simulate(inp, retireAge, claimAge, order) {
       const gap = spending + tax - guaranteed;
       [preWd, otherWd] = draw(gap);
       [tspWd, spWd] = splitPre(preWd);
-      tsp = Math.max(0, tsp + tspGrow - tspWd - payoffTsp);
+      tsp = Math.max(0, tsp + tspGrow - tspWd - payoffTsp - qcd);
       sp401k = Math.max(0, sp401k - spWd);
       takeOther(otherWd);
       const remaining = gap - preWd - otherWd;
@@ -1400,7 +1441,7 @@ function simulate(inp, retireAge, claimAge, order) {
                 tspWd: tspWd + spWd, ownTspWd: tspWd, spWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
                 saved: working ? 0 : otherIn + spRothSaved,   // retired-year surplus reinvested (incl. spouse Roth contributions)
                 contribUsed, drawdown: drawdownUsed,   // working-year savings actually credited / pulled out (after the paycheck cap)
-                purchCash: purch.cash, purchPay: purch.pay,
+                purchCash: purch.cash, purchPay: purch.pay, health, qcd,
                 tsp: tsp + sp401k, ownTsp: tsp, sp401k, other, roth, rothMine, rothSp,
                 total: tsp + sp401k + other, netWorth: tsp + sp401k + other - debtLeft });
   }
@@ -1907,6 +1948,7 @@ function savedCell(r) {
   const wd = r.tspWd + r.otherWd;
   const parts = [];
   if (wd > 1 || !(r.saved > 1)) parts.push(fmt$(wd));
+  if (r.qcd > 1) parts.push('<span class="muted">+' + fmt$(r.qcd) + ' to charity, tax-free</span>');
   if (r.saved > 1) parts.push('<span class="saved">+' + fmt$(r.saved) + ' saved</span>');
   return parts.join('<br>');
 }
@@ -2014,7 +2056,10 @@ function renderAssumptions(cell) {
       : 'Taxes are not modeled — treat the spending number as what you need including taxes.',
     (i.sideInc > 0 ? 'Extra income counts as earned income for the Social Security earnings test: before 67, anything over about ' + fmt$(23400) + '/yr (rising with inflation) trims the FERS supplement and any Social Security check by $1 for every $2 over.' : null),
     'Nothing comes out of TSP before you retire. Anything that has to be paid from savings while working — a cash purchase, an early payoff, or overspending — comes from other savings only; if other savings can\'t cover it, the model doesn\'t invent the money (that gap isn\'t shown).',
-    'Health insurance (FEHB) and Medicare premiums should be inside your spending number.',
+    i.fehbOn
+      ? 'Health insurance kept into retirement: your ' + fmt$(i.fehbMo) + '/mo premium share continues (deducted from the pension, rising 5%/yr)' + (i.partB ? ', plus Medicare Part B at 65 (about $203/mo per person in 2026, rising)' + (i.hasSpouse ? ' for each of you' : '') : ', no Part B') + '. Keep it out of your monthly spending number.'
+      : 'Health insurance (FEHB/PSHB) and Medicare premiums should be inside your spending number (or turn on the health-insurance option in advanced settings).',
+    i.qcdYr > 0 ? 'From age 70½, ' + fmt$(i.qcdYr) + '/yr (today\'s dollars) goes straight from your TSP/IRA to charity — never taxed, counts toward the required withdrawal' + (i.qcdInSpend ? ', and comes out of the giving already in your spending' : ', on top of your spending') + '. TSP itself doesn\'t do this — roll that money into a traditional IRA first.' : null,
     'The model plans for money to last to age ' + i.horizon + '.'
   ];
   $('assumpList').innerHTML = items.filter(Boolean).map(s => '<li>' + s + '</li>').join('');
@@ -2026,7 +2071,7 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','takeHome','high3','spendNow','rothIRA','rothBal','spRothContrib','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','spendNow','rothIRA','rothBal','spRothContrib','fehbMo','qcdYr','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
@@ -2040,9 +2085,9 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spRothContrib','spRothStart','spPenMo','spPenWhen','spPenAge','spPenCola',
                   'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
-                  'drawOrder'];
+                  'drawOrder','fehbMo','partB','qcdYr'];
 function saveForm() {
-  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, purchRows, debtRows };
+  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
   for (let n = 5; n <= purchRows; n++)
     ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
@@ -2069,6 +2114,9 @@ function loadForm() {
     $('taxOn').checked = !!o.taxOn;
     $('taxFields').style.display = o.taxOn ? '' : 'none';
     $('pen2TaxFree').checked = !!o.pen2TaxFree;
+    $('fehbOn').checked = !!o.fehbOn;
+    if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend;
+    document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none');
   } catch (e) {}
 }
 $('hasSpouse').addEventListener('change', e => { $('spouseFields').style.display = e.target.checked ? '' : 'none'; });
@@ -2095,6 +2143,7 @@ function syncPayoff() {
 }
 $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
+$('fehbOn').addEventListener('change', e => { document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = e.target.checked ? '' : 'none'); });
 // live "quick check" summary above the button — mirrors what's been entered and flags anything odd
 function livingComparison(inp) {
   const th = inp.takeHome, saveMo = inp.saveYr / 12, debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
@@ -2156,6 +2205,8 @@ function renderSummary() {
     if (inp.sp401k > 0 || inp.spRoth > 0 || inp.spRothContrib > 0) row('Spouse savings', fmt$(inp.sp401k) + ' pre-tax' + (inp.sp401kContrib > 0 && inp.spTakeHome > 0 ? ' (+' + fmt$(inp.sp401kContrib) + '/yr)' : '') + ' · ' + fmt$(inp.spRoth) + ' Roth' + (inp.spRothContrib > 0 ? ' (+' + fmt$(inp.spRothContrib) + '/yr)' : ''));
   }
   if (inp.poLoan && inp.poAmt > 0) row('Early payoff', inp.poLoan + ' — ' + fmt$(inp.poAmt) + ' in ' + inp.poYear + ' from ' + (inp.poSource === 'tsp' ? 'TSP' : 'other savings'));
+  if (inp.fehbOn) row('Health insurance in retirement', fmt$(inp.fehbMo) + '/mo now' + (inp.partB ? ' + Part B at 65' : ''));
+  if (inp.qcdYr > 0) row('Giving from TSP/IRA (70½+)', fmt$(inp.qcdYr) + '/yr, tax-free');
   row('Taxes', inp.taxOn ? 'estimated' + (inp.stateRate > 0 ? ' (state ' + (inp.stateRate*100).toFixed(1) + '%)' : '') : 'not included — spending should cover them');
   $('sumGrid').innerHTML = rows.join('');
   let checks = [];
@@ -2397,6 +2448,8 @@ function buildPrintReport() {
   add('Returns: TSP pre/post, other', (i.preRet*100).toFixed(1) + '% / ' + (i.postRet*100).toFixed(1) + '% / ' + (i.otherRet*100).toFixed(1) + '%');
   add('Inflation / SS COLA / FERS COLA', (i.inflation*100).toFixed(1) + '% / ' + (i.ssCola*100).toFixed(1) + '% / ' + (i.fersCola*100).toFixed(1) + '%');
   add('Survivor benefit reduction', (i.survivor*100).toFixed(0) + '%');
+  if (i.fehbOn) add('Health insurance kept', fmt$(i.fehbMo) + '/mo now' + (i.partB ? ', Part B at 65' : ''));
+  if (i.qcdYr > 0) add('Charitable giving from IRA (70½+)', fmt$(i.qcdYr) + '/yr');
   add('Taxes', i.taxOn ? 'Estimated (state ' + (i.stateRate*100).toFixed(1) + '%)' : 'Not modeled');
 
   let grid = '<table><tr><th>Retire ↓ / Claim SS →</th>' + GRID.claimAges.map(c => '<th>' + c + '</th>').join('') + '</tr>';
