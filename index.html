@@ -191,6 +191,9 @@
   .verdict h2 { margin: 0 0 6px; font-size: 26px; }
   .verdict p { margin: 6px 0; font-size: 17.5px; }
   .verdict .big { font-size: 19px; }
+  .verdict .checks { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--warning-wash); font-size: 15.5px; }
+  .verdict .checks ul { margin: 4px 0 0; padding-left: 20px; }
+  .verdict .checks li { margin: 3px 0; }
 
   .gridwrap { overflow-x: auto; padding-bottom: 6px; }
   table.matrix { border-collapse: separate; border-spacing: 4px; margin: 6px auto 0; }
@@ -328,6 +331,11 @@
         <div class="inputrow"><span class="prefix">$</span><input id="salary" type="text" inputmode="numeric" placeholder="68,000"></div>
       </div>
       <div class="field">
+        <label for="takeHome">Take-home pay per month, on average (optional)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="takeHome" type="text" inputmode="numeric" placeholder="3,800"></div>
+        <div class="help">What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.</div>
+      </div>
+      <div class="field">
         <label for="high3">High-3 average salary</label>
         <div class="inputrow"><span class="prefix">$</span><input id="high3" type="text" inputmode="numeric" placeholder="65,000"></div>
         <div class="help">The average of your highest-paid 3 years in a row — usually your last 3. Not sure? Use your current pay; it's close.</div>
@@ -354,9 +362,9 @@
         <div class="help">Bank savings, Roth IRAs, brokerage accounts — everything outside TSP. 0 is fine. (Have a <b>traditional</b> IRA? Add it to your TSP balance instead — it's taxed the same way.)</div>
       </div>
       <div class="field">
-        <label for="otherContrib">Added to those savings per year while you're still working</label>
+        <label for="otherContrib">Outside TSP, how much did you actually put away last year?</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherContrib" type="text" inputmode="numeric" value="0"></div>
-        <div class="help">Only counts until you retire. After that, the plan works out on its own each year whether money is left over — and saves it for you.</div>
+        <div class="help">Look at last year's bank or IRA statements — what really went in, not what you hope to. 0 is common and fine. We assume the same each year until you retire; after that, the plan works out on its own whether money is left over.</div>
       </div>
     </div>
     <p class="help" id="growthNote" style="font-size:14.5px;color:var(--muted);margin:-6px 0 16px">📈 Yes, growth is counted: we assume TSP earns <b id="gnPre">7</b>%/yr while you work and <b id="gnPost">4</b>%/yr once retired, and other savings earn <b id="gnOther">4</b>%/yr. <a href="#" id="gnLink">Change these</a> in the advanced settings.</p>
@@ -389,9 +397,9 @@
     <p class="cardsub">Nobody spends evenly through retirement — the early "go-go" years (travel, projects, grandkids) usually cost more than the quieter years later, when most of us stay closer to home and live more simply. Enter what a typical month looks like in each stretch, <b>in today's dollars</b> — the math converts everything to future dollars for you. Only the first box is required; leave any box blank to keep the same amount as the stretch before. <b>Don't count loan payments</b> — those go in step 5 so they can stop when a loan is paid off.</p>
     <div class="fields">
       <div class="field">
-        <label for="spendMo">Monthly spending until age 70</label>
+        <label for="spendMo">Monthly spending in retirement, until age 70</label>
         <div class="inputrow"><span class="prefix">$</span><input id="spendMo" type="text" inputmode="numeric" placeholder="4,500"></div>
-        <div class="help">Usually your most active — and most expensive — years.</div>
+        <div class="help">From the day you retire until 70 — usually your most active, most expensive years. (While you're still working, we assume your paycheck covers the bills.)</div>
       </div>
       <div class="field">
         <label for="spend70s">In your 70s</label>
@@ -821,6 +829,7 @@ function readInputs() {
     curAge: num('curAge'),
     yos: CUR_YEAR - num('poStart'),
     salary: num('salary'),
+    takeHome: num('takeHome'),   // NaN when blank; only used for sanity checks
     high3: numOr('high3', num('salary')),
     tspBal: numOr('tspBal', 0), empPct: numOr('tspPct', 5) / 100,
     otherBal: numOr('otherBal', 0), otherContrib: numOr('otherContrib', 0),
@@ -1116,21 +1125,54 @@ function renderGrid(grid) {
   const wrap = $('gridwrap'); wrap.innerHTML = ''; wrap.appendChild(t);
 }
 
+// Rough monthly take-home from the pay figures: gross − employee TSP − FICA − federal/state
+// income tax (this year's brackets, standard deduction) − a typical FEHB share (~$250/mo).
+function ballparkTakeHome(inp) {
+  const tspEmp = inp.salary * Math.min(inp.empPct, 1);
+  const fica = inp.salary * 0.0765;
+  const tax = estimateTax(inp, 0, inp.salary - tspEmp, 0);
+  return (inp.salary - tspEmp - fica - tax - 3000) / 12;
+}
+
+// Soft "worth a second look" checks — never block the plan, just flag numbers that don't hang together.
+function sanityChecks(inp) {
+  const notes = [];
+  const th = inp.takeHome;
+  const saveMo = inp.otherContrib / 12;
+  const debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
+  const firstSpend = inp.spendMo + debtMo;
+  if (th > 0) {
+    const bp = ballparkTakeHome(inp);
+    if (bp > 0 && (th < bp * 0.7 || th > bp * 1.3))
+      notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (roughly ' + fmt$(bp) + '/mo after taxes, TSP, and health insurance). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
+    if (saveMo > th * 0.5)
+      notes.push('You said ' + fmt$(inp.otherContrib) + ' a year goes into other savings — that\'s more than half your take-home. Double-check that\'s what really happened last year.');
+    if (firstSpend > th * 1.15)
+      notes.push('You plan to spend ' + fmt$(firstSpend) + '/mo in early retirement' + (debtMo ? ' (including loan payments)' : '') + ', which is more than the ' + fmt$(th) + '/mo you take home now. That can be right — no commute, no TSP contributions — but make sure it\'s not more than you actually live on today.');
+  } else if (inp.salary > 0 && inp.otherContrib + inp.salary * Math.min(inp.empPct, 1) > inp.salary * 0.4) {
+    notes.push('TSP plus other savings add up to more than 40% of your pay — double-check the "put away last year" number. (Enter your monthly take-home in step 1 and we can check this more closely.)');
+  }
+  return notes;
+}
+
 function renderVerdict(best) {
   const v = $('verdict');
   v.classList.toggle('bad', !best || !best.ok);
+  const checks = sanityChecks(INP);
+  const checkHtml = checks.length
+    ? '<div class="checks"><b>Worth a second look:</b><ul>' + checks.map(n => '<li>' + n + '</li>').join('') + '</ul></div>' : '';
   if (best && best.ok) {
     v.innerHTML = '<h2>Good news — the numbers can work. ✓</h2>' +
       '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
       '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ' +
       INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings.</p>' +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
-      '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>';
+      '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' + checkHtml;
   } else if (best) {
     v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
       '<p class="big">Even the strongest combination (<b>retire at ' + best.retireAge + '</b>, <b>claim at ' + best.claimAge +
       '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>.</p>' +
-      '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>';
+      '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>' + checkHtml;
   } else {
     v.innerHTML = '<h2>No eligible combinations found.</h2><p>Check your age and years of service — FERS immediate retirement needs age 62 with 5 years, 60 with 20, or 57 with 30.</p>';
   }
@@ -1440,12 +1482,12 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','high3','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
 
-const SAVE_IDS = ['curAge','poStart','salary','high3','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
+const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','tspBal','tspPct','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo',
                   'spend70s','spend80s','spend90s',
                   'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
                   'p1What','p1Amt','p1Year','p1How','p2What','p2Amt','p2Year','p2How',
@@ -1563,7 +1605,7 @@ function buildPrintReport() {
   const add = (l, v) => facts.push('<div><span>' + esc(l) + '</span><b>' + esc(v) + '</b></div>');
   add('Age today', i.curAge);
   add('Started federal service', (CUR_YEAR - i.yos) + ' (' + i.yos + ' yrs so far)');
-  add('Current annual pay', fmt$(i.salary));
+  add('Current annual pay', fmt$(i.salary) + (i.takeHome > 0 ? ' (take-home ' + fmt$(i.takeHome) + '/mo)' : ''));
   add('High-3 average salary', fmt$(i.high3));
   add('TSP balance', fmt$(i.tspBal));
   add('TSP contribution', (i.empPct*100).toFixed(0) + '% + ' + (agencyPct(i.empPct)*100).toFixed(1) + '% USPS');
