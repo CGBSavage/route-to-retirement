@@ -480,13 +480,14 @@
     <p class="cardsub">Your TSP balance is at <b>tsp.gov</b> or on your quarterly statement.</p>
     <div class="fields">
       <div class="field">
-        <label for="tspBal">TSP balance today</label>
+        <label for="tspBal" id="tspBalLabel">TSP balance today</label>
         <div class="inputrow"><span class="prefix">$</span><input id="tspBal" type="text" inputmode="numeric" placeholder="250,000"></div>
+        <div class="help" id="tspBalHelp" hidden></div>
       </div>
       <div class="field">
-        <label for="tspPct">How much of your pay goes into TSP</label>
+        <label for="tspPct" id="tspPctLabel">How much of your pay goes into TSP</label>
         <div class="inputrow"><input id="tspPct" type="text" inputmode="decimal" value="5" class="has-suffix"><span class="suffix">%</span></div>
-        <div class="help">USPS adds up to 5% more on top when you put in at least 5%.</div>
+        <div class="help" id="tspPctHelp">USPS adds up to 5% more on top when you put in at least 5%.</div>
       </div>
       <div class="field">
         <label for="tspStart">Not in TSP yet? Year you expect to start</label>
@@ -2429,6 +2430,16 @@ function setPath(which) {
     ? 'Your best guess for the conversion year. FERS years and TSP contributions both start then (time as a CCA, RCA, or PSE before that doesn\'t count toward the pension).'
     : 'Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn\'t add to your years. It\'s on your SF-50 or in LiteBlue. If you bought back military time, move the year back by those years.';
   $('poStart').placeholder = notCareer ? String(CUR_YEAR + 1) : '1998';
+  // step 2 reads as a plan for people not yet in TSP
+  $('tspBalLabel').textContent = notCareer ? 'TSP balance today (0 until you\'re career)' : 'TSP balance today';
+  $('tspBal').placeholder = notCareer ? '0' : '250,000';
+  $('tspBalHelp').hidden = !notCareer;
+  $('tspBalHelp').textContent = 'You can\'t contribute until conversion — the plan starts your TSP the year you become career, at the percentage below.';
+  $('tspPctLabel').textContent = notCareer ? 'How much of your pay you\'ll put into TSP once you\'re career' : 'How much of your pay goes into TSP';
+  $('tspPctHelp').textContent = notCareer
+    ? 'Start at 5% from day one: USPS adds up to 5% more on top when you put in at least 5% — that\'s free money you\'d otherwise leave behind. Until then, the Roth IRA below is your savings engine.'
+    : 'USPS adds up to 5% more on top when you put in at least 5%.';
+  const ts = document.querySelector('label[for="tspStart"]'); if (ts) ts.closest('.field').style.display = (retired || notCareer) ? 'none' : '';
   $('retiredFields').hidden = !retired;
   document.querySelectorAll('.work-only').forEach(d => d.style.display = retired ? 'none' : '');
   // step-2 wording tweaks for retirees
