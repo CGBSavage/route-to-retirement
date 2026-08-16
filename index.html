@@ -2328,8 +2328,11 @@ function renderSummary() {
     (checks.length ? '<div class="checks"><b>Worth a second look:</b><ul>' + checks.map(n => '<li>' + n + '</li>').join('') + '</ul></div>' : '');
 }
 let sumTimer = null;
-document.addEventListener('input', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) { clearTimeout(sumTimer); sumTimer = setTimeout(renderSummary, 250); } });
-document.addEventListener('change', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) { clearTimeout(sumTimer); sumTimer = setTimeout(renderSummary, 50); } });
+// autosave as they type (debounced) — a reload must never lose entries
+const onFormEdit = (delay) => { clearTimeout(sumTimer); sumTimer = setTimeout(() => { renderSummary(); try { saveForm(); } catch (e) {} }, delay); };
+document.addEventListener('input', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) onFormEdit(250); });
+document.addEventListener('change', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) onFormEdit(50); });
+window.addEventListener('pagehide', () => { try { saveForm(); } catch (e) {} });
 
 // remember-on-this-device switch and clear button
 const REMEMBER_KEY = 'routeToRetirementRemember';
@@ -2488,9 +2491,9 @@ function syncRetiredSS() {
   $('ssStartedNote').hidden = !started;
 }
 $('ssNow').addEventListener('input', syncRetiredSS);
-$('pathWorking').addEventListener('click', () => setPath('working'));
-$('pathNotCareer').addEventListener('click', () => setPath('notcareer'));
-$('pathRetired').addEventListener('click', () => setPath('retired'));
+$('pathWorking').addEventListener('click', () => { setPath('working'); try { saveForm(); } catch (e) {} });
+$('pathNotCareer').addEventListener('click', () => { setPath('notcareer'); try { saveForm(); } catch (e) {} });
+$('pathRetired').addEventListener('click', () => { setPath('retired'); try { saveForm(); } catch (e) {} });
 
 // About card
 function toggleAbout(show) {
