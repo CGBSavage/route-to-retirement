@@ -1670,8 +1670,17 @@ function sanityChecks(inp) {
         notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo — more than the ' + fmt$(thh) + '/mo coming in' + (thh > th ? ' (take-home plus other household income)' : '') + '.' + planNote(inp) + ' Double-check the numbers if that\'s not what\'s really happening.');
       else if (planNote(inp))
         notes.push('Your income doesn\'t quite stretch to ' + fmt$(inp.saveYr) + '/yr of savings on top of spending' + (debtMo ? ' and loans' : '') + '.' + planNote(inp));
-      else if (outgo < thh * 0.8)
-        notes.push('About ' + fmt$(thh - outgo) + '/mo of your income isn\'t accounted for by spending, loans, or savings. That\'s fine — but if it\'s really piling up somewhere, count it in step 2 so the plan gets credit for it.');
+      else if (outgo < thh * 0.8) {
+        const extra = householdExtraNow(inp) / 12;
+        const inParts = ['your take-home ' + fmt$(th)];
+        if (inp.hasSpouse && inp.spTakeHome > 0 && inp.spAge < inp.spRetireAge) inParts.push('spouse take-home ' + fmt$(inp.spTakeHome));
+        const otherExtra = extra - ((inp.hasSpouse && inp.spTakeHome > 0 && inp.spAge < inp.spRetireAge) ? inp.spTakeHome : 0);
+        if (otherExtra > 0) inParts.push('other household income ' + fmt$(otherExtra));
+        const outParts = ['spending ' + fmt$(inp.spendNow)];
+        if (debtMo > 0) outParts.push('loans ' + fmt$(debtMo));
+        if (saveMo > 0) outParts.push('savings ' + fmt$(saveMo) + (inp.rothIRA + inp.spRothContrib > 0 ? ' (incl. Roth IRAs)' : ''));
+        notes.push('Coming in: ' + inParts.join(' + ') + ' = ' + fmt$(thh) + '/mo. Going out: ' + outParts.join(' + ') + ' = ' + fmt$(outgo) + '/mo. About <b>' + fmt$(thh - outgo) + '/mo isn\'t accounted for</b>. If that\'s really piling up, count it as savings in step 2 so the plan gets credit for it — or check whether "spending now" covers the whole household.');
+      }
     }
     if (firstSpend > liveOn * 1.1)
       notes.push((inp.spendNow > 0
