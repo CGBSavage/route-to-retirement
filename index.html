@@ -230,6 +230,8 @@
   #sumChecks .compare { margin: 12px 0 0; color: var(--ink-2); font-size: 15.5px; }
   .unitrow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; }
   .unitrow select { width: auto; font-size: 15px; padding: 10px 8px; }
+  details.stub { border: 1px dashed var(--accent); border-radius: 10px; padding: 4px 14px 10px; margin: 0 0 16px; }
+  details.stub summary { cursor: pointer; font-weight: 600; padding: 8px 0; color: var(--accent); }
   .anchor { background: var(--surface-2); border-left: 4px solid var(--accent); border-radius: 6px; padding: 10px 14px; font-size: 16px; margin: 0 0 16px; }
   .anchor:empty { display: none; }
   .anchor b { font-variant-numeric: tabular-nums; }
@@ -429,6 +431,19 @@
     <div class="anchor" id="notCareerNote" hidden>
       <b>Not career yet? Here's how to fill this in.</b> Enter the year you expect to convert to career in step 1 — your FERS years and TSP both start then. Use the pay you'll earn as a career employee (or your pay now). Leave High-3 blank; we'll grow your pay to retirement for you. In step 2, TSP is $0 for now — and this is exactly the moment a Roth IRA earns its keep: enter what you can put in each year (the IRS max if possible) and set up an automatic transfer. Then run the plan and watch what the early start does. The rest of the form works the same.
     </div>
+    <details class="stub work-only" id="stubBox">
+      <summary>📄 Have a pay stub handy? Fill these from it and we'll do the rest</summary>
+      <p class="help" style="margin:4px 0 10px">Use one recent earnings statement (every-two-weeks numbers, just as printed). Overtime in that check is fine — we sort out basic pay from the TSP line.</p>
+      <div class="fields" style="padding-bottom:6px">
+        <div class="field"><label for="stubGross">Gross pay this period</label><div class="inputrow"><span class="prefix">$</span><input id="stubGross" type="text" inputmode="numeric" placeholder="3,933.58"></div></div>
+        <div class="field"><label for="stubNet">Net pay this period</label><div class="inputrow"><span class="prefix">$</span><input id="stubNet" type="text" inputmode="numeric" placeholder="2,579.00"></div></div>
+        <div class="field"><label for="stubHealth">Health insurance this period</label><div class="inputrow"><span class="prefix">$</span><input id="stubHealth" type="text" inputmode="numeric" placeholder="211.00"></div></div>
+        <div class="field"><label for="stubTspPct">TSP line — the number shown (e.g. TSP 10)</label><div class="inputrow"><input id="stubTspPct" type="text" inputmode="decimal" placeholder="10" class="has-suffix"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="stubTspAmt">TSP dollars this period (optional)</label><div class="inputrow"><span class="prefix">$</span><input id="stubTspAmt" type="text" inputmode="numeric" placeholder="295.20"></div><div class="help">Lets us work out your basic pay (for the pension) when overtime is in the check.</div></div>
+      </div>
+      <button type="button" class="ghostbtn" id="stubApply">Use these numbers</button>
+      <span class="help" id="stubNote" style="display:block;margin-top:8px"></span>
+    </details>
     <div class="fields" id="retiredFields" hidden>
       <div class="field">
         <label for="retYear">Year you retired</label>
@@ -2193,7 +2208,7 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','takeHome','high3','spendNow','penNow','suppNow','ssNow','rothIRA','rothBal','spRothContrib','fehbMo','qcdYr','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','spendNow','penNow','suppNow','ssNow','stubGross','stubNet','stubHealth','stubTspAmt','rothIRA','rothBal','spRothContrib','fehbMo','qcdYr','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
@@ -2622,6 +2637,22 @@ $('estSS').addEventListener('click', () => {
   $('ssFRA').value = e.fra.toLocaleString('en-US'); $('ss62').value = e.at62.toLocaleString('en-US'); $('ss70').value = e.at70.toLocaleString('en-US');
   ['ssFRA','ss62','ss70'].forEach(id => $(id).dispatchEvent(new Event('input', { bubbles: true })));
   $('estSSNote').textContent = 'Filled in: about ' + fmt$(e.fra) + '/mo at 67 (' + fmt$(e.at62) + ' at 62, ' + fmt$(e.at70) + ' at 70), assuming a steady career at ' + fmt$(sal) + '/yr. Rough — replace with your Statement or Quick Calculator numbers when you have them.';
+});
+
+// "From your pay stub": one biweekly statement → annual pay, take-home, health premium, TSP %, basic pay for High-3
+$('stubApply').addEventListener('click', () => {
+  const gross = numOr('stubGross', 0), net = numOr('stubNet', 0), health = numOr('stubHealth', 0), pct = num('stubTspPct'), tspAmt = numOr('stubTspAmt', 0);
+  const fire = id => { $(id).dispatchEvent(new Event('input', { bubbles: true })); $(id).dispatchEvent(new Event('change', { bubbles: true })); };
+  const done = [];
+  if (gross > 0) { $('salary').value = Math.round(gross * 26).toLocaleString('en-US'); fire('salary'); done.push('annual pay ' + fmt$(Math.round(gross * 26))); }
+  if (net > 0) { $('takeHomeUnit').value = 'pp'; $('takeHome').value = net.toLocaleString('en-US'); fire('takeHomeUnit'); fire('takeHome'); done.push('take-home ' + fmt$(net) + '/paycheck (' + fmt$(Math.round(net * 26 / 12)) + '/mo)'); }
+  if (health > 0) { $('fehbUnit').value = 'pp'; $('fehbMo').value = health.toLocaleString('en-US'); fire('fehbUnit'); fire('fehbMo'); done.push('health premium ' + fmt$(health) + '/paycheck'); }
+  if (!isNaN(pct) && pct >= 0) { $('tspPct').value = String(pct); fire('tspPct'); done.push('TSP ' + pct + '%'); }
+  if (tspAmt > 0 && pct > 0) {
+    const basic = Math.round(tspAmt / (pct / 100) * 26);
+    if (basic > 0 && basic < gross * 26 * 1.05) { $('high3').value = basic.toLocaleString('en-US'); fire('high3'); done.push('basic pay ≈ ' + fmt$(basic) + '/yr → used for High-3 (overtime doesn\'t count toward the pension)'); }
+  }
+  $('stubNote').textContent = done.length ? 'Filled in: ' + done.join(' · ') + '. Adjust anything that isn\'t right (High-3 especially — your LiteBlue estimate is the real number). The health premium also went into advanced settings for the keep-insurance-into-retirement option.' : 'Enter at least the gross and net from the stub.';
 });
 
 // step-2 note that mirrors the growth rates in advanced settings
