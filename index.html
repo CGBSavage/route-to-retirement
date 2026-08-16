@@ -228,6 +228,8 @@
   #sumChecks .checks { margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: var(--warning-wash); font-size: 15.5px; }
   #sumChecks .checks ul { margin: 4px 0 0; padding-left: 20px; }
   #sumChecks .compare { margin: 12px 0 0; color: var(--ink-2); font-size: 15.5px; }
+  .unitrow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; }
+  .unitrow select { width: auto; font-size: 15px; padding: 10px 8px; }
   .anchor { background: var(--surface-2); border-left: 4px solid var(--accent); border-radius: 6px; padding: 10px 14px; font-size: 16px; margin: 0 0 16px; }
   .anchor:empty { display: none; }
   .anchor b { font-variant-numeric: tabular-nums; }
@@ -463,9 +465,12 @@
         <div class="inputrow"><span class="prefix">$</span><input id="salary" type="text" inputmode="numeric" placeholder="68,000"></div>
       </div>
       <div class="field work-only">
-        <label for="takeHome">Take-home pay per month, on average (optional)</label>
-        <div class="inputrow"><span class="prefix">$</span><input id="takeHome" type="text" inputmode="numeric" placeholder="3,800"></div>
-        <div class="help" id="takeHomeHelp">What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.</div>
+        <label for="takeHome">Take-home pay (optional)</label>
+        <div class="unitrow">
+          <div class="inputrow"><span class="prefix">$</span><input id="takeHome" type="text" inputmode="numeric" placeholder="3,800"></div>
+          <select id="takeHomeUnit" aria-label="Take-home pay period"><option value="mo" selected>per month</option><option value="pp">per paycheck (every 2 weeks)</option></select>
+        </div>
+        <div class="help" id="takeHomeHelp">The "net pay" on your earnings statement — what actually lands in the bank after taxes, TSP, health insurance, and the rest. Pick "per paycheck" and type one check's net; we do the ×26 ÷ 12. We only use it to double-check that your other numbers hang together.</div>
       </div>
       <div class="field work-only">
         <label for="high3">High-3 average salary</label>
@@ -487,7 +492,7 @@
       <div class="field">
         <label for="tspPct" id="tspPctLabel">How much of your pay goes into TSP</label>
         <div class="inputrow"><input id="tspPct" type="text" inputmode="decimal" value="5" class="has-suffix"><span class="suffix">%</span></div>
-        <div class="help" id="tspPctHelp">USPS adds up to 5% more on top when you put in at least 5%.</div>
+        <div class="help" id="tspPctHelp">USPS adds up to 5% more on top when you put in at least 5%. On your earnings statement the TSP line shows the percentage you chose (e.g. "TSP 10" = 10% of basic pay).</div>
       </div>
       <div class="field">
         <label for="tspStart">Not in TSP yet? Year you expect to start</label>
@@ -894,9 +899,12 @@
         <div class="help">Postal retirees can keep their plan for life if they retire on an immediate pension after 5 straight years enrolled. The premium is <b>deducted from your FERS pension</b> each month (after-tax in retirement). At 65, most postal retirees must also enroll in <b>Medicare Part B</b> to keep PSHB — about $203/mo per person in 2026 (people who were 64+ on Jan 1, 2025, or already retired then, are exempt; many PSHB plans give Part B credits back). Two things people get wrong: (1) skipping Part B is penalty-free only while you're covered by a plan from <i>current</i> employment — yours or a spouse's; <b>retiree FEHB/PSHB doesn't count</b>, so waiting means a permanent 10%-per-year surcharge. <b>If you're still working at 65, enroll in Part B when you retire</b> — you have 8 months from your last day, penalty-free (this plan adds it at retirement in that case); and (2) if you're in the required group and don't enroll, you can <b>lose PSHB itself</b>, drug coverage first. <b>A spouse covered under your plan follows the same rules</b> — Part B at their 65 (we add it then), unless they're covered by their <i>own</i> job's plan while still working, in which case they enroll within 8 months of leaving that job. If you turn this on, <b>leave health insurance out of your monthly spending</b> so it isn't counted twice. Which plan covers a particular medication is a plan-brochure question — check before you retire.</div>
       </div>
       <div class="field fehb-dep" style="display:none">
-        <label for="fehbMo">Your share of the premium now, per month</label>
-        <div class="inputrow"><span class="prefix">$</span><input id="fehbMo" type="text" inputmode="numeric" placeholder="350"></div>
-        <div class="help">From your pay stub / LiteBlue. We raise it 5%/yr (medical costs outrun general inflation).</div>
+        <label for="fehbMo">Your share of the health premium now</label>
+        <div class="unitrow">
+          <div class="inputrow"><span class="prefix">$</span><input id="fehbMo" type="text" inputmode="numeric" placeholder="350"></div>
+          <select id="fehbUnit" aria-label="Premium period"><option value="mo" selected>per month</option><option value="pp">per paycheck (every 2 weeks)</option></select>
+        </div>
+        <div class="help">The health-insurance line on your earnings statement is <b>per paycheck</b> — pick that and type it as-is. We raise it 5%/yr (medical costs outrun general inflation).</div>
       </div>
       <div class="field fehb-dep" style="display:none">
         <label for="partB">Add Medicare Part B at 65?</label>
@@ -1173,7 +1181,7 @@ function readInputs() {
     curAge: num('curAge'),
     yos: retired ? Math.max(0, numOr('retYear', CUR_YEAR) - numOr('poStart', numOr('retYear', CUR_YEAR) - 20)) + (CUR_YEAR - numOr('retYear', CUR_YEAR)) : CUR_YEAR - num('poStart'),
     salary: retired ? 0 : num('salary'),
-    takeHome: num('takeHome'),   // NaN when blank
+    takeHome: $('takeHomeUnit').value === 'pp' ? num('takeHome') * 26 / 12 : num('takeHome'),   // NaN when blank; per-paycheck → monthly
     high3: retired ? 0 : numOr('high3', num('salary')),
     tspBal: numOr('tspBal', 0), empPct: numOr('tspPct', 5) / 100,
     tspStart: numOr('tspStart', num('poStart') > CUR_YEAR ? num('poStart') : 0),   // year TSP contributions begin (blank = already, or career start if that's in the future)
@@ -1222,7 +1230,7 @@ function readInputs() {
     taxOn: $('taxOn').checked,
     stateRate: numOr('stateRate', 0) / 100,
     rothPct: 0,   // (retired input — Roth balances are entered directly now)
-    fehbOn: $('fehbOn').checked, fehbMo: numOr('fehbMo', 0), partB: $('partB').value !== 'no', medInfl: 0.05,
+    fehbOn: $('fehbOn').checked, fehbMo: $('fehbUnit').value === 'pp' ? numOr('fehbMo', 0) * 26 / 12 : numOr('fehbMo', 0), partB: $('partB').value !== 'no', medInfl: 0.05,
     qcdYr: numOr('qcdYr', 0), qcdInSpend: $('qcdInSpend').checked,
     drawOrder: $('drawOrder').value === 'other' ? 'other' : 'tsp'
   };
@@ -2194,7 +2202,7 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'debtHomeBal','debtHomeMo','debtHomeYear','debtCarBal','debtCarMo','debtCarYear','debtOtherBal','debtOtherMo','debtOtherYear',
                   'p1What','p1Amt','p1Year','p1How','p2What','p2Amt','p2Year','p2How',
                   'p3What','p3Amt','p3Year','p3How','p4What','p4Amt','p4Year','p4How','borrowRate',
-                  'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource','retYear','penNow','suppNow','ssNow',
+                  'sideInc','sideUntil','wfAmt','wfYear','poLoan','poAmt','poYear','poSource','retYear','penNow','suppNow','ssNow','takeHomeUnit','fehbUnit',
                   'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spRothContrib','spRothStart','spPenMo','spPenWhen','spPenAge','spPenCola',
                   'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
@@ -2468,7 +2476,7 @@ function setPath(which) {
   $('tspPctLabel').textContent = notCareer ? 'How much of your pay you\'ll put into TSP once you\'re career' : 'How much of your pay goes into TSP';
   $('tspPctHelp').textContent = notCareer
     ? 'Start at 5% from day one: USPS adds up to 5% more on top when you put in at least 5% — that\'s free money you\'d otherwise leave behind. Until then, the Roth IRA below is your savings engine.'
-    : 'USPS adds up to 5% more on top when you put in at least 5%.';
+    : 'USPS adds up to 5% more on top when you put in at least 5%. On your earnings statement the TSP line shows the percentage you chose (e.g. "TSP 10" = 10% of basic pay).';
   const ts = document.querySelector('label[for="tspStart"]'); if (ts) ts.closest('.field').style.display = (retired || notCareer) ? 'none' : '';
   $('otherContribLabel').textContent = notCareer ? 'Besides the Roth IRA above, how much did you actually put away last year?' : 'Outside TSP, how much did you actually put away last year?';
   $('retiredFields').hidden = !retired;
@@ -2543,14 +2551,16 @@ function syncTakeHomeHint() {
   const sal = numOr('salary', 0);
   const base = 'What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.';
   if (!(sal > 0)) { $('takeHome').placeholder = '3,800'; $('takeHomeHelp').textContent = base; return; }
-  const feh = numOr('fehbMo', 0);
+  const feh = numOr('fehbMo', 0) * ($('fehbUnit').value === 'pp' ? 26 / 12 : 1);
   const bp = ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
     curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: numOr('stateRate', 0) / 100, fehbMo: feh });
-  const r = Math.max(0, Math.round(bp / 50) * 50);
+  const pp = $('takeHomeUnit').value === 'pp';
+  const r = Math.max(0, Math.round((pp ? bp * 12 / 26 : bp) / 50) * 50);
   $('takeHome').placeholder = r.toLocaleString('en-US');
   $('takeHomeHelp').textContent = base + ' The grey number is our rough guess from your pay, TSP percentage' + (feh > 0 ? ', and the health premium you entered' : ', and a typical health premium') + ' — on purpose a low-side guess (heavier withholding, union dues, state tax); most people take home a bit more. If yours is very different, one of the numbers may need a look.';
 }
 ['salary', 'tspPct', 'curAge', 'stateRate', 'fehbMo'].forEach(id => $(id).addEventListener('input', syncTakeHomeHint));
+['fehbUnit', 'takeHomeUnit'].forEach(id => $(id).addEventListener('change', () => { syncTakeHomeHint(); syncSpendAnchor(); }));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncTakeHomeHint));
 
 // step-4 anchor: what their numbers say they live on now, so the retirement spending boxes have a reference point
@@ -2561,11 +2571,11 @@ function liveOnNow() {
   if (entered > 0) return { liveOn: entered, useBp: false, entered: true, debtMo: debtMoE };
   const sal = numOr('salary', 0);
   if (!(sal > 0)) return null;
-  const th = num('takeHome');
+  const th = num('takeHome') * ($('takeHomeUnit').value === 'pp' ? 26 / 12 : 1);
   const useBp = !(th > 0);
   const takeHome = useBp
     ? ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
-        curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: numOr('stateRate', 0) / 100, fehbMo: numOr('fehbMo', 0) })
+        curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: numOr('stateRate', 0) / 100, fehbMo: numOr('fehbMo', 0) * ($('fehbUnit').value === 'pp' ? 26 / 12 : 1) })
     : th;
   const saveMo = (numOr('otherContrib', 0) + numOr('rothIRA', 0) + ($('hasSpouse').checked ? numOr('spRothContrib', 0) : 0)) / 12;
   const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
@@ -2589,7 +2599,7 @@ function syncSpendAnchor() {
     ' Use it as your starting point for retirement — then think about what changes: no commute, more free time.' +
     (debtMo === 0 ? ' If part of it is loan payments, leave those out here — they go in step 5.' : '');
 }
-['salary', 'takeHome', 'spendNow', 'tspPct', 'curAge', 'otherContrib', 'rothIRA', 'spRothContrib', 'stateRate',
+['salary', 'takeHome', 'spendNow', 'tspPct', 'curAge', 'otherContrib', 'rothIRA', 'spRothContrib', 'stateRate', 'fehbMo',
  'debtHomeBal', 'debtHomeMo', 'debtHomeYear', 'debtCarBal', 'debtCarMo', 'debtCarYear', 'debtOtherBal', 'debtOtherMo', 'debtOtherYear'].forEach(id => $(id).addEventListener('input', syncSpendAnchor));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncSpendAnchor));
 
