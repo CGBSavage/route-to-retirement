@@ -526,6 +526,11 @@
   <section class="card">
     <h2><span class="stepnum">3</span>Your Social Security <button type="button" class="infobtn" data-info="ss" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Log in at <b>ssa.gov/myaccount</b> and open your Statement. It lists your estimated monthly benefit at different ages.</p>
+    <div class="anchor" id="ssYoungNote">
+      <b>Early in your career?</b> Your Statement only shows retirement estimates once you have about 10 years of work (40 credits). Until then, use SSA's official <a href="https://www.ssa.gov/OACT/quickcalc/" target="_blank" rel="noopener noreferrer">Quick Calculator ↗</a> (birth date + current pay), or let us make a rough estimate from your pay:
+      <button type="button" class="ghostbtn" id="estSS" style="margin-top:8px">Estimate my Social Security from my pay</button>
+      <span class="help" id="estSSNote" style="display:block;margin-top:6px"></span>
+    </div>
     <div class="fields">
       <div class="field">
         <label for="ssFRA">Monthly benefit at age 67</label>
@@ -2375,6 +2380,7 @@ const INFO = {
     ['my Social Security (ssa.gov/myaccount)', 'https://www.ssa.gov/myaccount/', 'Create an account to see your Statement with the 62 / 67 / 70 estimates.'],
     ['SSA — when to start retirement benefits', 'https://www.ssa.gov/benefits/retirement/planner/agereduction.html', 'How your check changes by starting age.'],
     ['SSA — earnings test (working while collecting)', 'https://www.ssa.gov/benefits/retirement/planner/whileworking.html', 'The limit that trims early benefits if you keep earning.'],
+    ['SSA — Quick Calculator (no account needed)', 'https://www.ssa.gov/OACT/quickcalc/', 'Rough benefit estimates from birth date and pay — for anyone whose Statement doesn\'t show estimates yet.'],
     ['SSA — apply for benefits', 'https://www.ssa.gov/apply', 'When you\'re ready to file.'] ] },
   spending: { t: 'Spending — where to look', items: [
     ['CFPB — planning for retirement', 'https://www.consumerfinance.gov/consumer-tools/retirement/', 'Free budgeting and retirement tools from the government\'s consumer bureau.'],
@@ -2545,6 +2551,27 @@ function syncSpendAnchor() {
 ['salary', 'takeHome', 'spendNow', 'tspPct', 'curAge', 'otherContrib', 'rothIRA', 'spRothContrib', 'stateRate',
  'debtHomeBal', 'debtHomeMo', 'debtHomeYear', 'debtCarBal', 'debtCarMo', 'debtCarYear', 'debtOtherBal', 'debtOtherMo', 'debtOtherYear'].forEach(id => $(id).addEventListener('input', syncSpendAnchor));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncSpendAnchor));
+
+// Rough Social Security estimate from pay, using SSA's benefit formula (2026 bend points) and assuming a
+// steady career at that pay for 35 years (today's dollars — SSA indexes wages, so this is a fair proxy).
+// It's a ballpark for people without a Statement estimate; the SSA Quick Calculator is the official version.
+function estimateSSFromPay(salary) {
+  const wageBase = 184500;                                  // 2026 taxable maximum
+  const aime = Math.min(salary, wageBase) / 12;
+  const b1 = 1286, b2 = 7749;                               // 2026 bend points
+  const pia = 0.9 * Math.min(aime, b1) + 0.32 * Math.max(0, Math.min(aime, b2) - b1) + 0.15 * Math.max(0, aime - b2);
+  const r10 = v => Math.round(v / 10) * 10;
+  return { fra: r10(pia), at62: r10(pia * 0.70), at70: r10(pia * 1.24) };
+}
+$('estSS').addEventListener('click', () => {
+  const sal = numOr('salary', 0);
+  if (!(sal > 0)) { $('estSSNote').textContent = 'Enter your current pay in step 1 first (for the not-career path, the pay you\'ll earn as a career employee).'; return; }
+  const e = estimateSSFromPay(sal);
+  $('ssFRA').value = e.fra.toLocaleString('en-US'); $('ss62').value = e.at62.toLocaleString('en-US'); $('ss70').value = e.at70.toLocaleString('en-US');
+  ['ssFRA','ss62','ss70'].forEach(id => $(id).dispatchEvent(new Event('input', { bubbles: true })));
+  $('estSSNote').textContent = 'Filled in: about ' + fmt$(e.fra) + '/mo at 67 (' + fmt$(e.at62) + ' at 62, ' + fmt$(e.at70) + ' at 70), assuming a steady career at ' + fmt$(sal) + '/yr. Rough — replace with your Statement or Quick Calculator numbers when you have them.';
+});
+['pathWorking','pathNotCareer','pathRetired'].forEach(id => $(id).addEventListener('click', () => { $('ssYoungNote').style.display = id === 'pathRetired' ? 'none' : ''; }));
 
 // step-2 note that mirrors the growth rates in advanced settings
 function syncGrowthNote() {
