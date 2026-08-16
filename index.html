@@ -28,10 +28,10 @@
     --warning: #fab219;
     --serious: #ec835a;
     --critical: #d03b3b;
-    --good-wash: rgba(12,163,12,0.13);
-    --warning-wash: rgba(250,178,25,0.18);
-    --serious-wash: rgba(236,131,90,0.20);
-    --critical-wash: rgba(208,59,59,0.16);
+    --good-wash: rgba(12,163,12,0.22);
+    --warning-wash: rgba(250,178,25,0.38);
+    --serious-wash: rgba(236,131,90,0.42);
+    --critical-wash: rgba(208,59,59,0.30);
     --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 4px 16px rgba(22,32,43,0.05);
   }
   @media (prefers-color-scheme: dark) {
@@ -52,10 +52,10 @@
       --series-2: #d95926;
       --series-3: #199e70;
       --series-4: #c98500;
-      --good-wash: rgba(12,163,12,0.22);
-      --warning-wash: rgba(250,178,25,0.20);
-      --serious-wash: rgba(236,131,90,0.22);
-      --critical-wash: rgba(208,59,59,0.26);
+      --good-wash: rgba(12,163,12,0.36);
+      --warning-wash: rgba(250,178,25,0.40);
+      --serious-wash: rgba(236,131,90,0.42);
+      --critical-wash: rgba(208,59,59,0.46);
       --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
     }
   }
@@ -76,10 +76,10 @@
     --series-2: #d95926;
     --series-3: #199e70;
     --series-4: #c98500;
-    --good-wash: rgba(12,163,12,0.22);
-    --warning-wash: rgba(250,178,25,0.20);
-    --serious-wash: rgba(236,131,90,0.22);
-    --critical-wash: rgba(208,59,59,0.26);
+    --good-wash: rgba(12,163,12,0.36);
+    --warning-wash: rgba(250,178,25,0.40);
+    --serious-wash: rgba(236,131,90,0.42);
+    --critical-wash: rgba(208,59,59,0.46);
     --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
   }
 
@@ -961,12 +961,12 @@
 
     <section class="card">
       <h2>Pick your combination</h2>
-      <p class="cardsub">Each box tries one plan: retire at the age on the left, start Social Security at the age on top. The number is how long your money lasts. <b>Tap any box</b> to see its details below.</p>
+      <p class="cardsub">Each box tries one plan: retire at the age on the left, start Social Security at the age on top. The number is how long your money lasts. Yellow means <b>close call either way</b> — read those for margin and direction, not the exact edge. <b>Tap any box</b> to see its details below.</p>
       <div class="gridwrap" id="gridwrap"></div>
       <div class="gridlegend">
-        <span><span class="chip" style="background:var(--good-wash)"></span>✓ Lasts to <span id="legendHorizon">95</span>+</span>
-        <span><span class="chip" style="background:var(--warning-wash)"></span>Runs out at 90+</span>
-        <span><span class="chip" style="background:var(--serious-wash)"></span>Runs out in your 80s</span>
+        <span><span class="chip" style="background:var(--good-wash)"></span>✓ Lasts past <span id="legendHorizon">95</span> with a cushion</span>
+        <span><span class="chip" style="background:var(--warning-wash)"></span>Close call — barely makes it, or runs out within a few years of <span id="legendHorizon2">95</span></span>
+        <span><span class="chip" style="background:var(--serious-wash)"></span>Runs out in your 80s or early 90s</span>
         <span><span class="chip" style="background:var(--critical-wash)"></span>Runs out before 80</span>
         <span><span class="chip" style="background:var(--surface-2);border:1px solid var(--hairline)"></span>— Not eligible / not advised</span>
       </div>
@@ -1620,6 +1620,17 @@ function bestCombo(grid) {
   return best;
 }
 
+// Traffic-light tiers. "Close call" (yellow) is deliberately wide: a pass with only a thin cushion
+// and a miss within a few years of the horizon are the same plan on either side of a line.
+function cellTier(cell) {
+  const spendYr = (INP.spendMo || 0) * 12;                       // today's dollars
+  const cushionYrs = spendYr > 0 ? todayDollars(cell.endBal) / spendYr : 99;
+  if (cell.ok) return cushionYrs >= 3 ? 'ok' : 'warn';
+  if (cell.lastsTo >= INP.horizon - 5) return 'warn';
+  if (cell.lastsTo >= 80) return 'serious';
+  return 'crit';
+}
+
 function renderGrid(grid) {
   const t = document.createElement('table');
   t.className = 'matrix';
@@ -1640,13 +1651,12 @@ function renderGrid(grid) {
         b.classList.add('na'); b.textContent = '—'; b.title = cell.na;
         b.addEventListener('click', () => alert(cell.na));
       } else {
-        if (cell.ok) { b.classList.add('ok'); b.textContent = '✓ ' + INP.horizon + '+'; }
-        else {
-          b.textContent = cell.lastsTo;
-          b.classList.add(cell.lastsTo >= 90 ? 'warn' : cell.lastsTo >= 80 ? 'serious' : 'crit');
-        }
+        const tier = cellTier(cell);
+        b.classList.add(tier);
+        b.textContent = cell.ok ? (tier === 'ok' ? '✓ ' + INP.horizon + '+' : '✓ close') : String(cell.lastsTo);
         b.title = 'Retire at ' + cell.retireAge + ', claim at ' + cell.claimAge +
-                  (cell.ok ? ' — lasts past ' + INP.horizon : ' — money runs out at ' + cell.lastsTo);
+                  (cell.ok ? (tier === 'ok' ? ' — lasts past ' + INP.horizon + ' with a cushion' : ' — lasts past ' + INP.horizon + ', but with only a thin cushion (' + fmt$(todayDollars(cell.endBal)) + ' in today\'s dollars): a close call')
+                           : (tier === 'warn' ? ' — runs out at ' + cell.lastsTo + ', within a few years of ' + INP.horizon + ': a close call' : ' — money runs out at ' + cell.lastsTo));
         b.addEventListener('click', () => selectScenario(cell));
       }
       cell._btn = b;
@@ -2753,7 +2763,7 @@ $('goBtn').addEventListener('click', () => {
   saveForm();
   INP = readInputs();
   GRID = buildGrid(INP);
-  $('legendHorizon').textContent = INP.horizon;
+  $('legendHorizon').textContent = INP.horizon; $('legendHorizon2').textContent = INP.horizon;
   renderGrid(GRID);
   const best = bestCombo(GRID);
   renderVerdict(best);
@@ -2815,10 +2825,10 @@ function buildPrintReport() {
     grid += '<tr><td>' + row.retireAge + '</td>' + row.cols.map(c => {
       if (c.na) return '<td>—</td>';
       const sel = c === cell ? ' style="outline:2px solid #000;font-weight:700"' : '';
-      return '<td' + sel + '>' + (c.ok ? '✓' : c.lastsTo) + '</td>';
+      return '<td' + sel + '>' + (c.ok ? (cellTier(c) === 'ok' ? '✓' : '✓~') : c.lastsTo) + '</td>';
     }).join('') + '</tr>';
   }
-  grid += '</table><p style="font-size:10.5px;color:#444">✓ = money lasts past ' + i.horizon + ' · number = age money runs out · — = not eligible or not advised · boxed = the plan shown below</p>';
+  grid += '</table><p style="font-size:10.5px;color:#444">✓ = lasts past ' + i.horizon + ' with a cushion · ✓~ = lasts, but thin (close call) · number = age money runs out (within a few years of ' + i.horizon + ' is also a close call) · — = not eligible or not advised · boxed = the plan shown below</p>';
 
   const last = cell.rows[cell.rows.length - 1];
   $('printReport').innerHTML =
