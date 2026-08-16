@@ -1615,11 +1615,17 @@ function renderGrid(grid) {
 
 // Rough monthly take-home from the pay figures: gross − employee TSP − FICA − federal/state
 // income tax (this year's brackets, standard deduction) − a typical FEHB share (~$250/mo).
+// Rough monthly take-home from the pay figures: gross − employee TSP − FICA − federal (+state) income tax
+// − health premium (the one entered in advanced settings, else ~$300/mo) − ~$110/mo for the usual other
+// payroll deductions (FEGLI life insurance, union dues, dental/vision). Paychecks reflect *withholding*,
+// which often runs above the eventual tax bill, so this ballpark tends to be a little high.
 function ballparkTakeHome(inp) {
   const tspEmp = inp.salary * Math.min(inp.empPct, 1);
   const fica = inp.salary * 0.0765;
   const tax = estimateTax(inp, 0, inp.salary - tspEmp, 0);
-  return (inp.salary - tspEmp - fica - tax - 3000) / 12;
+  const health = (inp.fehbMo > 0 ? inp.fehbMo : 300) * 12;
+  const misc = 110 * 12;
+  return (inp.salary - tspEmp - fica - tax - health - misc) / 12;
 }
 
 // What this year's paycheck leaves after today's spending and loan payments (per year), when we know spending now.
@@ -1658,7 +1664,7 @@ function sanityChecks(inp) {
   if (th > 0) {
     const bp = ballparkTakeHome(inp);
     if (bp > 0 && (th < bp * 0.7 || th > bp * 1.3))
-      notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (roughly ' + fmt$(bp) + '/mo after taxes, TSP, and health insurance). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
+      notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (roughly ' + fmt$(bp) + '/mo after taxes, TSP, health insurance, and typical payroll deductions). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
     if (saveMo > th * 0.5)
       notes.push('You said ' + fmt$(inp.saveYr) + ' a year goes into savings (Roth IRA + other) — that\'s more than half your take-home. Double-check that\'s what really happened last year.');
     // What they actually live on now (entered, or take-home minus savings) — compare to the retirement plan.
@@ -2532,13 +2538,14 @@ function syncTakeHomeHint() {
   const sal = numOr('salary', 0);
   const base = 'What actually lands in your bank account after taxes, TSP, health insurance, and the rest. We only use it to double-check that your other numbers hang together.';
   if (!(sal > 0)) { $('takeHome').placeholder = '3,800'; $('takeHomeHelp').textContent = base; return; }
+  const feh = numOr('fehbMo', 0);
   const bp = ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
-    curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: $('taxOn').checked ? numOr('stateRate', 0) / 100 : 0 });
+    curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: numOr('stateRate', 0) / 100, fehbMo: feh });
   const r = Math.max(0, Math.round(bp / 50) * 50);
   $('takeHome').placeholder = r.toLocaleString('en-US');
-  $('takeHomeHelp').textContent = base + ' The grey number is our rough guess for your pay and TSP percentage — if yours is very different, one of the numbers may need a look.';
+  $('takeHomeHelp').textContent = base + ' The grey number is our rough guess from your pay, TSP percentage' + (feh > 0 ? ', and the health premium you entered' : ', and a typical health premium') + ' — paychecks usually come in a bit under it (withholding, union dues, state tax). If yours is very different, one of the numbers may need a look.';
 }
-['salary', 'tspPct', 'curAge', 'stateRate'].forEach(id => $(id).addEventListener('input', syncTakeHomeHint));
+['salary', 'tspPct', 'curAge', 'stateRate', 'fehbMo'].forEach(id => $(id).addEventListener('input', syncTakeHomeHint));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncTakeHomeHint));
 
 // step-4 anchor: what their numbers say they live on now, so the retirement spending boxes have a reference point
@@ -2553,7 +2560,7 @@ function liveOnNow() {
   const useBp = !(th > 0);
   const takeHome = useBp
     ? ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
-        curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: $('taxOn').checked ? numOr('stateRate', 0) / 100 : 0 })
+        curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: numOr('stateRate', 0) / 100, fehbMo: numOr('fehbMo', 0) })
     : th;
   const saveMo = (numOr('otherContrib', 0) + numOr('rothIRA', 0) + ($('hasSpouse').checked ? numOr('spRothContrib', 0) : 0)) / 12;
   const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
