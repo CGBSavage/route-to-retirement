@@ -1619,13 +1619,16 @@ function renderGrid(grid) {
 // − health premium (the one entered in advanced settings, else ~$300/mo) − ~$110/mo for the usual other
 // payroll deductions (FEGLI life insurance, union dues, dental/vision). Paychecks reflect *withholding*,
 // which often runs above the eventual tax bill, so this ballpark tends to be a little high.
+// Deliberately a LOW-side ballpark (Carolyn's call: better to under-guess than over-guess take-home):
+// withholding is figured at single-filer rates (about what a married W-4 with a working spouse withholds),
+// health premium as entered (else $400/mo), $200/mo other deductions, then a 10% haircut for the rest.
 function ballparkTakeHome(inp) {
   const tspEmp = inp.salary * Math.min(inp.empPct, 1);
   const fica = inp.salary * 0.0765;
-  const tax = estimateTax(inp, 0, inp.salary - tspEmp, 0);
-  const health = (inp.fehbMo > 0 ? inp.fehbMo : 300) * 12;
-  const misc = 110 * 12;
-  return (inp.salary - tspEmp - fica - tax - health - misc) / 12;
+  const withheld = estimateTax(Object.assign({}, inp, { hasSpouse: false }), 0, inp.salary - tspEmp, 0);
+  const health = (inp.fehbMo > 0 ? inp.fehbMo : 400) * 12;
+  const misc = 200 * 12;
+  return Math.max(0, (inp.salary - tspEmp - fica - withheld - health - misc) * 0.90) / 12;
 }
 
 // What this year's paycheck leaves after today's spending and loan payments (per year), when we know spending now.
@@ -1664,7 +1667,7 @@ function sanityChecks(inp) {
   if (th > 0) {
     const bp = ballparkTakeHome(inp);
     if (bp > 0 && (th < bp * 0.7 || th > bp * 1.3))
-      notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (roughly ' + fmt$(bp) + '/mo after taxes, TSP, health insurance, and typical payroll deductions). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
+      notes.push('Your take-home of ' + fmt$(th) + '/mo is quite different from what we\'d expect from ' + fmt$(inp.salary) + ' a year (our low-side guess is about ' + fmt$(bp) + '/mo after withholding, TSP, health insurance, and typical payroll deductions). It doesn\'t change the plan, but one of those numbers may be off — worth a second look.');
     if (saveMo > th * 0.5)
       notes.push('You said ' + fmt$(inp.saveYr) + ' a year goes into savings (Roth IRA + other) — that\'s more than half your take-home. Double-check that\'s what really happened last year.');
     // What they actually live on now (entered, or take-home minus savings) — compare to the retirement plan.
@@ -1696,6 +1699,8 @@ function sanityChecks(inp) {
   } else if (inp.salary > 0) {
     // No take-home entered — use our ballpark so big spending + big savings still gets caught.
     const bp = ballparkTakeHome(inp);
+    if (!inp.retired && bp > 0)
+      notes.push('You haven\'t entered your take-home pay, so the plan is running on our <b>conservative guess of ' + fmt$(bp) + '/mo</b>. That number sets how much can go into savings while you work — it can move your retirement year. Type the real figure from your pay stub in step 1.');
     const outgo = (inp.spendNow > 0 ? inp.spendNow : 0) + saveMo + debtMo;
     if (inp.spendNow > 0 && bp > 0 && outgo > bp * 1.15)
       notes.push('Spending ' + fmt$(inp.spendNow) + '/mo' + (debtMo ? ' plus ' + fmt$(debtMo) + '/mo in loans' : '') + (saveMo ? ' plus ' + fmt$(saveMo) + '/mo into savings' : '') + ' adds up to ' + fmt$(outgo) + '/mo, but ' + fmt$(inp.salary) + ' a year usually takes home only about ' + fmt$(bp) + '/mo.' + planNote(inp) + ' Double-check those numbers, or enter your real take-home in step 1.');
@@ -2543,7 +2548,7 @@ function syncTakeHomeHint() {
     curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: numOr('stateRate', 0) / 100, fehbMo: feh });
   const r = Math.max(0, Math.round(bp / 50) * 50);
   $('takeHome').placeholder = r.toLocaleString('en-US');
-  $('takeHomeHelp').textContent = base + ' The grey number is our rough guess from your pay, TSP percentage' + (feh > 0 ? ', and the health premium you entered' : ', and a typical health premium') + ' — paychecks usually come in a bit under it (withholding, union dues, state tax). If yours is very different, one of the numbers may need a look.';
+  $('takeHomeHelp').textContent = base + ' The grey number is our rough guess from your pay, TSP percentage' + (feh > 0 ? ', and the health premium you entered' : ', and a typical health premium') + ' — on purpose a low-side guess (heavier withholding, union dues, state tax); most people take home a bit more. If yours is very different, one of the numbers may need a look.';
 }
 ['salary', 'tspPct', 'curAge', 'stateRate', 'fehbMo'].forEach(id => $(id).addEventListener('input', syncTakeHomeHint));
 ['hasSpouse', 'taxOn'].forEach(id => $(id).addEventListener('change', syncTakeHomeHint));
