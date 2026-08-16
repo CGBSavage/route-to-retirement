@@ -1070,6 +1070,23 @@ const FED = {
   mfj: { ded: 32200, extra: 1650, t1: 32000, t2: 44000,
     brackets: [[24800,.10],[100800,.12],[211400,.22],[403550,.24],[512450,.32],[768700,.35],[Infinity,.37]] }
 };
+// Same as estimateTax but returns the pieces (used to explain a sample year in the assumptions).
+function taxDetail(inp, t, ordIncome, ssTotal) {
+  const f = inp.hasSpouse ? FED.mfj : FED.single;
+  const infl = Math.pow(1 + inp.inflation, t);
+  let taxSS = 0;
+  if (ssTotal > 0) {
+    const prov = ordIncome + 0.5 * ssTotal;
+    if (prov > f.t2) taxSS = Math.min(0.85 * ssTotal, 0.85 * (prov - f.t2) + Math.min(0.5 * (f.t2 - f.t1), 0.5 * ssTotal));
+    else if (prov > f.t1) taxSS = Math.min(0.5 * (prov - f.t1), 0.5 * ssTotal);
+  }
+  const myAge = inp.curAge + t;
+  let ded = f.ded + (myAge >= 65 ? f.extra : 0) + (inp.hasSpouse && inp.spAge + t >= 65 ? f.extra : 0);
+  ded *= infl;
+  const taxable = Math.max(0, ordIncome + taxSS - ded);
+  const fed = estimateTax(inp, t, ordIncome, ssTotal) - taxable * inp.stateRate;
+  return { taxSS, ded, taxable, fed, state: taxable * inp.stateRate };
+}
 function estimateTax(inp, t, ordIncome, ssTotal) {
   const f = inp.hasSpouse ? FED.mfj : FED.single;
   const infl = Math.pow(1 + inp.inflation, t);
@@ -1424,7 +1441,7 @@ function simulate(inp, retireAge, claimAge, order) {
     const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
 
     let payoffOut = 0;
-    let tspIn = 0, tspGrow, tspWd = 0, spWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0, drawdownUsed = 0, spRothSaved = 0;
+    let tspIn = 0, tspGrow, tspWd = 0, spWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0, drawdownUsed = 0, spRothSaved = 0, taxOrdBase = 0;
     if (working) {
       const sal = inp.salary * Math.pow(1 + inp.salGrowth, t);
       tspIn = (inp.tspStart > 0 && year < inp.tspStart) ? 0 : sal * (Math.min(inp.empPct, 1) + agencyPct(inp.empPct));
@@ -1519,6 +1536,7 @@ function simulate(inp, retireAge, claimAge, order) {
       // taxes — loop a few times until it settles (converges fast).
       // (spouse take-home is after-tax money and isn't taxed again here; a second pension is taxed unless marked tax-free)
       const ordBase = supp + pension + (inp.pen2Tax ? pen2 : 0) + spPen + spInc + payoffTsp + taxInterest;
+      taxOrdBase = ordBase;
       for (let k = 0; k < 6; k++) {
         [preWd, otherWd] = draw(spending + tax - guaranteed);
         if (!inp.taxOn) break;
@@ -1548,7 +1566,7 @@ function simulate(inp, retireAge, claimAge, order) {
                 tspWd: tspWd + spWd, ownTspWd: tspWd, spWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
                 saved: working ? 0 : otherIn + spRothSaved,   // retired-year surplus reinvested (incl. spouse Roth contributions)
                 contribUsed, drawdown: drawdownUsed,   // working-year savings actually credited / pulled out (after the paycheck cap)
-                purchCash: purch.cash, purchPay: purch.pay, health, qcd,
+                purchCash: purch.cash, purchPay: purch.pay, health, qcd, taxOrd: taxOrdBase + tspWd + spWd, t,
                 tsp: tsp + sp401k, ownTsp: tsp, sp401k, other, roth, rothMine, rothSp,
                 total: tsp + sp401k + other, netWorth: tsp + sp401k + other - debtLeft });
   }
@@ -2109,7 +2127,7 @@ function renderTable(cell) {
     html += '<tr class="' + (r.working ? 'work' : '') + (r.shortfall > 1 ? ' short' : '') + '"><td>' + r.year + '</td><td>' + r.age + spAgeTxt + '</td><td>' +
       fmt$(r.pension + r.supp) + '</td><td>' + fmt$(r.mySS + r.spSS) + '</td><td>' + fmt$(r.spInc) + '</td><td>' +
       savedCell(r) + '</td><td>' + (r.working ? '<span class="muted">paycheck</span>' : fmt$(r.spending)) + (r.shortfall > 1 ? ' ⚠' : '') + '</td>' +
-      (showTax ? '<td>' + (r.working ? '<span class="muted">—</span>' : fmt$(r.tax)) + '</td>' : '') + '<td>' +
+      (showTax ? '<td>' + (r.working ? '<span class="muted">in paycheck</span>' : fmt$(r.tax)) + '</td>' : '') + '<td>' +
       fmt$(r.tsp) + '</td><td>' + fmt$(r.other) + '</td>' +
       (showDebt ? '<td>' + fmt$(r.debtLeft) + '</td><td>' + fmt$(r.netWorth) + '</td>' : '') + '</tr>';
   }
@@ -2191,6 +2209,15 @@ function renderAssumptions(cell) {
         (i.stateRate > 0 ? ' plus a flat ' + (i.stateRate*100).toFixed(1) + '% state rate' : ', no state tax') +
         '. Brackets and deduction grow with inflation. Other-savings withdrawals aren\'t taxed (Roth is tax-free; for the taxable part, only its yearly growth is taxed, as interest). Working years are not taxed here (your paycheck already has withholding). A ballpark — not a tax return.'
       : 'Taxes are not modeled — treat the spending number as what you need including taxes.',
+    i.taxOn ? (() => {
+      const r = cell.rows.find(x => !x.working && (x.mySS + x.spSS) > 0 && x.age >= 67) || cell.rows.find(x => !x.working);
+      if (!r) return null;
+      const d = taxDetail(i, r.t, r.taxOrd, r.mySS + r.spSS);
+      return 'How the tax was figured, for example at age ' + r.age + ': taxable income = pension/supplement/TSP withdrawals/other taxable income ' + fmt$(r.taxOrd) +
+        (r.mySS + r.spSS > 0 ? ' + the taxable part of Social Security ' + fmt$(d.taxSS) + ' (of ' + fmt$(r.mySS + r.spSS) + ' received — the IRS formula taxes only part)' : '') +
+        ' − standard deduction ' + fmt$(d.ded) + (i.hasSpouse ? ' (joint' : ' (single') + (i.curAge + r.t >= 65 ? ', 65+ extra' : '') + ') = ' + fmt$(d.taxable) +
+        '; federal tax ≈ ' + fmt$(d.fed) + (i.stateRate > 0 ? ' + state ' + fmt$(d.state) : '') + '. Retirees are usually surprised how low this is next to what was withheld from a paycheck — a pension plus Social Security is lightly taxed. (The temporary $6,000 senior deduction for 2025–2028 isn\'t included, so if anything this runs a little high.)';
+    })() : null,
     (i.sideInc > 0 ? 'Extra income counts as earned income for the Social Security earnings test: before 67, anything over about ' + fmt$(23400) + '/yr (rising with inflation) trims the FERS supplement and any Social Security check by $1 for every $2 over.' : null),
     'Nothing comes out of TSP before you retire. Anything that has to be paid from savings while working — a cash purchase, an early payoff, or overspending — comes from other savings only; if other savings can\'t cover it, the model doesn\'t invent the money (that gap isn\'t shown).',
     i.fehbOn
