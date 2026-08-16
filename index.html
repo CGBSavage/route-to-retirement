@@ -1824,6 +1824,19 @@ function rothImpactHtml(best) {
 }
 function rothMax(age) { return age >= 50 ? 8600 : 7500; }   // 2026 IRS limits — update yearly
 
+// A future-dollar amount at the plan horizon, expressed in today's dollars (so "$300k at 101" isn't misread).
+function todayDollars(amt) { const yrs = INP.horizon - INP.curAge; return amt / Math.pow(1 + INP.inflation, yrs); }
+function endBalText(amt) { return fmt$(amt) + ' (about ' + fmt$(todayDollars(amt)) + ' in today\'s dollars)'; }
+// Knife-edge note: the earliest passing plan is one working year away from a failing one.
+function knifeEdgeHtml(best) {
+  if (!best || !best.ok || INP.retired) return '';
+  const row = GRID.rows.find(r => r.retireAge === best.retireAge - 1);
+  if (!row) return '';
+  const near = row.cols.find(c => !c.na && !c.ok && c.claimAge === best.claimAge) || row.cols.find(c => !c.na && !c.ok);
+  if (!near || near.lastsTo < INP.horizon - 8) return '';
+  return '<p>Note the neighbor: retiring at ' + near.retireAge + ' with the same Social Security age runs out around ' + near.lastsTo + ', while this plan finishes with money left. That isn\'t a cliff — it\'s one more year of pay, TSP growth, and pension credit, and one less year of drawing down, compounded over ' + (INP.horizon - best.retireAge) + ' years. Both plans are close to the line; small changes to spending or savings move them just as much.</p>';
+}
+
 function renderVerdict(best) {
   const v = $('verdict');
   v.classList.toggle('bad', !best || !best.ok);
@@ -1836,7 +1849,7 @@ function renderVerdict(best) {
         ? '<p class="big">With your pension as it is' + (INP.ssNow > 0 ? ' and Social Security already started' : ', <b>starting Social Security at ' + best.claimAge + '</b> works best') + '. Your money lasts past age '
         : '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
       '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ') +
-      INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings.</p>' +
+      INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings (about ' + fmt$(todayDollars(best.endBal)) + ' in today\'s dollars).</p>' + knifeEdgeHtml(best) +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
       '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
       rothImpactHtml(best) + hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) + checkHtml;
@@ -1866,7 +1879,7 @@ function selectScenario(cell) {
                 'Social Security ' + fmt$(ssMonthlyAt(INP, cell.claimAge)) + '/mo at ' + cell.claimAge];
   if (pen.suppEligible) bits.push('FERS supplement ' + fmt$(pen.suppMo) + '/mo until 62');
   $('scnSub').textContent = cell.ok
-    ? bits.join(' · ') + ' — lasts past ' + INP.horizon + ' with ' + fmt$(cell.endBal) + ' left.'
+    ? bits.join(' · ') + ' — lasts past ' + INP.horizon + ' with ' + endBalText(cell.endBal) + ' left.'
     : bits.join(' · ') + ' — savings run out around age ' + cell.lastsTo + '.';
   $('orderNote').innerHTML = orderComparison(cell);
   $('spStrip').innerHTML = spouseStrip(cell);
@@ -1890,7 +1903,7 @@ function spouseStrip(cell) {
   return '<b>Your spouse\'s Social Security start age</b> — this plan uses ' + i.spSSStart + '. Same plan with other start ages:' +
     '<div class="spgrid">' + rows.map(x =>
       '<div' + (x.sel ? ' class="sel"' : '') + '><span>Start at ' + x.a + (x.sel ? ' (chosen)' : '') + '</span><b>' +
-      (x.r.ok ? 'lasts past ' + i.horizon + ', ' + fmt$(x.r.endBal) + ' left' : 'runs out at ' + x.r.lastsTo) + '</b></div>').join('') + '</div>' +
+      (x.r.ok ? 'lasts past ' + i.horizon + ', ' + fmt$(x.r.endBal) + ' left (' + fmt$(todayDollars(x.r.endBal)) + ' today)' : 'runs out at ' + x.r.lastsTo) + '</b></div>').join('') + '</div>' +
     (best && !best.sel ? ' Starting at <b>' + best.a + '</b> comes out best here. ' : ' ') +
     'Change it in step 8. (Survivor and spousal-benefit rules aren\'t modeled — ask a planner or ssa.gov about those.)';
 }
@@ -2812,7 +2825,7 @@ function buildPrintReport() {
     '<p class="pr-sub">Prepared ' + today + ' · self-reported figures · all amounts are future (nominal) dollars unless noted</p>' +
     '<h2>The plan under consideration</h2>' +
     '<p><b>' + (i.retired ? 'Already retired (' + i.retYear + ')' + (i.ssNow > 0 ? ' · Social Security started' : ' · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') : 'Retire at ' + cell.retireAge + ' (' + retYear + ') · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') + '.</b> ' +
-    (cell.ok ? 'Projected to last past age ' + i.horizon + ' with about ' + fmt$(cell.endBal) + ' remaining' +
+    (cell.ok ? 'Projected to last past age ' + i.horizon + ' with about ' + endBalText(cell.endBal) + ' remaining' +
        (last.netWorth !== last.total ? ' (net worth ' + fmt$(last.netWorth) + ')' : '') + '.'
              : 'Projected to run short around age ' + cell.lastsTo + '.') + '</p>' +
     (p.retired ? '<p>FERS pension as entered: ' + fmt$(p.net) + '/yr' + (p.suppEligible ? '; supplement ' + fmt$(p.suppMo) + '/mo until 62' : '') + '.</p>' : '<p>FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' × ' + p.yosR.toFixed(1) + ' yrs = ' + fmt$(p.gross) + '/yr gross, ' + fmt$(p.net) + '/yr after survivor election. ' +
