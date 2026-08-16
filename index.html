@@ -1679,7 +1679,7 @@ function sanityChecks(inp) {
         const outParts = ['spending ' + fmt$(inp.spendNow)];
         if (debtMo > 0) outParts.push('loans ' + fmt$(debtMo));
         if (saveMo > 0) outParts.push('savings ' + fmt$(saveMo) + (inp.rothIRA + inp.spRothContrib > 0 ? ' (incl. Roth IRAs)' : ''));
-        notes.push('Coming in: ' + inParts.join(' + ') + ' = ' + fmt$(thh) + '/mo. Going out: ' + outParts.join(' + ') + ' = ' + fmt$(outgo) + '/mo. About <b>' + fmt$(thh - outgo) + '/mo isn\'t accounted for</b>. If that\'s really piling up, count it as savings in step 2 so the plan gets credit for it — or check whether "spending now" covers the whole household.');
+        notes.push('Coming in: ' + inParts.join(' + ') + ' = ' + fmt$(thh) + '/mo. Going out: ' + outParts.join(' + ') + ' = ' + fmt$(outgo) + '/mo. About <b>' + fmt$(thh - outgo) + '/mo isn\'t accounted for</b>. If that\'s really being saved somewhere, tell the plan where — other savings in step 2, your Roth IRA in step 2, or your spouse\'s Roth in step 8 all count — or check whether "spending now" covers the whole household.');
       }
     }
     if (firstSpend > liveOn * 1.1)
