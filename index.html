@@ -2768,6 +2768,18 @@ const INFO = {
     ['Medicare — IRMAA (higher Part B premiums for higher income)', 'https://www.medicare.gov/basics/costs/medicare-costs', 'A big conversion raises "income" that year; two years later Part B can cost more. Plan the size with this in mind.'],
     ['IRS — Qualified charitable distributions', 'https://www.irs.gov/newsroom/qualified-charitable-distributions-allow-eligible-ira-owners-up-to-100000-in-tax-free-gifts-to-charity', 'Giving straight from an IRA after 70½ — the reason to roll some TSP into an IRA before then.'],
     ['IRS — Required minimum distributions', 'https://www.irs.gov/retirement-plans/retirement-plan-and-ira-required-minimum-distributions-faqs', 'Why shrinking the pre-tax pile before 73 matters: RMDs are taxable and can push you into a higher bracket.'] ] },
+  decisions: { t: 'Decision points — where to look', items: [
+    ['OPM — FERS eligibility, MRA, and types of retirement', 'https://www.opm.gov/retirement-center/fers-information/eligibility/', 'MRA by birth year; immediate, MRA+10, postponed, and deferred retirement.'],
+    ['OPM — creditable service, deposits, and military buyback', 'https://www.opm.gov/retirement-center/fers-information/creditable-service/', 'What counts, what needs a deposit, and why waiting costs interest.'],
+    ['OPM — sick leave credit and computation', 'https://www.opm.gov/retirement-center/fers-information/computation/', 'How unused sick leave adds to service, and the 1.0% vs 1.1% formula at 62 with 20 years.'],
+    ['OPM — survivor benefits', 'https://www.opm.gov/retirement-center/fers-information/survivors/', 'The survivor election, its cost, spouse consent, and its link to keeping health insurance.'],
+    ['OPM — health insurance into retirement (5-year rule)', 'https://www.opm.gov/healthcare-insurance/pshb/', 'PSHB for postal retirees; the five-year enrollment requirement.'],
+    ['OPM — FEGLI life insurance in retirement', 'https://www.opm.gov/healthcare-insurance/life-insurance/', 'Continuing coverage, the reduction choices, and the 5-year rule.'],
+    ['OPM — FEDVIP dental and vision', 'https://www.opm.gov/healthcare-insurance/dental-vision/', 'Continues into retirement (no 5-year rule).'],
+    ['TSP — loans (what happens at separation)', 'https://www.tsp.gov/loan-basics/', 'An unpaid loan at separation is a taxable distribution.'],
+    ['TSP — beneficiaries (TSP-3)', 'https://www.tsp.gov/beneficiary-participants/', 'Naming and updating beneficiaries.'],
+    ['OPM — applying for retirement (SF-3107)', 'https://www.opm.gov/retirement-center/fers-information/apply/', 'When and how to file; what HR does.'],
+    ['SSA — retirement planner (start-age rules)', 'https://www.ssa.gov/benefits/retirement/planner/', 'Start ages, the earnings test, and spousal/survivor basics.'] ] },
   advanced: { t: 'Advanced settings — where to look', items: [
     ['OPM — PSHB (Postal Service Health Benefits)', 'https://www.opm.gov/healthcare-insurance/pshb/', 'Keeping health insurance into retirement; the 5-year rule.'],
     ['OPM — PSHB and Medicare for retirees', 'https://www.opm.gov/healthcare-insurance/medicare/pshb-annuitant/', 'Who must enroll in Part B, and the exemptions.'],
@@ -2795,58 +2807,75 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') $('infoPop')
 const DP = {
   notcareer: {
     intro: 'You\'re not career yet, so most of the postal machinery (FERS, TSP, health-insurance-into-retirement) hasn\'t started for you. That is exactly why the moves you can make <i>now</i> matter so much — they compound the longest.',
-    now: [
-      '<b>Open a Roth IRA and make it automatic.</b> Any bank or brokerage; set a monthly transfer you won\'t notice, and forget it. It\'s the one thing you can do before you\'re career that builds like TSP. Enter the yearly amount in <a href="#step2">step 2</a> and press the button — the results show what the habit is worth. The 2026 limit is $7,500 (see the ⓘ on step 2).',
-      '<b>Enter the year you expect to become career</b> in <a href="#step1">step 1</a> — the plan starts your FERS years and TSP then, and you can see how retirement looks from here.',
-      '<b>Get your Social Security number of record started</b>: create your ssa.gov account (it will show estimates once you have about 10 years of work); until then use the "estimate from my pay" button in <a href="#step3">step 3</a>.',
-      '<b>Keep a small cash cushion</b> in plain savings (<a href="#step2">step 2</a>, "other savings") so a car repair doesn\'t become a credit card balance.' ],
-    next: [
-      '<b>The day you convert to career:</b> you\'ll be auto-enrolled in TSP at 5% — <b>leave it at least 5%</b> (USPS adds up to 5% more; below 5% you\'re giving raises back). Set the percentage in <a href="#step2">step 2</a>. Pick your funds (the L fund for your retirement decade is a sensible default) and name beneficiaries.',
-      '<b>Enroll in health insurance (PSHB) at conversion.</b> The clock for keeping it into retirement is <b>5 continuous years enrolled before you retire</b> — the earlier it starts, the earlier that door is open (see Advanced settings, health insurance ⓘ).',
-      '<b>Keep the Roth IRA going</b> alongside TSP — one is pre-tax, one is tax-free later; having both gives you choices at retirement.' ],
-    later: [
-      '<b>Every raise:</b> nudge TSP up a point. <b>Every year:</b> re-run this plan with the new pay stub (the "From your pay stub" box in <a href="#step1">step 1</a>).',
-      '<b>Once you have ~10 years in:</b> your ssa.gov Statement will show real estimates — replace the ones you estimated in <a href="#step3">step 3</a>.',
-      '<b>Milestones to know:</b> 57 = minimum retirement age (with 30 years); 60 = with 20 years; 62 = with 5 years. The grid shows every one of them.' ] },
+    sections: [
+      ['Now', [
+        '<b>Open a Roth IRA and make it automatic.</b> Any bank or brokerage; set a monthly transfer you won\'t notice, and forget it. It\'s the one thing you can do before you\'re career that builds like TSP. Enter the yearly amount in <a href="#step2">step 2</a> and press the button — the results show what the habit is worth. The 2026 limit is $7,500 (see the ⓘ on step 2).',
+        '<b>Enter the year you expect to become career</b> in <a href="#step1">step 1</a> — the plan starts your FERS years and TSP then, and you can see how retirement looks from here.',
+        '<b>Get your Social Security record started</b>: create your ssa.gov account (estimates appear once you have about 10 years of work); until then use the "estimate from my pay" button in <a href="#step3">step 3</a>.',
+        '<b>Keep a small cash cushion</b> in plain savings (<a href="#step2">step 2</a>, "other savings") so a car repair doesn\'t become a credit-card balance.',
+        '<b>Keep every SF-50 and earnings statement.</b> Non-career time usually doesn\'t count toward FERS, but the paperwork settles arguments later — and if any of it turns out creditable, a small deposit can buy it back.' ]],
+      ['The day you convert to career', [
+        '<b>TSP:</b> you\'ll be auto-enrolled at 5% — <b>leave it at least 5%</b> (USPS adds up to 5% more; below 5% you\'re handing raises back). Set the percentage in <a href="#step2">step 2</a>. Pick your funds (the L fund for your retirement decade is a sensible default) and <b>name beneficiaries</b> (form TSP-3).',
+        '<b>Enroll in health insurance (PSHB) at conversion.</b> The clock for keeping it into retirement is <b>5 continuous years enrolled before you retire</b> — the earlier it starts, the earlier that door is open (Advanced settings, health insurance ⓘ).',
+        '<b>Life insurance (FEGLI):</b> Basic is automatic and cheap when you\'re young; decide the optional parts deliberately, and name a beneficiary (SF-2823). Same 5-year rule applies to carrying it into retirement.',
+        '<b>Keep the Roth IRA going</b> alongside TSP — one is pre-tax, one is tax-free later; having both gives you choices at retirement.' ]],
+      ['Along the way', [
+        '<b>Every raise:</b> nudge TSP up a point. <b>Every year:</b> re-run this plan with the new pay stub (the "From your pay stub" box in <a href="#step1">step 1</a>).',
+        '<b>Never take a TSP loan you can\'t repay before leaving</b> — an unpaid loan at separation becomes a taxable withdrawal (plus penalty before 59½).',
+        '<b>Once you have ~10 years in:</b> your ssa.gov Statement shows real estimates — replace the ones you estimated in <a href="#step3">step 3</a>.',
+        '<b>Milestones:</b> 57 = minimum retirement age (born 1970 or later) with 30 years; 60 with 20 years; 62 with 5 years — and at 62 with 20+ years the pension formula jumps from 1.0% to 1.1% (10% more, for life). Unused sick leave adds to your years at retirement, so don\'t burn it. The grid shows every one of them.' ]] ] },
   working: {
-    intro: 'You\'re career and building toward retirement. The decisions cluster at three points: now, about 5 years out, and the last year. Most of what people put off retirement over — "what happens to my insurance, my TSP?" — has clear answers; they\'re below.',
-    now: [
-      '<b>Put a real pay stub in</b> (<a href="#step1">step 1</a>, "From your pay stub") so pay, take-home, health premium, TSP % and basic pay are right — then the plan is about <i>you</i>, not a guess.',
-      '<b>Check your High-3 in LiteBlue</b> (annuity estimate) — it\'s basic pay over 36 months, not your biggest earning years. Enter it in <a href="#step1">step 1</a>.',
-      '<b>Start (or top up) a Roth IRA</b> — <a href="#step2">step 2</a>. Money in has already been taxed; everything it earns comes out tax-free; no required withdrawals. Worth it even a few years from retirement, and it\'s the destination for Roth conversions later.',
-      '<b>Quantify the side income idea instead of wondering about it.</b> Run the plan; the results box tells you the exact extra dollars per month that would move your retirement year. Then decide whether the baking business, the rental, the weekend work is worth scaling to that number — and enter it in <a href="#step7">step 7</a> to see the whole picture change.',
-      '<b>Loans:</b> list them in <a href="#step5">step 5</a> and try an early payoff — sometimes it\'s the single biggest lever.' ],
-    next: [
-      '<b>About 5 years out — the health-insurance clock:</b> you must be enrolled in FEHB/PSHB for the <b>5 continuous years before you retire</b> to keep it for life. If you\'re not enrolled, or a spouse\'s plan covers you, fix that now. Turn on "keep health insurance into retirement" in <a href="#advanced">Advanced</a> to see the premium in the plan.',
-      '<b>Military time?</b> Finish the buyback deposit well before retiring so it counts (<a href="#step1">step 1</a> ⓘ).',
-      '<b>Ask HR for an annuity estimate</b> and compare it with the pension line in the results — verify, don\'t assume.',
-      '<b>Decide the survivor benefit</b> (Advanced settings): the full option costs 10% of the pension and gives a spouse 50% for life; the plan shows the trade-off.',
-      '<b>Start thinking about the gap years:</b> if you\'ll retire before Social Security, those low-income years are when Roth conversions are cheapest — try "fill the 12% bracket" in <a href="#advanced">Advanced</a> and read the comparison.' ],
-    later: [
-      '<b>The last year:</b> file the retirement application 60–90 days ahead. <b>Your TSP stays where it is</b> — nothing is forced; you choose withdrawals, and you can roll <i>part</i> of it to an IRA later (needed for giving from an IRA and handy for Roth conversions). <b>Your health insurance continues</b> — same plan, premium deducted from the pension; at 65 enroll in Medicare Part B to keep PSHB (or within 8 months of retiring if you work past 65).',
-      '<b>Social Security timing</b> is its own decision — the grid shows every start age against every retirement age; yellow means close call either way. If you\'ll keep working past your SS age, the earnings test disappears at 67 (<a href="#step3">step 3</a>).',
-      '<b>After retiring:</b> gap-year Roth conversions; Part B at 65; giving from an IRA from 70½ (roll some TSP to an IRA first); required withdrawals at 73. All in <a href="#advanced">Advanced</a>, each with a with/without comparison.' ] },
+    intro: 'You\'re career and building toward retirement. The decisions cluster at four points: now, <b>about 5 years before you plan to retire</b>, the last year, and just after. Most of what people put off retirement over — "what happens to my insurance, my TSP?" — has clear answers; they\'re below.',
+    sections: [
+      ['Now', [
+        '<b>Put a real pay stub in</b> (<a href="#step1">step 1</a>, "From your pay stub") so pay, take-home, health premium, TSP % and basic pay are right — then the plan is about <i>you</i>, not a guess.',
+        '<b>Check your High-3 in LiteBlue</b> (annuity estimate) — it\'s basic pay over 36 months, not your biggest earning years. Enter it in <a href="#step1">step 1</a>.',
+        '<b>Start (or top up) a Roth IRA</b> — <a href="#step2">step 2</a>. Money in has already been taxed; everything it earns comes out tax-free; no required withdrawals. Worth it even a few years from retirement, and it\'s the destination for Roth conversions later.',
+        '<b>Quantify the side-income idea instead of wondering about it.</b> Run the plan; the results box tells you the exact extra dollars per month that would move your retirement year. Then decide whether the baking business, the rental, the weekend work is worth scaling to that number — enter it in <a href="#step7">step 7</a> and see the whole picture change.',
+        '<b>Loans:</b> list them in <a href="#step5">step 5</a> and try an early payoff — sometimes it\'s the single biggest lever.',
+        '<b>Beneficiaries:</b> check them on TSP (TSP-3), FEGLI (SF-2823), and FERS (SF-3102) — especially after a marriage, divorce, or death. Forms beat wills for these accounts.' ]],
+      ['About 5 years before you plan to retire', [
+        '<b>The health-insurance clock:</b> you must be enrolled in FEHB/PSHB for the <b>5 continuous years immediately before retiring</b> to keep it for life. If you\'re not enrolled, or you\'re on a spouse\'s plan, enroll now — this is the deadline people miss. Turn on "keep health insurance into retirement" in <a href="#advanced">Advanced</a> to see the premium in the plan. (Dental/vision — FEDVIP — has no 5-year rule; life insurance — FEGLI — does.)',
+        '<b>Buy back any creditable time now:</b> military service (a deposit, plus interest that grows every year you wait) and, for some, temporary/non-deduction federal time. Ask HR for the deposit amount; finish paying well before you file (<a href="#step1">step 1</a> ⓘ).',
+        '<b>Ask HR for an official annuity estimate</b> and compare it with the pension line in the results — verify, don\'t assume. Confirm your service computation date.',
+        '<b>Pick your target dates with the rules in mind:</b> the FERS supplement only comes with MRA+30 or 60+20; retiring at 62 with 20+ years gets the 1.1% formula (10% more pension for life than at 61); FERS annuities start the first of the month after you leave, so the last day of a month is usually the right day. The grid shows all of these; the yellow "close call" cells are where a date choice matters.',
+        '<b>Sick leave counts:</b> unused sick leave adds to your service time (about 174 hours ≈ 1 month). Annual leave is paid out in cash when you leave. Both change your last-year math a little — don\'t "use it or lose it" out of habit.',
+        '<b>Decide the survivor benefit</b> (Advanced settings): the full option costs 10% of the pension and gives a spouse 50% for life — and it\'s also what lets a surviving spouse <b>keep the health insurance</b>. Declining it requires the spouse\'s notarized consent. The plan shows the trade-off in dollars.',
+        '<b>Start thinking about the gap years:</b> if you\'ll retire before Social Security, those low-income years are when Roth conversions are cheapest — try "fill the 12% bracket" in <a href="#advanced">Advanced</a> and read the comparison. Decide whether you\'ll want an IRA alongside TSP (needed for giving from an IRA at 70½).',
+        '<b>Watch for VERA/VSIP offers</b> (early-out / buyout). They change the math; run the plan with the offered numbers before answering.' ]],
+      ['The last year', [
+        '<b>File 60–90 days ahead</b> (SF-3107 with HR; they certify your service). Pay off any <b>TSP loan</b> first — an unpaid balance at separation becomes a taxable withdrawal.',
+        '<b>Your TSP stays where it is</b> — nothing is forced; you choose withdrawals; you can roll <i>part</i> of it to an IRA later (needed for giving from an IRA, handy for Roth conversions). <b>Your health insurance continues</b> — same plan, premium deducted from the pension; at 65 enroll in Medicare Part B to keep PSHB (or within 8 months of retiring if you work past 65).',
+        '<b>Life insurance:</b> choose how much FEGLI to keep (it gets expensive with age; the 75%-reduction Basic option is free after 65). <b>Long-term care</b> and dental/vision elections can continue too.',
+        '<b>Social Security timing</b> is its own decision — the grid shows every start age against every retirement age; yellow means close call either way. If you keep working past your SS age, the earnings test disappears at 67 (<a href="#step3">step 3</a>). If you retire before 62 with the supplement, side income above the limit trims it.',
+        '<b>Not staying to full eligibility?</b> MRA+10 gives a reduced pension (5% per year under 62); a <i>postponed</i> retirement can avoid the reduction and restore health insurance later — ask HR which applies before you leave.' ]],
+      ['After retiring', [
+        '<b>Gap-year Roth conversions</b> while income is low (before Social Security and before 73); <b>Part B at 65</b>; <b>giving from an IRA from 70½</b> (roll some TSP to an IRA first); <b>required withdrawals at 73</b>. All in <a href="#advanced">Advanced</a>, each with a with/without comparison.',
+        '<b>Withdrawal order:</b> the results compare TSP-first vs. other-savings-first for your plan — read the note and switch it if the other way wins.',
+        '<b>Once a year:</b> put in the new pension, Social Security, and balances and re-run. Re-check beneficiaries.' ]] ] },
   retired: {
     intro: 'You\'re retired — the pension is what it is, so the decisions left are about timing and which money to use first. They still matter, sometimes a lot.',
-    now: [
-      '<b>Enter your pension, supplement, and Social Security as they are</b> (<a href="#step1">step 1</a>) and your balances (<a href="#step2">step 2</a>); the plan runs forward from today.',
-      '<b>Which money first?</b> The results compare TSP-first vs. other-savings-first for your exact plan — read the "Withdrawal order" note and switch it in <a href="#advanced">Advanced</a> if the other way wins.',
-      '<b>Health insurance:</b> turn on "keep health insurance into retirement" in <a href="#advanced">Advanced</a> with your premium; if you\'re under 65 the plan adds Part B when you get there (required to keep PSHB for most).' ],
-    next: [
-      '<b>If Social Security hasn\'t started:</b> the grid compares every start age from now to 70. Yellow = close call.',
-      '<b>Before Social Security and before 73 — the gap years:</b> your taxable income is at its lowest. That\'s the window for Roth conversions: try "fill the 12% bracket" in <a href="#advanced">Advanced</a> and look at lifetime taxes and required withdrawals with vs. without.',
-      '<b>Spouse timing:</b> if your spouse hasn\'t started their Social Security, the results show how each start age turns out (<a href="#step8">step 8</a>).' ],
-    later: [
-      '<b>At 70½:</b> giving to church or charity straight from an IRA is tax-free and counts toward required withdrawals — TSP can\'t do it, so roll some TSP into a traditional IRA before then. The comparison in <a href="#advanced">Advanced</a> shows the yearly saving.',
-      '<b>At 73:</b> required minimum withdrawals from TSP/IRAs begin (the plan takes them automatically); anything you converted to Roth earlier is exempt.',
-      '<b>Once a year:</b> put in the new pension and Social Security amounts and re-run.' ] }
+    sections: [
+      ['Now', [
+        '<b>Enter your pension, supplement, and Social Security as they are</b> (<a href="#step1">step 1</a>) and your balances (<a href="#step2">step 2</a>); the plan runs forward from today.',
+        '<b>Which money first?</b> The results compare TSP-first vs. other-savings-first for your exact plan — read the "Withdrawal order" note and switch it in <a href="#advanced">Advanced</a> if the other way wins.',
+        '<b>Health insurance:</b> turn on "keep health insurance into retirement" in <a href="#advanced">Advanced</a> with your premium; if you\'re under 65 the plan adds Part B when you get there (required to keep PSHB for most).',
+        '<b>Beneficiaries and the survivor election:</b> confirm TSP/FEGLI/FERS beneficiaries are current; know that the survivor benefit you elected is also what lets a spouse keep the health insurance.' ]],
+      ['Next', [
+        '<b>If Social Security hasn\'t started:</b> the grid compares every start age from now to 70. Yellow = close call. If you retired before 62 with the FERS supplement, remember it stops at 62 and side income above the limit trims it.',
+        '<b>Before Social Security and before 73 — the gap years:</b> your taxable income is at its lowest. That\'s the window for Roth conversions: try "fill the 12% bracket" in <a href="#advanced">Advanced</a> and look at lifetime taxes and required withdrawals with vs. without.',
+        '<b>Spouse timing:</b> if your spouse hasn\'t started their Social Security, the results show how each start age turns out (<a href="#step8">step 8</a>).' ]],
+      ['Later', [
+        '<b>At 70½:</b> giving to church or charity straight from an IRA is tax-free and counts toward required withdrawals — TSP can\'t do it, so roll some TSP into a traditional IRA before then. The comparison in <a href="#advanced">Advanced</a> shows the yearly saving.',
+        '<b>At 73:</b> required minimum withdrawals from TSP/IRAs begin (first one may be delayed to April 1 of the next year — but then two land in one year); the plan takes them automatically; anything you converted to Roth earlier is exempt.',
+        '<b>Once a year:</b> put in the new pension and Social Security amounts and re-run.' ]] ] }
 };
 function renderDP() {
   const key = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
   const d = DP[key];
   const list = arr => '<ul>' + arr.map(x => '<li>' + x + '</li>').join('') + '</ul>';
-  $('dpCard').innerHTML = '<b>🧭 Decision points</b> — ' + d.intro +
-    '<h4>Now</h4>' + list(d.now) + '<h4>Next</h4>' + list(d.next) + '<h4>Later</h4>' + list(d.later) +
+  $('dpCard').innerHTML = '<b>🧭 Decision points</b> <button type="button" class="infobtn" data-info="decisions" aria-label="Where to find more information" title="Where to go for more">i</button> — ' + d.intro +
+    d.sections.map(([h, items]) => '<h4>' + h + '</h4>' + list(items)).join('') +
     '<p class="help" style="margin:10px 0 0">You can skip this for now — but do come back to it. Every item points to the step of the tool where it lives, and the ⓘ on that step has the official source. <button type="button" class="linkbtn" id="dpClose">Close</button></p>';
 }
 $('dpBtn').addEventListener('click', () => {
