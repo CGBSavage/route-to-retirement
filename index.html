@@ -396,7 +396,7 @@
     </div>
     <h1>Route2Retirement</h1>
     <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
-    <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a> · <a href="#privacy">Save / load a copy</a></p>
+    <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a> · <a href="#privacy">Save / load a copy</a> <span id="saveStatusTop" class="help"></span></p>
   </header>
 
   <section class="card about" id="fbCard" hidden>
@@ -1025,6 +1025,8 @@
       <div id="pasteArea" hidden style="margin-top:8px"><textarea id="pasteBox" rows="4" style="width:100%;font-size:14px;padding:8px;border-radius:8px;border:1.5px solid var(--hairline);background:var(--surface-2);color:var(--ink)" placeholder="Paste the saved text here"></textarea><button type="button" class="ghostbtn" id="pasteApply" style="margin-top:6px">Load it</button></div>
       <span class="help" id="backupMsg" style="display:block;margin-top:8px">You can also drag a saved file anywhere onto this page.</span>
     </div>
+    <p class="help" id="saveStatus" style="margin:0 0 6px"></p>
+    <div class="anchor" id="restoreOffer" hidden>A fuller set of entries from <b id="restoreWhen"></b> is still on this device. <button type="button" class="ghostbtn" id="restoreBtn">Restore those entries</button></div>
     <label class="spouse-toggle"><input type="checkbox" id="rememberOn" checked><span>Remember my entries on this device</span></label>
     <div style="padding:0 0 12px"><button type="button" id="clearBtn" class="ghostbtn">Clear my saved entries now</button> <span id="clearMsg" class="help" style="margin-left:8px"></span></div>
     <p class="cardsub"><b>Terms, in plain English.</b> Route2Retirement is a free educational tool made by and for postal workers. It gives rough estimates from the numbers you enter and standard assumptions; it is not financial, tax, or legal advice, and it can be wrong. Nothing here is a promise about what you'll receive from FERS, TSP, or Social Security — confirm those with HR/OPM, tsp.gov, and ssa.gov, and talk to a qualified planner before deciding. It's provided as-is, without warranty; you use it at your own risk. Not affiliated with, or endorsed by, the U.S. Postal Service, OPM, or the Social Security Administration.</p>
@@ -2295,31 +2297,54 @@ function saveForm() {
   for (let n = 1; n <= debtRows; n++)
     ['What','Bal','Mo','Year'].forEach(s => o['d' + n + s] = $('d' + n + s).value);
   if (!rememberEnabled()) return;
-  try { localStorage.setItem('routeToRetirement', JSON.stringify(o)); } catch (e) {}
+  try {
+    const filled = obj => Object.keys(obj).filter(k => typeof obj[k] === 'string' && /\d/.test(obj[k])).length;
+    const prevRaw = localStorage.getItem('routeToRetirement');
+    const prev = prevRaw ? JSON.parse(prevRaw) : null;
+    // Safety: if the page somehow shows an almost-empty form while a real save exists, don't clobber it —
+    // park the good one as a backup instead (recoverable from the Privacy card).
+    if (prev && filled(prev) >= 6 && filled(o) < 3) {
+      localStorage.setItem('routeToRetirement.backup', prevRaw);
+      showRestoreOffer();
+      return;
+    }
+    o.savedAt = new Date().toISOString();
+    localStorage.setItem('routeToRetirement', JSON.stringify(o));
+    setSaveStatus('Saved ✓ ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+  } catch (e) { setSaveStatus('Could not save on this device (' + (e && e.name || 'storage blocked') + ') — use "Save my entries to a file".'); }
+}
+function setSaveStatus(t) { const el = $('saveStatus'); if (el) el.textContent = t; const top = $('saveStatusTop'); if (top) top.textContent = '· ' + t; }
+function showRestoreOffer() {
+  const el = $('restoreOffer'); if (!el) return;
+  try {
+    const b = JSON.parse(localStorage.getItem('routeToRetirement.backup') || 'null');
+    if (!b) { el.hidden = true; return; }
+    el.hidden = false;
+    $('restoreWhen').textContent = b.savedAt ? new Date(b.savedAt).toLocaleString() : 'earlier';
+  } catch (e) { el.hidden = true; }
 }
 function loadForm() {
-  try {
-    const o = JSON.parse(localStorage.getItem('routeToRetirement') || 'null');
-    if (!o) return;
-    while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow();
-    while (debtRows < Math.min(o.debtRows || 0, DEBT_MAX)) addDebtRow();
-    for (let n = 1; n <= debtRows; n++)
-      ['What','Bal','Mo','Year'].forEach(s => { if (o['d' + n + s]) $('d' + n + s).value = o['d' + n + s]; });
-    syncPayoffOptions();
-    SAVE_IDS.forEach(id => { if (o[id] !== undefined && o[id] !== '') $(id).value = o[id]; });
-    for (let n = 5; n <= purchRows; n++)
-      ['What','Amt','Year','How'].forEach(s => { if (o['p' + n + s]) $('p' + n + s).value = o['p' + n + s]; });
-    if (o.horizon === '95') $('horizon').value = '101';   // migrate the old default forward
-    $('hasSpouse').checked = !!o.hasSpouse;
-    $('spouseFields').style.display = o.hasSpouse ? '' : 'none';
-    $('taxOn').checked = !!o.taxOn;
-    $('taxFields').style.display = o.taxOn ? '' : 'none';
-    $('pen2TaxFree').checked = !!o.pen2TaxFree;
-    $('fehbOn').checked = !!o.fehbOn;
-    if (o.path) setPath(o.path);
-    if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend;
-    document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none');
-  } catch (e) {}
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem('routeToRetirement') || 'null'); }
+  catch (e) { setSaveStatus('Saved entries couldn\'t be read on this device (' + (e && e.name || 'storage blocked') + ').'); return; }
+  showRestoreOffer();
+  if (!o) { setSaveStatus('Nothing saved on this device yet.'); return; }
+  const safe = fn => { try { fn(); } catch (e) {} };   // one bad field must never stop the rest
+  safe(() => { while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow(); });
+  safe(() => { while (debtRows < Math.min(o.debtRows || 0, DEBT_MAX)) addDebtRow(); });
+  for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => safe(() => { if (o['d' + n + s]) $('d' + n + s).value = o['d' + n + s]; }));
+  safe(syncPayoffOptions);
+  let count = 0;
+  SAVE_IDS.forEach(id => safe(() => { if (o[id] !== undefined && o[id] !== '') { $(id).value = o[id]; if (/\d/.test(o[id])) count++; } }));
+  for (let n = 5; n <= purchRows; n++) ['What','Amt','Year','How'].forEach(s => safe(() => { if (o['p' + n + s]) $('p' + n + s).value = o['p' + n + s]; }));
+  safe(() => { if (o.horizon === '95') $('horizon').value = '101'; });
+  safe(() => { $('hasSpouse').checked = !!o.hasSpouse; $('spouseFields').style.display = o.hasSpouse ? '' : 'none'; });
+  safe(() => { $('taxOn').checked = !!o.taxOn; $('taxFields').style.display = o.taxOn ? '' : 'none'; });
+  safe(() => { $('pen2TaxFree').checked = !!o.pen2TaxFree; });
+  safe(() => { $('fehbOn').checked = !!o.fehbOn; document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none'); });
+  safe(() => { if (o.path) setPath(o.path); });
+  safe(() => { if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend; });
+  setSaveStatus('Loaded ' + count + ' saved entries' + (o.savedAt ? ' from ' + new Date(o.savedAt).toLocaleString() : '') + '.');
 }
 $('hasSpouse').addEventListener('change', e => { $('spouseFields').style.display = e.target.checked ? '' : 'none'; });
 function syncSpouseSS() {
@@ -2488,6 +2513,9 @@ $('copyTextBtn').addEventListener('click', async () => {
 $('pasteTextBtn').addEventListener('click', () => { $('pasteArea').hidden = !$('pasteArea').hidden; if (!$('pasteArea').hidden) { $('pasteBox').value = ''; $('pasteBox').focus(); } });
 $('pasteApply').addEventListener('click', () => { try { applyForm(JSON.parse($('pasteBox').value.trim())); $('pasteArea').hidden = true; backupMsg('Loaded. Scroll up to check, then press "Show me my plan".'); } catch (e) { backupMsg('That text isn\'t a Route2Retirement save.'); } });
 
+$('restoreBtn').addEventListener('click', () => {
+  try { const b = JSON.parse(localStorage.getItem('routeToRetirement.backup') || 'null'); if (b) { applyForm(b); localStorage.removeItem('routeToRetirement.backup'); $('restoreOffer').hidden = true; setSaveStatus('Restored. Scroll up to check, then press "Show me my plan".'); } } catch (e) {}
+});
 // remember-on-this-device switch and clear button
 const REMEMBER_KEY = 'routeToRetirementRemember';
 function rememberEnabled() { try { return localStorage.getItem(REMEMBER_KEY) !== 'off'; } catch (e) { return false; } }
@@ -2499,7 +2527,8 @@ $('rememberOn').addEventListener('change', e => {
   } catch (err) {}
 });
 $('clearBtn').addEventListener('click', () => {
-  try { localStorage.removeItem('routeToRetirement'); } catch (e) {}
+  try { localStorage.removeItem('routeToRetirement'); localStorage.removeItem('routeToRetirement.backup'); } catch (e) {}
+  $('restoreOffer').hidden = true; setSaveStatus('Cleared.');
   $('clearMsg').textContent = 'Cleared. Your entries stay on screen until you leave this page.';
   setTimeout(() => { $('clearMsg').textContent = ''; }, 5000);
 });
