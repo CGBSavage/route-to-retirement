@@ -191,10 +191,17 @@
     .purchgrid input[id$="What"] { grid-column: 1 / -1; }
   }
   h3.subhead { font-size: 18px; margin: 6px 0 8px; color: var(--ink-2); }
-  .pathbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -6px 0 14px; }
-  .pathbtn { font: 600 14.5px system-ui, sans-serif; color: var(--ink-2); background: var(--surface-2); border: 1.5px solid var(--hairline); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
-  .pathbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-  .pathbtn.dp { margin-left: auto; border-style: dashed; }
+  .paths { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 4px 0 14px; }
+  @media (max-width: 720px) { .paths { grid-template-columns: minmax(0,1fr); } }
+  .pathtile { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px 16px; border-radius: 12px; cursor: pointer;
+    background: var(--surface-2); border: 2px solid var(--hairline); color: var(--ink); font-family: inherit; }
+  .pathtile .pt-title { font: 700 19px system-ui, sans-serif; }
+  .pathtile .pt-sub { font-size: 14.5px; color: var(--ink-2); line-height: 1.4; }
+  .pathtile[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+  .pathtile[aria-pressed="true"] .pt-sub { color: var(--accent-ink); opacity: .9; }
+  .dpbtn { display: block; width: 100%; text-align: left; font: 600 16px system-ui, sans-serif; color: var(--accent); background: none;
+    border: 2px dashed var(--accent); border-radius: 12px; padding: 12px 16px; cursor: pointer; margin: 0 0 12px; }
+  .dpbtn[aria-expanded="true"] { background: var(--surface-2); }
   #dpCard h4 { margin: 12px 0 4px; font-size: 16px; }
   #dpCard ul { margin: 4px 0 0; padding-left: 20px; }
   #dpCard li { margin: 6px 0; }
@@ -400,7 +407,7 @@
       </span>
     </div>
     <h1>Route2Retirement</h1>
-    <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
+    <p class="tagline">A retirement planner built for postal employees and their families. Enter your numbers once — pay, TSP, Roth, Social Security, spending, loans, a spouse if you have one — and it tries <b>every combination of retirement age and Social Security age</b>, shows which ones your money can handle, and helps you see what a little more saving, a little less spending, a side income, or a well-timed Roth move would change. Whether you're not career yet, working toward retirement, or already retired.</p>
     <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a> · <a href="#privacy">Save / load a copy</a> <span id="saveStatusTop" class="help"></span></p>
   </header>
 
@@ -437,17 +444,21 @@
     <p><a href="#privacy">Privacy &amp; terms</a> · <button type="button" class="linkbtn" id="aboutClose">Close</button></p>
   </section>
 
+  <section class="card" id="startHere">
+    <h2>Start here — which are you?</h2>
+    <p class="cardsub">Pick one. The questions below adjust to fit, and the decision points are written for your situation.</p>
+    <div class="paths">
+      <button type="button" class="pathtile" id="pathWorking" aria-pressed="true"><span class="pt-title">Working toward retirement</span><span class="pt-sub">Career USPS employee — planning when to retire and when to start Social Security</span></button>
+      <button type="button" class="pathtile" id="pathNotCareer" aria-pressed="false"><span class="pt-title">Not career yet</span><span class="pt-sub">CCA, RCA, PSE or about to convert — see what starting early does, and what to set up now</span></button>
+      <button type="button" class="pathtile" id="pathRetired" aria-pressed="false"><span class="pt-title">Already retired from USPS</span><span class="pt-sub">Pension in hand — Social Security timing, which money to use first, taxes, insurance</span></button>
+    </div>
+    <button type="button" class="dpbtn" id="dpBtn" aria-expanded="false" aria-controls="dpCard">🧭 Decision points for this path — what to set up now, and what comes next</button>
+    <div class="anchor" id="dpCard" hidden></div>
+  </section>
+
   <section class="card" id="step1">
     <h2><span class="stepnum">1</span>About you <button type="button" class="infobtn" data-info="about" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub" id="step1Sub">Your basic USPS work history. Your High-3 salary is on your latest annuity estimate from LiteBlue or HR.</p>
-    <div class="pathbar">
-      <span class="help" style="margin:0">Which are you?</span>
-      <button type="button" class="pathbtn" id="pathWorking" aria-pressed="true">Working toward retirement</button>
-      <button type="button" class="pathbtn" id="pathNotCareer" aria-pressed="false">Not career yet</button>
-      <button type="button" class="pathbtn" id="pathRetired" aria-pressed="false">Already retired from USPS</button>
-      <button type="button" class="pathbtn dp" id="dpBtn" aria-expanded="false" aria-controls="dpCard">🧭 Decision points for this path</button>
-    </div>
-    <div class="anchor" id="dpCard" hidden></div>
     <div class="anchor" id="notCareerNote" hidden>
       <b>Not career yet? Here's how to fill this in.</b> Enter the year you expect to convert to career in step 1 — your FERS years and TSP both start then. Use the pay you'll earn as a career employee (or your pay now). Leave High-3 blank; we'll grow your pay to retirement for you. In step 2, TSP is $0 for now — and this is exactly the moment a Roth IRA earns its keep: enter what you can put in each year (the IRS max if possible) and set up an automatic transfer. Then run the plan and watch what the early start does. The rest of the form works the same.
     </div>
