@@ -396,7 +396,7 @@
     </div>
     <h1>Route2Retirement</h1>
     <p class="tagline">Answer a few questions about your job, your savings, and your Social Security. We'll show you every combination of retirement age and Social Security age — and which ones your money can handle.</p>
-    <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a></p>
+    <p class="privacy">🔒 Everything stays on your phone or computer. Nothing you type is sent anywhere. <a href="#privacy">How your entries are stored</a> · <a href="#privacy">Save / load a copy</a></p>
   </header>
 
   <section class="card about" id="fbCard" hidden>
@@ -1013,6 +1013,18 @@
   <section class="card" id="privacy">
     <h2>Privacy &amp; terms</h2>
     <p class="cardsub"><b>What's stored, and where.</b> To save you retyping, the numbers you enter are kept in this browser's own storage on this device — not on any server, and never sent anywhere. Nothing you type includes your name, Social Security number, or account numbers. On a shared or borrowed device, turn saving off or clear your entries when you're done.</p>
+    <div class="anchor" id="backupBox">
+      <b>Keep a copy of your entries.</b> Save them to a small file on your device (or email it to yourself), and load it back here any time — on this or another device. Nothing is sent anywhere; the file is just your entries.
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+        <button type="button" class="ghostbtn" id="saveFileBtn">💾 Save my entries to a file</button>
+        <button type="button" class="ghostbtn" id="loadFileBtn">📂 Load entries from a file</button>
+        <button type="button" class="ghostbtn" id="copyTextBtn">Copy as text</button>
+        <button type="button" class="ghostbtn" id="pasteTextBtn">Paste text</button>
+        <input type="file" id="loadFileInput" accept=".json,.txt,application/json,text/plain" hidden>
+      </div>
+      <div id="pasteArea" hidden style="margin-top:8px"><textarea id="pasteBox" rows="4" style="width:100%;font-size:14px;padding:8px;border-radius:8px;border:1.5px solid var(--hairline);background:var(--surface-2);color:var(--ink)" placeholder="Paste the saved text here"></textarea><button type="button" class="ghostbtn" id="pasteApply" style="margin-top:6px">Load it</button></div>
+      <span class="help" id="backupMsg" style="display:block;margin-top:8px">You can also drag a saved file anywhere onto this page.</span>
+    </div>
     <label class="spouse-toggle"><input type="checkbox" id="rememberOn" checked><span>Remember my entries on this device</span></label>
     <div style="padding:0 0 12px"><button type="button" id="clearBtn" class="ghostbtn">Clear my saved entries now</button> <span id="clearMsg" class="help" style="margin-left:8px"></span></div>
     <p class="cardsub"><b>Terms, in plain English.</b> Route2Retirement is a free educational tool made by and for postal workers. It gives rough estimates from the numbers you enter and standard assumptions; it is not financial, tax, or legal advice, and it can be wrong. Nothing here is a promise about what you'll receive from FERS, TSP, or Social Security — confirm those with HR/OPM, tsp.gov, and ssa.gov, and talk to a qualified planner before deciding. It's provided as-is, without warranty; you use it at your own risk. Not affiliated with, or endorsed by, the U.S. Postal Service, OPM, or the Social Security Administration.</p>
@@ -2419,6 +2431,62 @@ const onFormEdit = (delay) => { clearTimeout(sumTimer); sumTimer = setTimeout(()
 document.addEventListener('input', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) onFormEdit(250); });
 document.addEventListener('change', e => { if (e.target.closest('.wrap') && !e.target.closest('#results')) onFormEdit(50); });
 window.addEventListener('pagehide', () => { try { saveForm(); } catch (e) {} });
+
+// Save / load entries as a file (or as text) — never leaves the device unless the user moves it
+function collectForm() {   // same object saveForm writes, without touching storage
+  const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
+  const o = { app: 'Route2Retirement', version: 1, saved: new Date().toISOString().slice(0, 10),
+    hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, path };
+  SAVE_IDS.forEach(id => o[id] = $(id).value);
+  for (let n = 5; n <= purchRows; n++) ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
+  for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => o['d' + n + s] = $('d' + n + s).value);
+  return o;
+}
+function applyForm(o) {    // mirror of loadForm, from an object
+  if (!o || typeof o !== 'object') throw new Error('not a saved-entries file');
+  while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow();
+  while (debtRows < Math.min(o.debtRows || 0, DEBT_MAX)) addDebtRow();
+  for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => { $('d' + n + s).value = o['d' + n + s] || ''; });
+  syncPayoffOptions();
+  SAVE_IDS.forEach(id => { if (o[id] !== undefined) $(id).value = o[id]; });
+  for (let n = 5; n <= purchRows; n++) ['What','Amt','Year','How'].forEach(s => { $('p' + n + s).value = o['p' + n + s] || ''; });
+  $('hasSpouse').checked = !!o.hasSpouse; $('spouseFields').style.display = o.hasSpouse ? '' : 'none';
+  $('taxOn').checked = !!o.taxOn; $('taxFields').style.display = o.taxOn ? '' : 'none';
+  $('pen2TaxFree').checked = !!o.pen2TaxFree;
+  $('fehbOn').checked = !!o.fehbOn; document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none');
+  if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend;
+  setPath(o.path || 'working');
+  syncSpouseSS(); syncPayoff(); syncGrowthNote(); syncTakeHomeHint(); syncSpendAnchor(); renderSummary();
+  try { saveForm(); } catch (e) {}
+}
+function backupMsg(t) { $('backupMsg').textContent = t; setTimeout(() => { $('backupMsg').textContent = 'You can also drag a saved file anywhere onto this page.'; }, 6000); }
+$('saveFileBtn').addEventListener('click', () => {
+  const text = JSON.stringify(collectForm(), null, 1);
+  const name = 'route2retirement-entries-' + new Date().toISOString().slice(0, 10) + '.json';
+  try {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    backupMsg('Saved as ' + name + ' (check your Downloads). If nothing happened, use "Copy as text" instead.');
+  } catch (e) { backupMsg('This browser blocked the download — use "Copy as text" and paste it somewhere safe.'); }
+});
+$('loadFileBtn').addEventListener('click', () => $('loadFileInput').click());
+function loadFromFile(file) {
+  if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => { try { applyForm(JSON.parse(rd.result)); backupMsg('Loaded ' + file.name + '. Scroll up to check, then press "Show me my plan".'); } catch (e) { backupMsg('That file isn\'t a Route2Retirement save (' + e.message + ').'); } };
+  rd.readAsText(file);
+}
+$('loadFileInput').addEventListener('change', e => { loadFromFile(e.target.files[0]); e.target.value = ''; });
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) { loadFromFile(f); $('privacy').scrollIntoView({ block: 'start' }); } });
+$('copyTextBtn').addEventListener('click', async () => {
+  const text = JSON.stringify(collectForm());
+  try { await navigator.clipboard.writeText(text); backupMsg('Copied. Paste it into a note or email to yourself; use "Paste text" to load it back.'); }
+  catch (e) { $('pasteArea').hidden = false; $('pasteBox').value = text; $('pasteBox').select(); backupMsg('Select all the text in the box and copy it.'); }
+});
+$('pasteTextBtn').addEventListener('click', () => { $('pasteArea').hidden = !$('pasteArea').hidden; if (!$('pasteArea').hidden) { $('pasteBox').value = ''; $('pasteBox').focus(); } });
+$('pasteApply').addEventListener('click', () => { try { applyForm(JSON.parse($('pasteBox').value.trim())); $('pasteArea').hidden = true; backupMsg('Loaded. Scroll up to check, then press "Show me my plan".'); } catch (e) { backupMsg('That text isn\'t a Route2Retirement save.'); } });
 
 // remember-on-this-device switch and clear button
 const REMEMBER_KEY = 'routeToRetirementRemember';
