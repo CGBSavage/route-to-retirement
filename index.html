@@ -194,6 +194,11 @@
   .pathbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -6px 0 14px; }
   .pathbtn { font: 600 14.5px system-ui, sans-serif; color: var(--ink-2); background: var(--surface-2); border: 1.5px solid var(--hairline); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
   .pathbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .pathbtn.dp { margin-left: auto; border-style: dashed; }
+  #dpCard h4 { margin: 12px 0 4px; font-size: 16px; }
+  #dpCard ul { margin: 4px 0 0; padding-left: 20px; }
+  #dpCard li { margin: 6px 0; }
+  #dpCard a { color: var(--accent); font-weight: 600; }
   .infobtn {
     display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 8px;
     border-radius: 50%; border: 1.5px solid var(--accent); background: none; color: var(--accent);
@@ -432,7 +437,7 @@
     <p><a href="#privacy">Privacy &amp; terms</a> · <button type="button" class="linkbtn" id="aboutClose">Close</button></p>
   </section>
 
-  <section class="card">
+  <section class="card" id="step1">
     <h2><span class="stepnum">1</span>About you <button type="button" class="infobtn" data-info="about" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub" id="step1Sub">Your basic USPS work history. Your High-3 salary is on your latest annuity estimate from LiteBlue or HR.</p>
     <div class="pathbar">
@@ -440,7 +445,9 @@
       <button type="button" class="pathbtn" id="pathWorking" aria-pressed="true">Working toward retirement</button>
       <button type="button" class="pathbtn" id="pathNotCareer" aria-pressed="false">Not career yet</button>
       <button type="button" class="pathbtn" id="pathRetired" aria-pressed="false">Already retired from USPS</button>
+      <button type="button" class="pathbtn dp" id="dpBtn" aria-expanded="false" aria-controls="dpCard">🧭 Decision points for this path</button>
     </div>
+    <div class="anchor" id="dpCard" hidden></div>
     <div class="anchor" id="notCareerNote" hidden>
       <b>Not career yet? Here's how to fill this in.</b> Enter the year you expect to convert to career in step 1 — your FERS years and TSP both start then. Use the pay you'll earn as a career employee (or your pay now). Leave High-3 blank; we'll grow your pay to retirement for you. In step 2, TSP is $0 for now — and this is exactly the moment a Roth IRA earns its keep: enter what you can put in each year (the IRS max if possible) and set up an automatic transfer. Then run the plan and watch what the early start does. The rest of the form works the same.
     </div>
@@ -509,7 +516,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="step2">
     <h2><span class="stepnum">2</span>Your savings <button type="button" class="infobtn" data-info="savings" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Your TSP balance is at <b>tsp.gov</b> or on your quarterly statement.</p>
     <div class="fields">
@@ -557,7 +564,7 @@
     <p class="help" id="growthNote" style="font-size:14.5px;color:var(--muted);margin:-6px 0 16px">📈 Yes, growth is counted: we assume TSP earns <span id="gnWork"><b id="gnPre">7</b>%/yr while you work and </span><b id="gnPost">4</b>%/yr <span id="gnOnce">once </span>retired, and other savings earn <b id="gnOther">4</b>%/yr. <a href="#" id="gnLink">Change these</a> in the advanced settings.</p>
   </section>
 
-  <section class="card">
+  <section class="card" id="step3">
     <h2><span class="stepnum">3</span>Your Social Security <button type="button" class="infobtn" data-info="ss" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub" id="step3Sub">Log in at <b>ssa.gov/myaccount</b> and open your Statement. It lists your estimated monthly benefit at different ages.</p>
     <p class="anchor" id="ssStartedNote" hidden>You've already started Social Security (entered in step 1) — nothing to fill in here. If your spouse hasn't started theirs, step 8 covers that.</p>
@@ -595,7 +602,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="step4">
     <h2><span class="stepnum">4</span>Your spending <button type="button" class="infobtn" data-info="spending" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Nobody spends evenly through retirement — the early "go-go" years (travel, projects, grandkids) usually cost more than the quieter years later, when most of us stay closer to home and live more simply. Enter what a typical month looks like in each stretch, <b>in today's dollars</b> — the math converts everything to future dollars for you. Only the first box is required; leave any box blank to keep the same amount as the stretch before. <b>Don't count loan payments</b> — those go in step 5 so they can stop when a loan is paid off.</p>
     <div class="fields" style="padding-bottom:6px">
@@ -639,7 +646,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="step5">
     <h2><span class="stepnum">5</span>What you owe <button type="button" class="infobtn" data-info="debts" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Loans you're still paying on. We add the payments to your spending until each one is paid off, and subtract what's owed when we show your net worth. Leave rows blank if they don't apply.</p>
     <div class="debtgrid">
@@ -696,7 +703,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="step6">
     <h2><span class="stepnum">6</span>Big future purchases <button type="button" class="infobtn" data-info="purchases" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Cars wear out, kitchens age, travel calls, kids get help. Plan the big one-time costs here so the numbers stay honest. Enter <b>today's prices</b> — the math adjusts them for inflation to the year you pick. "Cash" means it's paid from savings that year; "borrow" spreads monthly loan payments over the term instead.</p>
     <div class="purchgrid">
@@ -725,7 +732,7 @@
     <p class="help" style="font-size:14.5px;color:var(--muted);margin:6px 0 16px">Leave rows blank if they don't apply. Borrowing uses the interest rate in the advanced settings (7% unless you change it). Try a purchase in different years or cash vs. borrowing and watch how the plan reacts — that's what this section is for.</p>
   </section>
 
-  <section class="card">
+  <section class="card" id="step7">
     <h2><span class="stepnum">7</span>Extra income <button type="button" class="infobtn" data-info="income" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <p class="cardsub">Side work, self-employment, rental income — money the two of you expect to keep earning in retirement. Skip it if there's none.</p>
     <details class="stub" style="margin-bottom:12px">
@@ -780,7 +787,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="step8">
     <h2><span class="stepnum">8</span>Spouse or partner <button type="button" class="infobtn" data-info="spouse" aria-label="Where to find more information" title="Where to go for more">i</button></h2>
     <label class="spouse-toggle"><input type="checkbox" id="hasSpouse"><span>Include a spouse or partner in the plan</span></label>
     <div id="spouseFields" style="display:none">
@@ -882,7 +889,7 @@
     </div>
   </section>
 
-  <details class="advanced">
+  <details class="advanced" id="advanced">
     <summary>Advanced settings — fine if you never touch these <button type="button" class="infobtn" data-info="advanced" aria-label="Where to find more information" title="Where to go for more">i</button></summary>
     <div class="fields">
       <div class="field">
@@ -2784,6 +2791,72 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('infoPop').hidden = true; });
 
+// 🧭 Decision points — what to set up now, what's next, and where in the tool it lives. Path-specific.
+const DP = {
+  notcareer: {
+    intro: 'You\'re not career yet, so most of the postal machinery (FERS, TSP, health-insurance-into-retirement) hasn\'t started for you. That is exactly why the moves you can make <i>now</i> matter so much — they compound the longest.',
+    now: [
+      '<b>Open a Roth IRA and make it automatic.</b> Any bank or brokerage; set a monthly transfer you won\'t notice, and forget it. It\'s the one thing you can do before you\'re career that builds like TSP. Enter the yearly amount in <a href="#step2">step 2</a> and press the button — the results show what the habit is worth. The 2026 limit is $7,500 (see the ⓘ on step 2).',
+      '<b>Enter the year you expect to become career</b> in <a href="#step1">step 1</a> — the plan starts your FERS years and TSP then, and you can see how retirement looks from here.',
+      '<b>Get your Social Security number of record started</b>: create your ssa.gov account (it will show estimates once you have about 10 years of work); until then use the "estimate from my pay" button in <a href="#step3">step 3</a>.',
+      '<b>Keep a small cash cushion</b> in plain savings (<a href="#step2">step 2</a>, "other savings") so a car repair doesn\'t become a credit card balance.' ],
+    next: [
+      '<b>The day you convert to career:</b> you\'ll be auto-enrolled in TSP at 5% — <b>leave it at least 5%</b> (USPS adds up to 5% more; below 5% you\'re giving raises back). Set the percentage in <a href="#step2">step 2</a>. Pick your funds (the L fund for your retirement decade is a sensible default) and name beneficiaries.',
+      '<b>Enroll in health insurance (PSHB) at conversion.</b> The clock for keeping it into retirement is <b>5 continuous years enrolled before you retire</b> — the earlier it starts, the earlier that door is open (see Advanced settings, health insurance ⓘ).',
+      '<b>Keep the Roth IRA going</b> alongside TSP — one is pre-tax, one is tax-free later; having both gives you choices at retirement.' ],
+    later: [
+      '<b>Every raise:</b> nudge TSP up a point. <b>Every year:</b> re-run this plan with the new pay stub (the "From your pay stub" box in <a href="#step1">step 1</a>).',
+      '<b>Once you have ~10 years in:</b> your ssa.gov Statement will show real estimates — replace the ones you estimated in <a href="#step3">step 3</a>.',
+      '<b>Milestones to know:</b> 57 = minimum retirement age (with 30 years); 60 = with 20 years; 62 = with 5 years. The grid shows every one of them.' ] },
+  working: {
+    intro: 'You\'re career and building toward retirement. The decisions cluster at three points: now, about 5 years out, and the last year. Most of what people put off retirement over — "what happens to my insurance, my TSP?" — has clear answers; they\'re below.',
+    now: [
+      '<b>Put a real pay stub in</b> (<a href="#step1">step 1</a>, "From your pay stub") so pay, take-home, health premium, TSP % and basic pay are right — then the plan is about <i>you</i>, not a guess.',
+      '<b>Check your High-3 in LiteBlue</b> (annuity estimate) — it\'s basic pay over 36 months, not your biggest earning years. Enter it in <a href="#step1">step 1</a>.',
+      '<b>Start (or top up) a Roth IRA</b> — <a href="#step2">step 2</a>. Money in has already been taxed; everything it earns comes out tax-free; no required withdrawals. Worth it even a few years from retirement, and it\'s the destination for Roth conversions later.',
+      '<b>Quantify the side income idea instead of wondering about it.</b> Run the plan; the results box tells you the exact extra dollars per month that would move your retirement year. Then decide whether the baking business, the rental, the weekend work is worth scaling to that number — and enter it in <a href="#step7">step 7</a> to see the whole picture change.',
+      '<b>Loans:</b> list them in <a href="#step5">step 5</a> and try an early payoff — sometimes it\'s the single biggest lever.' ],
+    next: [
+      '<b>About 5 years out — the health-insurance clock:</b> you must be enrolled in FEHB/PSHB for the <b>5 continuous years before you retire</b> to keep it for life. If you\'re not enrolled, or a spouse\'s plan covers you, fix that now. Turn on "keep health insurance into retirement" in <a href="#advanced">Advanced</a> to see the premium in the plan.',
+      '<b>Military time?</b> Finish the buyback deposit well before retiring so it counts (<a href="#step1">step 1</a> ⓘ).',
+      '<b>Ask HR for an annuity estimate</b> and compare it with the pension line in the results — verify, don\'t assume.',
+      '<b>Decide the survivor benefit</b> (Advanced settings): the full option costs 10% of the pension and gives a spouse 50% for life; the plan shows the trade-off.',
+      '<b>Start thinking about the gap years:</b> if you\'ll retire before Social Security, those low-income years are when Roth conversions are cheapest — try "fill the 12% bracket" in <a href="#advanced">Advanced</a> and read the comparison.' ],
+    later: [
+      '<b>The last year:</b> file the retirement application 60–90 days ahead. <b>Your TSP stays where it is</b> — nothing is forced; you choose withdrawals, and you can roll <i>part</i> of it to an IRA later (needed for giving from an IRA and handy for Roth conversions). <b>Your health insurance continues</b> — same plan, premium deducted from the pension; at 65 enroll in Medicare Part B to keep PSHB (or within 8 months of retiring if you work past 65).',
+      '<b>Social Security timing</b> is its own decision — the grid shows every start age against every retirement age; yellow means close call either way. If you\'ll keep working past your SS age, the earnings test disappears at 67 (<a href="#step3">step 3</a>).',
+      '<b>After retiring:</b> gap-year Roth conversions; Part B at 65; giving from an IRA from 70½ (roll some TSP to an IRA first); required withdrawals at 73. All in <a href="#advanced">Advanced</a>, each with a with/without comparison.' ] },
+  retired: {
+    intro: 'You\'re retired — the pension is what it is, so the decisions left are about timing and which money to use first. They still matter, sometimes a lot.',
+    now: [
+      '<b>Enter your pension, supplement, and Social Security as they are</b> (<a href="#step1">step 1</a>) and your balances (<a href="#step2">step 2</a>); the plan runs forward from today.',
+      '<b>Which money first?</b> The results compare TSP-first vs. other-savings-first for your exact plan — read the "Withdrawal order" note and switch it in <a href="#advanced">Advanced</a> if the other way wins.',
+      '<b>Health insurance:</b> turn on "keep health insurance into retirement" in <a href="#advanced">Advanced</a> with your premium; if you\'re under 65 the plan adds Part B when you get there (required to keep PSHB for most).' ],
+    next: [
+      '<b>If Social Security hasn\'t started:</b> the grid compares every start age from now to 70. Yellow = close call.',
+      '<b>Before Social Security and before 73 — the gap years:</b> your taxable income is at its lowest. That\'s the window for Roth conversions: try "fill the 12% bracket" in <a href="#advanced">Advanced</a> and look at lifetime taxes and required withdrawals with vs. without.',
+      '<b>Spouse timing:</b> if your spouse hasn\'t started their Social Security, the results show how each start age turns out (<a href="#step8">step 8</a>).' ],
+    later: [
+      '<b>At 70½:</b> giving to church or charity straight from an IRA is tax-free and counts toward required withdrawals — TSP can\'t do it, so roll some TSP into a traditional IRA before then. The comparison in <a href="#advanced">Advanced</a> shows the yearly saving.',
+      '<b>At 73:</b> required minimum withdrawals from TSP/IRAs begin (the plan takes them automatically); anything you converted to Roth earlier is exempt.',
+      '<b>Once a year:</b> put in the new pension and Social Security amounts and re-run.' ] }
+};
+function renderDP() {
+  const key = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
+  const d = DP[key];
+  const list = arr => '<ul>' + arr.map(x => '<li>' + x + '</li>').join('') + '</ul>';
+  $('dpCard').innerHTML = '<b>🧭 Decision points</b> — ' + d.intro +
+    '<h4>Now</h4>' + list(d.now) + '<h4>Next</h4>' + list(d.next) + '<h4>Later</h4>' + list(d.later) +
+    '<p class="help" style="margin:10px 0 0">You can skip this for now — but do come back to it. Every item points to the step of the tool where it lives, and the ⓘ on that step has the official source. <button type="button" class="linkbtn" id="dpClose">Close</button></p>';
+}
+$('dpBtn').addEventListener('click', () => {
+  const open = $('dpCard').hidden;
+  if (open) renderDP();
+  $('dpCard').hidden = !open;
+  $('dpBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+document.addEventListener('click', e => { if (e.target && e.target.id === 'dpClose') { $('dpCard').hidden = true; $('dpBtn').setAttribute('aria-expanded', 'false'); } });
+
 // "Which are you?" path buttons — working (default) / not career yet (help panel) / already retired (different inputs)
 function setPath(which) {
   const retired = which === 'retired', notCareer = which === 'notcareer';
@@ -2791,6 +2864,7 @@ function setPath(which) {
   $('pathNotCareer').setAttribute('aria-pressed', notCareer ? 'true' : 'false');
   $('pathRetired').setAttribute('aria-pressed', retired ? 'true' : 'false');
   $('notCareerNote').hidden = !notCareer;
+  if (!$('dpCard').hidden) renderDP();
   $('poStartLabel').innerHTML = notCareer ? 'The year you <b>expect to become</b> a career USPS employee' : 'The year you became a <b>career</b> USPS employee';
   $('poStartHelp').textContent = notCareer
     ? 'Your best guess for the conversion year. FERS years and TSP contributions both start then (time as a CCA, RCA, or PSE before that doesn\'t count toward the pension).'
