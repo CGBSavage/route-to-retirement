@@ -977,7 +977,7 @@
       </div>
       <div class="field" style="grid-column:1 / -1">
         <label class="spouse-toggle" style="padding:0 0 6px"><input type="checkbox" id="fehbOn"><span>Keep your health insurance (FEHB / PSHB) into retirement — model the premiums separately</span></label>
-        <div class="help">Postal retirees can keep their plan for life if they retire on an immediate pension after 5 straight years enrolled. The premium is <b>deducted from your FERS pension</b> each month (after-tax in retirement). At 65, most postal retirees must also enroll in <b>Medicare Part B</b> to keep PSHB — about $203/mo per person in 2026 (people who were 64+ on Jan 1, 2025, or already retired then, are exempt; many PSHB plans give Part B credits back). Two things people get wrong: (1) skipping Part B is penalty-free only while you're covered by a plan from <i>current</i> employment — yours or a spouse's; <b>retiree FEHB/PSHB doesn't count</b>, so waiting means a permanent 10%-per-year surcharge. <b>If you're still working at 65, enroll in Part B when you retire</b> — you have 8 months from your last day, penalty-free (this plan adds it at retirement in that case); and (2) if you're in the required group and don't enroll, you can <b>lose PSHB itself</b>, drug coverage first. <b>A spouse covered under your plan follows the same rules</b> — Part B at their 65 (we add it then), unless they're covered by their <i>own</i> job's plan while still working, in which case they enroll within 8 months of leaving that job. If you turn this on, <b>leave health insurance out of your monthly spending</b> so it isn't counted twice. Which plan covers a particular medication is a plan-brochure question — check before you retire.</div>
+        <div class="help">Postal retirees can keep their plan for life if they retire on an immediate pension after 5 straight years enrolled — and <b>USPS keeps paying its share</b>: annuitants get the same formula as employees (the Postal Service pays about 72% of the program-wide average premium, up to 75% of your plan). What you pay is <b>deducted from your FERS pension</b> each month, after tax. Your share in retirement can run a little above your paycheck deduction (some union contracts give active craft employees a slightly larger USPS share), so the number to use is the <b>annuitant rate for your plan on OPM's PSHB premiums page</b> — the paycheck deduction is a fine starting point. At 65, most postal retirees must also enroll in <b>Medicare Part B</b> to keep PSHB — about $203/mo per person in 2026 (people who were 64+ on Jan 1, 2025, or already retired then, are exempt). <b>Many PSHB plans give back part of the Part B premium</b> — a yearly credit — and/or charge Medicare enrollees a lower plan premium; check your plan brochure and enter the credit below. Two things people get wrong: (1) skipping Part B is penalty-free only while you're covered by a plan from <i>current</i> employment — yours or a spouse's; <b>retiree FEHB/PSHB doesn't count</b>, so waiting means a permanent 10%-per-year surcharge. <b>If you're still working at 65, enroll in Part B when you retire</b> — you have 8 months from your last day, penalty-free (this plan adds it at retirement in that case); and (2) if you're in the required group and don't enroll, you can <b>lose PSHB itself</b>, drug coverage first. <b>A spouse covered under your plan follows the same rules</b> — Part B at their 65 (we add it then), unless they're covered by their <i>own</i> job's plan while still working, in which case they enroll within 8 months of leaving that job. If you turn this on, <b>leave health insurance out of your monthly spending</b> so it isn't counted twice. Which plan covers a particular medication is a plan-brochure question — check before you retire.</div>
       </div>
       <div class="field fehb-dep" style="display:none">
         <label for="fehbMo">Your share of the health premium now</label>
@@ -986,6 +986,11 @@
           <select id="fehbUnit" aria-label="Premium period"><option value="mo" selected>per month</option><option value="pp">per paycheck (every 2 weeks)</option></select>
         </div>
         <div class="help">The health-insurance line on your earnings statement is <b>per paycheck</b> — pick that and type it as-is. We raise it 5%/yr (medical costs outrun general inflation).</div>
+      </div>
+      <div class="field fehb-dep" style="display:none">
+        <label for="partBCredit">Part B credit your plan gives back, per person per year</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="partBCredit" type="text" inputmode="numeric" value="0"></div>
+        <div class="help">Many PSHB plans reimburse part of the Part B premium (often $600–$1,200 a year). Look for "Medicare Part B reimbursement" in the plan brochure. 0 if unsure — that's the conservative choice.</div>
       </div>
       <div class="field fehb-dep" style="display:none">
         <label for="partB">Add Medicare Part B at 65?</label>
@@ -1404,6 +1409,7 @@ function readInputs() {
     stateRate: numOr('stateRate', 0) / 100,
     rothPct: 0,   // (retired input — Roth balances are entered directly now)
     fehbOn: $('fehbOn').checked, fehbMo: $('fehbUnit').value === 'pp' ? numOr('fehbMo', 0) * 26 / 12 : numOr('fehbMo', 0), partB: $('partB').value !== 'no', medInfl: 0.05,
+    partBCredit: numOr('partBCredit', 0),
     qcdYr: numOr('qcdYr', 0), qcdInSpend: $('qcdInSpend').checked,
     convMode: $('convMode').value, convAmt: numOr('convAmt', 0), convBracket: parseFloat($('convBracket').value) || 0.12,
     convWhen: $('convWhen').value, convFrom: numOr('convFrom', 0), convTo: numOr('convTo', 0),
@@ -1574,8 +1580,9 @@ function simulate(inp, retireAge, claimAge, order) {
       const med = Math.pow(1 + inp.medInfl, t);
       health = inp.fehbMo * 12 * med;
       if (inp.partB) {
-        if (age >= 65) health += 203 * 12 * med;
-        if (inp.hasSpouse && spouseAge >= 65) health += 203 * 12 * med;
+        const partBNet = Math.max(0, 203 * 12 - inp.partBCredit) * med;   // Part B less any plan credit, per person
+        if (age >= 65) health += partBNet;
+        if (inp.hasSpouse && spouseAge >= 65) health += partBNet;
       }
     }
     let spending = working ? 0 : spendBase * 12 * Math.pow(1 + inp.inflation, t) + debtPay + purch.cash + purch.pay + health;
@@ -2476,7 +2483,7 @@ function renderAssumptions(cell) {
     (i.sideInc > 0 ? 'Extra income counts as earned income for the Social Security earnings test: before 67, anything over about ' + fmt$(23400) + '/yr (rising with inflation) trims the FERS supplement and any Social Security check by $1 for every $2 over.' : null),
     'Nothing comes out of TSP before you retire. Anything that has to be paid from savings while working — a cash purchase, an early payoff, or overspending — comes from other savings only; if other savings can\'t cover it, the model doesn\'t invent the money (that gap isn\'t shown).',
     i.fehbOn
-      ? 'Health insurance kept into retirement: your ' + fmt$(i.fehbMo) + '/mo premium share continues (deducted from the pension, rising 5%/yr)' + (i.partB ? ', plus Medicare Part B from 65 — or from retirement if you retire later than 65 (about $203/mo per person in 2026, rising)' + (i.hasSpouse ? ' for each of you' : '') : ', no Part B') + '. Keep it out of your monthly spending number.'
+      ? 'Health insurance kept into retirement: your ' + fmt$(i.fehbMo) + '/mo premium share continues (deducted from the pension, rising 5%/yr)' + (i.partB ? ', plus Medicare Part B from 65 — or from retirement if you retire later than 65 (about $203/mo per person in 2026, rising' + (i.partBCredit > 0 ? ', less the ' + fmt$(i.partBCredit) + '/yr per person your plan gives back' : '') + ')' + (i.hasSpouse ? ' for each of you' : '') : ', no Part B') + '. Keep it out of your monthly spending number.'
       : 'Health insurance (FEHB/PSHB) and Medicare premiums should be inside your spending number (or turn on the health-insurance option in advanced settings).',
     i.convMode !== 'none' ? 'Roth conversions: ' + (i.convMode === 'bracket' ? 'each year, convert enough TSP to Roth to fill the ' + Math.round(i.convBracket * 100) + '% bracket' : 'convert ' + fmt$(i.convAmt) + '/yr (today\'s dollars) from TSP to Roth') + (i.convWhen === 'gap' ? ' in the years after retiring and before Social Security starts' : ' in ' + i.convFrom + '–' + i.convTo) + ', never after 72. Converted amounts are taxed as income that year (tax paid through the normal withdrawal order) and then grow tax-free in your Roth with no required withdrawals. Not modeled: the Medicare IRMAA surcharge a large conversion can trigger, and per-conversion 5-year clocks.' : null,
     i.qcdYr > 0 ? 'From age 70½, ' + fmt$(i.qcdYr) + '/yr (today\'s dollars) goes straight from your TSP/IRA to charity — never taxed, counts toward the required withdrawal' + (i.qcdInSpend ? ', and comes out of the giving already in your spending' : ', on top of your spending') + '. TSP itself doesn\'t do this — roll that money into a traditional IRA first.' : null,
@@ -2505,7 +2512,7 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spRothContrib','spRothStart','spPenMo','spPenWhen','spPenAge','spPenCola',
                   'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
-                  'drawOrder','fehbMo','partB','qcdYr','convMode','convBracket','convAmt','convWhen','convFrom','convTo','sickHrs','alPayout',
+                  'drawOrder','fehbMo','partB','qcdYr','convMode','convBracket','convAmt','convWhen','convFrom','convTo','sickHrs','alPayout','partBCredit',
                   'psbRcd','psbPlan','psbGross','psbRet','psbHealth','psbTsp','psbSick','psbAL','psbEligDate','psbService'];
 function saveForm() {
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
