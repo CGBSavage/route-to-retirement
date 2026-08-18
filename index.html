@@ -504,7 +504,7 @@
       <div class="field work-only">
         <label for="high3">High-3 average salary</label>
         <div class="inputrow"><span class="prefix">$</span><input id="high3" type="text" inputmode="numeric" placeholder="65,000"></div>
-        <div class="help">The average of your highest-paid 3 years of <b>basic pay</b> in a row — usually your last 3. Overtime and night differential don't count toward the pension, so if you work a lot of overtime, put your basic annual pay here (the TSP line on your stub helps: TSP 10 = $295 means basic pay of $2,950 that period, about $76,700/yr). Not sure, or not career yet? Leave it blank: we use your current pay grown by the yearly-raise rate (advanced settings, 2%) to your retirement year.</div>
+        <div class="help">The average of your <b>basic pay rate</b> over your highest 36 consecutive months — usually your last 3 years. It is <b>not</b> your three biggest W-2 years: overtime, night differential, and Sunday premium don't count, so a year you earned the most may not be a High-3 year at all. (Locality pay does count.) If you work a lot of overtime, put your basic annual pay here — the TSP line on your stub helps: TSP 10 = $295 means basic pay of $2,950 that period, about $76,700/yr. Your official figure is on the annuity estimate in LiteBlue. Not sure, or not career yet? Leave it blank: we use your current pay grown by the yearly-raise rate (advanced settings, 2%) to your retirement year.</div>
       </div>
     </div>
   </section>
@@ -2720,7 +2720,8 @@ const INFO = {
     ['LiteBlue (USPS employee site)', 'https://liteblue.usps.gov', 'Your service history, pay, and an annuity estimate under "My HR".'],
     ['OPM — FERS retirement basics', 'https://www.opm.gov/retirement-center/fers-information/', 'Eligibility ages, how the pension is figured, and the FERS supplement.'],
     ['OPM — Retirement Services', 'https://www.opm.gov/retirement-center/', 'How to apply and what happens after you file.'],
-    ['OPM — creditable service (what counts toward FERS)', 'https://www.opm.gov/retirement-center/fers-information/creditable-service/', 'Career service counts; most non-career postal time doesn\'t. Also military buyback.'] ] },
+    ['OPM — creditable service (what counts toward FERS)', 'https://www.opm.gov/retirement-center/fers-information/creditable-service/', 'Career service counts; most non-career postal time doesn\'t. Also military buyback.'],
+    ['OPM — how the FERS annuity is computed (High-3)', 'https://www.opm.gov/retirement-center/fers-information/computation/', 'High-3 = basic pay over your highest 36 consecutive months — not overtime, not your biggest W-2 years.'] ] },
   savings: { t: 'Your savings — where to look', items: [
     ['tsp.gov (log in)', 'https://www.tsp.gov', 'Your TSP balance, contribution %, and withdrawal options.'],
     ['TSP — contribution limits and matching', 'https://www.tsp.gov/making-contributions/', 'What USPS adds and this year\'s IRS limits.'],
