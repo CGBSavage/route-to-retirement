@@ -959,6 +959,51 @@
         </select>
       </div>
       <div class="field" style="grid-column:1 / -1">
+        <h3 class="subhead" style="margin-top:6px">Roth conversions &amp; IRA rollovers <button type="button" class="infobtn" data-info="rollover" aria-label="Where to find more information" title="Where to go for more">i</button></h3>
+        <div class="help">Two moves worth understanding, especially in the <b>low-income years between retiring and starting Social Security</b>: (1) a <b>Roth conversion</b> — move some TSP money into a Roth IRA, pay tax on it now at a low bracket, and it (and everything it earns) is tax-free forever, with no required withdrawals; (2) a plain <b>rollover to a traditional IRA</b>, which is tax-free and is what makes charitable giving straight from retirement money possible (TSP can't do that; an IRA can). The plan below compares each with and without, in dollars.</div>
+      </div>
+      <div class="field">
+        <label for="convMode">Roth conversions</label>
+        <select id="convMode">
+          <option value="none" selected>None</option>
+          <option value="bracket">Fill up to the top of a tax bracket each year</option>
+          <option value="amount">Convert a set amount each year</option>
+        </select>
+        <div class="help">"Fill the bracket" is the classic approach: convert just enough each year to use up the low bracket without spilling into the next.</div>
+      </div>
+      <div class="field conv-dep conv-bracket" style="display:none">
+        <label for="convBracket">Fill up to the top of the</label>
+        <select id="convBracket">
+          <option value="0.10">10% bracket</option>
+          <option value="0.12" selected>12% bracket (most common target)</option>
+          <option value="0.22">22% bracket</option>
+          <option value="0.24">24% bracket</option>
+        </select>
+      </div>
+      <div class="field conv-dep conv-amount" style="display:none">
+        <label for="convAmt">Amount to convert each year (today's dollars)</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="convAmt" type="text" inputmode="numeric" placeholder="30,000"></div>
+      </div>
+      <div class="field conv-dep" style="display:none">
+        <label for="convWhen">In which years</label>
+        <select id="convWhen">
+          <option value="gap" selected>The gap years — after retiring, before Social Security starts (automatic for each plan)</option>
+          <option value="years">A specific range of years</option>
+        </select>
+        <div class="help">Conversions stop at 73 either way (required withdrawals come first from then on). Only retirement years are used — while working, your salary already fills the brackets.</div>
+      </div>
+      <div class="field conv-dep conv-years" style="display:none">
+        <label for="convFrom">From year</label>
+        <div class="inputrow"><input id="convFrom" type="text" inputmode="numeric" placeholder="2031"></div>
+      </div>
+      <div class="field conv-dep conv-years" style="display:none">
+        <label for="convTo">Through year</label>
+        <div class="inputrow"><input id="convTo" type="text" inputmode="numeric" placeholder="2035"></div>
+      </div>
+      <div class="field conv-dep" style="grid-column:1 / -1;display:none">
+        <div class="help"><b>Where the tax comes from:</b> the tax on a conversion is a bill like any other that year, so the plan pays it through your normal withdrawal order. It's most efficient to pay it from <i>other savings</i> (so the whole conversion lands in the Roth) — set "which savings to spend first" above to other savings if you can. <b>Turn on the tax estimate in step 4</b>, or there's nothing to compare. Two things not modeled: the Medicare premium surcharge (IRMAA) a big conversion can trigger two years later, and each conversion's own 5-year clock (matters only if you'd tap the converted money before 59½).</div>
+      </div>
+      <div class="field" style="grid-column:1 / -1">
         <label for="qcdYr">Giving to church or charity straight from your TSP/IRA each year, from age 70½</label>
         <div class="inputrow"><span class="prefix">$</span><input id="qcdYr" type="text" inputmode="numeric" value="0"></div>
         <div class="help">A "qualified charitable distribution": from 70½ you can send up to $111,000 a year (2026) directly to a charity from a retirement account — it counts toward your required withdrawal and is <b>never taxed</b>. <b>Catch: TSP itself doesn't offer this</b> — you'd roll some TSP into a traditional IRA first (a routine, tax-free move). Enter today's dollars; we inflate it. Only matters when the tax estimate is on.</div>
@@ -1006,6 +1051,7 @@
       <p class="scenario-sub" id="scnSub"></p>
       <p class="scenario-sub ordernote" id="orderNote"></p>
       <div class="scenario-sub ordernote" id="spStrip"></div>
+      <div class="scenario-sub ordernote" id="rollNote"></div>
 
       <figure class="chart">
         <div class="legendrow"><b style="font-family:Charter,Georgia,serif;font-size:17px;color:var(--ink)">Your savings over time</b><span id="balLegend" style="display:contents"></span></div>
@@ -1308,6 +1354,8 @@ function readInputs() {
     rothPct: 0,   // (retired input — Roth balances are entered directly now)
     fehbOn: $('fehbOn').checked, fehbMo: $('fehbUnit').value === 'pp' ? numOr('fehbMo', 0) * 26 / 12 : numOr('fehbMo', 0), partB: $('partB').value !== 'no', medInfl: 0.05,
     qcdYr: numOr('qcdYr', 0), qcdInSpend: $('qcdInSpend').checked,
+    convMode: $('convMode').value, convAmt: numOr('convAmt', 0), convBracket: parseFloat($('convBracket').value) || 0.12,
+    convWhen: $('convWhen').value, convFrom: numOr('convFrom', 0), convTo: numOr('convTo', 0),
     drawOrder: $('drawOrder').value === 'other' ? 'other' : 'tsp'
   };
   out.spRothContrib = out.hasSpouse ? out.spRothContrib : 0;
@@ -1484,7 +1532,7 @@ function simulate(inp, retireAge, claimAge, order) {
     const windfall = (inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0;
 
     let payoffOut = 0;
-    let tspIn = 0, tspGrow, tspWd = 0, spWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0, drawdownUsed = 0, spRothSaved = 0, taxOrdBase = 0;
+    let tspIn = 0, tspGrow, tspWd = 0, spWd = 0, otherWd = 0, otherIn = 0, shortfall = 0, tax = 0, contribUsed = 0, drawdownUsed = 0, spRothSaved = 0, taxOrdBase = 0, conv = 0;
     if (working) {
       const sal = inp.salary * Math.pow(1 + inp.salGrowth, t);
       tspIn = (inp.tspStart > 0 && year < inp.tspStart) ? 0 : sal * (Math.min(inp.empPct, 1) + agencyPct(inp.empPct));
@@ -1548,13 +1596,14 @@ function simulate(inp, retireAge, claimAge, order) {
         qcd = Math.min(inp.qcdYr * Math.pow(1 + inp.inflation, t), Math.max(0, tsp + tspGrow - payoffTsp));
         if (inp.qcdInSpend) spending = Math.max(0, spending - qcd);
       }
-      const tspAvail = Math.max(0, tsp + tspGrow - payoffTsp - qcd);
+      let tspAvail = Math.max(0, tsp + tspGrow - payoffTsp - qcd);
       const otherAvail = taxb + (rothOpen(inp.rothStart) ? rothMine : 0) + (rothOpen(inp.spRothStart) ? rothSp : 0);
       const rmdNet = Math.max(0, rmd - payoffTsp - qcd);
       // Pre-tax money = your TSP + spouse's 401k, treated as one pool for the draw order
       // (each account's own RMD is always taken; beyond that TSP is tapped before the spouse's account).
-      const preAvail = tspAvail + spAvail, rmdTot = Math.min(preAvail, rmdNet + Math.min(spRmd, spAvail));
+      const rmdTot0 = rmdNet + Math.min(spRmd, spAvail);
       const draw = (gap) => {
+        const preAvail = tspAvail + spAvail, rmdTot = Math.min(preAvail, rmdTot0);
         let pw, ow;
         if (order === 'other') {
           pw = rmdTot;                                           // forced RMDs first
@@ -1578,7 +1627,32 @@ function simulate(inp, retireAge, claimAge, order) {
       // Taxes raise the amount needed, which raises TSP withdrawals, which raises
       // taxes — loop a few times until it settles (converges fast).
       // (spouse take-home is after-tax money and isn't taxed again here; a second pension is taxed unless marked tax-free)
-      const ordBase = supp + pension + (inp.pen2Tax ? pen2 : 0) + spPen + spInc + payoffTsp + taxInterest;
+      let ordBase = supp + pension + (inp.pen2Tax ? pen2 : 0) + spPen + spInc + payoffTsp + taxInterest;
+      // ---- Roth conversion (TSP → Roth IRA) this year? Only in retirement, only in the chosen window,
+      // never after required withdrawals begin at 73. The converted amount is ordinary income this year;
+      // the tax on it is paid through the normal withdrawal order like any other bill.
+      conv = 0;
+      const convWin = inp.convMode !== 'none' && age < 73 &&
+        (inp.convWhen === 'gap' ? age < claimAge : (year >= inp.convFrom && year <= inp.convTo));
+      if (convWin && tspAvail > 0) {
+        if (inp.convMode === 'amount') conv = Math.min(inp.convAmt * Math.pow(1 + inp.inflation, t), tspAvail);
+        else {
+          // fill up to the top of the chosen bracket: headroom = bracket top (inflated) − taxable income before converting
+          const f = inp.hasSpouse ? FED.mfj : FED.single;
+          const top = (f.brackets.find(b => Math.abs(b[1] - inp.convBracket) < 1e-9) || f.brackets[1])[0] * Math.pow(1 + inp.inflation, t);
+          const [pw0] = draw(spending - guaranteed);              // withdrawals needed before any tax
+          const d0 = taxDetail(inp, t, ordBase + Math.max(0, pw0), mySS + spSS);
+          conv = Math.max(0, Math.min(top - d0.taxable, tspAvail));
+          // converting can make more Social Security taxable — trim once so we don't overshoot the bracket
+          if (conv > 0 && (mySS + spSS) > 0) {
+            const d1 = taxDetail(inp, t, ordBase + Math.max(0, pw0) + conv, mySS + spSS);
+            const over = d1.taxable - top; if (over > 0) conv = Math.max(0, conv - over);
+          }
+        }
+        conv = Math.round(conv);
+        tspAvail -= conv;
+        ordBase += conv;
+      }
       taxOrdBase = ordBase;
       for (let k = 0; k < 6; k++) {
         [preWd, otherWd] = draw(spending + tax - guaranteed);
@@ -1591,7 +1665,8 @@ function simulate(inp, retireAge, claimAge, order) {
       const gap = spending + tax - guaranteed;
       [preWd, otherWd] = draw(gap);
       [tspWd, spWd] = splitPre(preWd);
-      tsp = Math.max(0, tsp + tspGrow - tspWd - payoffTsp - qcd);
+      tsp = Math.max(0, tsp + tspGrow - tspWd - payoffTsp - qcd - conv);
+      if (conv > 0) { rothMine += conv; roth = rothMine + rothSp; }
       sp401k = Math.max(0, sp401k - spWd);
       takeOther(otherWd);
       const remaining = gap - preWd - otherWd;
@@ -1609,7 +1684,7 @@ function simulate(inp, retireAge, claimAge, order) {
                 tspWd: tspWd + spWd, ownTspWd: tspWd, spWd, otherWd, spending, tax, debtPay, debtLeft, payoffOut, windfall, shortfall,
                 saved: working ? 0 : otherIn + spRothSaved,   // retired-year surplus reinvested (incl. spouse Roth contributions)
                 contribUsed, drawdown: drawdownUsed,   // working-year savings actually credited / pulled out (after the paycheck cap)
-                purchCash: purch.cash, purchPay: purch.pay, health, qcd, taxOrd: taxOrdBase + tspWd + spWd, t,
+                purchCash: purch.cash, purchPay: purch.pay, health, qcd, conv, taxOrd: taxOrdBase + tspWd + spWd, t,
                 tsp: tsp + sp401k, ownTsp: tsp, sp401k, other, roth, rothMine, rothSp,
                 total: tsp + sp401k + other, netWorth: tsp + sp401k + other - debtLeft });
   }
@@ -1936,7 +2011,45 @@ function selectScenario(cell) {
     : bits.join(' · ') + ' — savings run out around age ' + cell.lastsTo + '.';
   $('orderNote').innerHTML = orderComparison(cell);
   $('spStrip').innerHTML = spouseStrip(cell);
+  $('rollNote').innerHTML = rolloverNotes(cell);
   drawBalance(cell); drawIncome(cell); renderTable(cell); renderAssumptions(cell);
+}
+
+// Roth-conversion and IRA-giving comparisons for the selected plan: same plan with vs. without, in dollars.
+function rolloverNotes(cell) {
+  const i = INP; const out = [];
+  const totTax = r => r.rows.reduce((a, x) => a + x.tax, 0);
+  const at = (r, age) => r.rows.find(x => x.age === age);
+  if (i.convMode !== 'none') {
+    const convYrs = cell.rows.filter(r => r.conv > 1);
+    if (!convYrs.length) {
+      out.push('<b>Roth conversions:</b> none happen in this plan' + (i.convWhen === 'gap' ? ' — there\'s no gap between retiring and Social Security starting here (or required withdrawals have already begun). Pick a plan with Social Security starting later, or choose specific years.' : ' in the years you chose (they must be retirement years before 73).'));
+    } else {
+      const base = simulate(Object.assign({}, i, { convMode: 'none' }), cell.retireAge, cell.claimAge, cell.order);
+      const total = convYrs.reduce((a, r) => a + r.conv, 0);
+      const first = convYrs[0].year, last = convYrs[convYrs.length - 1].year;
+      const r75 = at(cell, 75), b75 = at(base, 75);
+      const rmdBit = (r75 && b75) ? ' Required withdrawals at 75: about ' + fmt$(r75.tspWd) + ' vs. ' + fmt$(b75.tspWd) + ' without.' : '';
+      const endBit = (cell.ok && base.ok)
+        ? ' Money at ' + i.horizon + ': ' + fmt$(todayDollars(cell.endBal)) + ' vs. ' + fmt$(todayDollars(base.endBal)) + ' without (today\'s dollars) — <b>' + (cell.endBal >= base.endBal ? fmt$(todayDollars(cell.endBal - base.endBal)) + ' ahead' : fmt$(todayDollars(base.endBal - cell.endBal)) + ' behind') + '</b>.'
+        : (cell.ok !== base.ok ? (cell.ok ? ' <b>With the conversions this plan lasts; without them it runs out around ' + base.lastsTo + '.</b>' : ' <b>Careful: with the conversions this plan runs out around ' + cell.lastsTo + '; without them it lasts.</b>') : ' Runs out around ' + cell.lastsTo + ' either way.');
+      out.push('<b>Roth conversions:</b> ' + fmt$(total) + ' moved from TSP to Roth over ' + (first === last ? first : first + '–' + last) + ' (' + convYrs.length + ' year' + (convYrs.length > 1 ? 's' : '') + (i.convMode === 'bracket' ? ', filling the ' + Math.round(i.convBracket * 100) + '% bracket' : '') + '). ' +
+        (i.taxOn ? 'Lifetime taxes: ' + fmt$(totTax(cell)) + ' vs. ' + fmt$(totTax(base)) + ' without — ' + (totTax(cell) >= totTax(base) ? 'you pay ' + fmt$(totTax(cell) - totTax(base)) + ' more in total, but earlier and at a lower rate than those dollars would be taxed later.' : 'you pay ' + fmt$(totTax(base) - totTax(cell)) + ' less in total (paid earlier, at the low bracket, instead of on bigger required withdrawals later).') : '<b>Turn on the tax estimate in step 4</b> to see the tax side.') +
+        rmdBit + endBit + ' The Roth money is tax-free from then on and never subject to required withdrawals — which is why the win often shows up as lower taxes late in life and more left over, not as more money at 75.');
+    }
+  }
+  if (i.qcdYr > 0) {
+    const base = simulate(Object.assign({}, i, { qcdYr: 0 }), cell.retireAge, cell.claimAge, cell.order);
+    const qYrs = cell.rows.filter(r => r.qcd > 1);
+    if (qYrs.length && i.taxOn) {
+      const saved = totTax(base) - totTax(cell);
+      const perYr = saved / qYrs.length;
+      out.push('<b>Giving from an IRA instead of from checking:</b> the same ' + fmt$(i.qcdYr) + '/yr of giving' + (i.qcdInSpend ? '' : ' (on top of spending)') + ', routed through a traditional IRA from 70½, saves about <b>' + fmt$(perYr) + ' a year in tax (' + fmt$(perYr / 12) + '/mo)</b> — ' + fmt$(saved) + ' over the plan — because the gift comes out of pre-tax money and never touches your return. That\'s money that stays in spending or savings. Requires rolling some TSP into a traditional IRA first (tax-free); see the ⓘ.');
+    } else if (qYrs.length && !i.taxOn) {
+      out.push('<b>Giving from an IRA:</b> turn on the tax estimate in step 4 to see how much this saves versus giving from checking.');
+    }
+  }
+  return out.length ? out.join('<br><br>') : '';
 }
 
 // For the selected plan, try the spouse's Social Security start ages and show how each turns out.
@@ -2167,6 +2280,7 @@ function savedCell(r) {
   const parts = [];
   if (wd > 1 || !(r.saved > 1)) parts.push(fmt$(wd));
   if (r.qcd > 1) parts.push('<span class="muted">+' + fmt$(r.qcd) + ' to charity, tax-free</span>');
+  if (r.conv > 1) parts.push('<span class="muted">' + fmt$(r.conv) + ' TSP → Roth</span>');
   if (r.saved > 1) parts.push('<span class="saved">+' + fmt$(r.saved) + ' saved</span>');
   return parts.join('<br>');
 }
@@ -2289,6 +2403,7 @@ function renderAssumptions(cell) {
     i.fehbOn
       ? 'Health insurance kept into retirement: your ' + fmt$(i.fehbMo) + '/mo premium share continues (deducted from the pension, rising 5%/yr)' + (i.partB ? ', plus Medicare Part B from 65 — or from retirement if you retire later than 65 (about $203/mo per person in 2026, rising)' + (i.hasSpouse ? ' for each of you' : '') : ', no Part B') + '. Keep it out of your monthly spending number.'
       : 'Health insurance (FEHB/PSHB) and Medicare premiums should be inside your spending number (or turn on the health-insurance option in advanced settings).',
+    i.convMode !== 'none' ? 'Roth conversions: ' + (i.convMode === 'bracket' ? 'each year, convert enough TSP to Roth to fill the ' + Math.round(i.convBracket * 100) + '% bracket' : 'convert ' + fmt$(i.convAmt) + '/yr (today\'s dollars) from TSP to Roth') + (i.convWhen === 'gap' ? ' in the years after retiring and before Social Security starts' : ' in ' + i.convFrom + '–' + i.convTo) + ', never after 72. Converted amounts are taxed as income that year (tax paid through the normal withdrawal order) and then grow tax-free in your Roth with no required withdrawals. Not modeled: the Medicare IRMAA surcharge a large conversion can trigger, and per-conversion 5-year clocks.' : null,
     i.qcdYr > 0 ? 'From age 70½, ' + fmt$(i.qcdYr) + '/yr (today\'s dollars) goes straight from your TSP/IRA to charity — never taxed, counts toward the required withdrawal' + (i.qcdInSpend ? ', and comes out of the giving already in your spending' : ', on top of your spending') + '. TSP itself doesn\'t do this — roll that money into a traditional IRA first.' : null,
     'The model plans for money to last to age ' + i.horizon + '.'
   ];
@@ -2315,7 +2430,7 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spRothContrib','spRothStart','spPenMo','spPenWhen','spPenAge','spPenCola',
                   'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
-                  'drawOrder','fehbMo','partB','qcdYr'];
+                  'drawOrder','fehbMo','partB','qcdYr','convMode','convBracket','convAmt','convWhen','convFrom','convTo'];
 function saveForm() {
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
   const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, path };
@@ -2372,6 +2487,7 @@ function loadForm() {
   safe(() => { $('fehbOn').checked = !!o.fehbOn; document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none'); });
   safe(() => { if (o.path) setPath(o.path); });
   safe(() => { if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend; });
+  safe(syncConv);
   setSaveStatus('Loaded ' + count + ' saved entries' + (o.savedAt ? ' from ' + new Date(o.savedAt).toLocaleString() : '') + '.');
 }
 $('hasSpouse').addEventListener('change', e => { $('spouseFields').style.display = e.target.checked ? '' : 'none'; });
@@ -2399,6 +2515,16 @@ function syncPayoff() {
 $('poLoan').addEventListener('change', syncPayoff);
 $('taxOn').addEventListener('change', e => { $('taxFields').style.display = e.target.checked ? '' : 'none'; });
 $('fehbOn').addEventListener('change', e => { document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = e.target.checked ? '' : 'none'); });
+function syncConv() {
+  const m = $('convMode').value, on = m !== 'none';
+  document.querySelectorAll('.conv-dep').forEach(d => d.style.display = on ? '' : 'none');
+  if (on) {
+    document.querySelectorAll('.conv-bracket').forEach(d => d.style.display = m === 'bracket' ? '' : 'none');
+    document.querySelectorAll('.conv-amount').forEach(d => d.style.display = m === 'amount' ? '' : 'none');
+    document.querySelectorAll('.conv-years').forEach(d => d.style.display = $('convWhen').value === 'years' ? '' : 'none');
+  }
+}
+$('convMode').addEventListener('change', syncConv); $('convWhen').addEventListener('change', syncConv);
 // live "quick check" summary above the button — mirrors what's been entered and flags anything odd
 function livingComparison(inp) {
   const th = inp.takeHome, saveMo = inp.saveYr / 12, debtMo = inp.debts.reduce((a, d) => a + d.mo, 0);
@@ -2471,6 +2597,7 @@ function renderSummary() {
   if (inp.poLoan && inp.poAmt > 0) row('Early payoff', inp.poLoan + ' — ' + fmt$(inp.poAmt) + ' in ' + inp.poYear + ' from ' + (inp.poSource === 'tsp' ? 'TSP' : 'other savings'));
   if (inp.fehbOn) row('Health insurance in retirement', fmt$(inp.fehbMo) + '/mo now' + (inp.partB ? ' + Part B at 65 (or at retirement if later)' : ''));
   if (inp.qcdYr > 0) row('Giving from TSP/IRA (70½+)', fmt$(inp.qcdYr) + '/yr, tax-free');
+  if (inp.convMode !== 'none') row('Roth conversions', (inp.convMode === 'bracket' ? 'fill the ' + Math.round(inp.convBracket * 100) + '% bracket' : fmt$(inp.convAmt) + '/yr') + (inp.convWhen === 'gap' ? ', gap years' : ', ' + inp.convFrom + '–' + inp.convTo));
   row('Taxes', inp.taxOn ? 'estimated' + (inp.stateRate > 0 ? ' (state ' + (inp.stateRate*100).toFixed(1) + '%)' : '') : 'not included — spending should cover them');
   $('sumGrid').innerHTML = rows.join('');
   let checks = [];
@@ -2509,7 +2636,7 @@ function applyForm(o) {    // mirror of loadForm, from an object
   $('fehbOn').checked = !!o.fehbOn; document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none');
   if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend;
   setPath(o.path || 'working');
-  syncSpouseSS(); syncPayoff(); syncGrowthNote(); syncTakeHomeHint(); syncSpendAnchor(); renderSummary();
+  syncSpouseSS(); syncPayoff(); syncGrowthNote(); syncTakeHomeHint(); syncSpendAnchor(); syncConv(); renderSummary();
   try { saveForm(); } catch (e) {}
 }
 function backupMsg(t) { $('backupMsg').textContent = t; setTimeout(() => { $('backupMsg').textContent = 'You can also drag a saved file anywhere onto this page.'; }, 6000); }
@@ -2625,6 +2752,14 @@ const INFO = {
     ['my Social Security (for them)', 'https://www.ssa.gov/myaccount/', 'Their own Statement with 62 / 67 / 70 estimates.'],
     ['SSA — spousal and survivor benefits', 'https://www.ssa.gov/benefits/retirement/planner/applying7.html', 'Rules this tool doesn\'t model — worth reading together.'],
     ['IRS — spousal IRA', 'https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-ira-contribution-limits', 'A non-working spouse can still fund a Roth IRA on household earnings.'] ] },
+  rollover: { t: 'Roth conversions & IRA rollovers — where to look', items: [
+    ['IRS — Roth IRAs: conversions (Publication 590-A)', 'https://www.irs.gov/publications/p590a', 'The official rules: what a conversion is, how it\'s taxed, the 5-year rules.'],
+    ['IRS — Rollovers of retirement plan and IRA distributions', 'https://www.irs.gov/retirement-plans/plan-participant-employee/rollovers-of-retirement-plan-and-ira-distributions', 'Direct vs. 60-day rollovers; why "direct" is the safe way to move TSP money.'],
+    ['TSP — Moving money out of the TSP', 'https://www.tsp.gov/withdrawals-in-retirement/', 'How to do a partial rollover to an IRA (you can do this more than once, and keep the rest in TSP).'],
+    ['TSP — Roth conversion inside the TSP', 'https://www.tsp.gov/tsp-basics/roth-and-traditional/', 'TSP now allows in-plan traditional→Roth conversions too — same tax result; compare with an outside Roth IRA.'],
+    ['Medicare — IRMAA (higher Part B premiums for higher income)', 'https://www.medicare.gov/basics/costs/medicare-costs', 'A big conversion raises "income" that year; two years later Part B can cost more. Plan the size with this in mind.'],
+    ['IRS — Qualified charitable distributions', 'https://www.irs.gov/newsroom/qualified-charitable-distributions-allow-eligible-ira-owners-up-to-100000-in-tax-free-gifts-to-charity', 'Giving straight from an IRA after 70½ — the reason to roll some TSP into an IRA before then.'],
+    ['IRS — Required minimum distributions', 'https://www.irs.gov/retirement-plans/retirement-plan-and-ira-required-minimum-distributions-faqs', 'Why shrinking the pre-tax pile before 73 matters: RMDs are taxable and can push you into a higher bracket.'] ] },
   advanced: { t: 'Advanced settings — where to look', items: [
     ['OPM — PSHB (Postal Service Health Benefits)', 'https://www.opm.gov/healthcare-insurance/pshb/', 'Keeping health insurance into retirement; the 5-year rule.'],
     ['OPM — PSHB and Medicare for retirees', 'https://www.opm.gov/healthcare-insurance/medicare/pshb-annuitant/', 'Who must enroll in Part B, and the exemptions.'],
@@ -2944,6 +3079,7 @@ function buildPrintReport() {
   add('Survivor benefit reduction', (i.survivor*100).toFixed(0) + '%');
   if (i.fehbOn) add('Health insurance kept', fmt$(i.fehbMo) + '/mo now' + (i.partB ? ', Part B at 65' : ''));
   if (i.qcdYr > 0) add('Charitable giving from IRA (70½+)', fmt$(i.qcdYr) + '/yr');
+  if (i.convMode !== 'none') add('Roth conversions', (i.convMode === 'bracket' ? 'fill ' + Math.round(i.convBracket * 100) + '% bracket' : fmt$(i.convAmt) + '/yr') + (i.convWhen === 'gap' ? ', gap years' : ', ' + i.convFrom + '–' + i.convTo));
   add('Taxes', i.taxOn ? 'Estimated (state ' + (i.stateRate*100).toFixed(1) + '%)' : 'Not modeled');
 
   let grid = '<table><tr><th>Retire ↓ / Claim SS →</th>' + GRID.claimAges.map(c => '<th>' + c + '</th>').join('') + '</tr>';
@@ -2969,6 +3105,7 @@ function buildPrintReport() {
     (p.suppEligible ? 'FERS supplement ≈ ' + fmt$(p.suppMo) + '/mo until 62. ' : '') +
     (i.retired && i.ssNow > 0 ? 'Social Security ' + fmt$(i.ssNow) + '/mo, already started.</p>' : 'Social Security at ' + cell.claimAge + ' ≈ ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo.</p>')) +
     '<p>' + esc($('orderNote').textContent) + '</p>' +
+    ($('rollNote').textContent ? '<p>' + esc($('rollNote').textContent) + '</p>' : '') +
     '<h2>Information provided</h2><div class="pr-facts">' + facts.join('') + '</div>' +
     '<h2>Every combination tested (age money lasts to)</h2>' + grid +
     '<h2>Savings over time — selected plan</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
