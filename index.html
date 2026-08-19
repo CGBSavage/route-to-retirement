@@ -3410,7 +3410,7 @@ function buildPrintReport() {
     (i.retired && i.ssNow > 0 ? 'Social Security ' + fmt$(i.ssNow) + '/mo, already started.</p>' : 'Social Security at ' + cell.claimAge + ' ≈ ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo.</p>')) +
     '<p>' + esc($('orderNote').textContent) + '</p>' +
     ($('rollNote').textContent ? '<p>' + esc($('rollNote').textContent) + '</p>' : '') +
-    '<h2>Quick check before you run it — what you entered</h2><div class="pr-facts">' + facts.join('') + '</div>' +
+    '<h2>Information provided</h2><div class="pr-facts">' + facts.join('') + '</div>' +
     '<h2>Pick your combination — every one tested (age money lasts to)</h2>' + grid +
     '<h2>Your savings over time</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
     '<h2>Year-by-year numbers (table)</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
