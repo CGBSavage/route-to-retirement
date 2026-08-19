@@ -3400,7 +3400,7 @@ function buildPrintReport() {
   $('printReport').innerHTML =
     '<h1>Route2Retirement — Planning Snapshot</h1>' +
     '<p class="pr-sub">Prepared ' + today + ' · self-reported figures · all amounts are future (nominal) dollars unless noted</p>' +
-    '<h2>The plan under consideration</h2>' +
+    '<h2>How this plan plays out</h2>' +
     '<p><b>' + (i.retired ? 'Already retired (' + i.retYear + ')' + (i.ssNow > 0 ? ' · Social Security started' : ' · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') : 'Retire at ' + cell.retireAge + ' (' + retYear + ') · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') + '.</b> ' +
     (cell.ok ? 'Projected to last past age ' + i.horizon + ' with about ' + endBalText(cell.endBal) + ' remaining' +
        (last.netWorth !== last.total ? ' (net worth ' + fmt$(last.netWorth) + ')' : '') + '.'
@@ -3410,12 +3410,12 @@ function buildPrintReport() {
     (i.retired && i.ssNow > 0 ? 'Social Security ' + fmt$(i.ssNow) + '/mo, already started.</p>' : 'Social Security at ' + cell.claimAge + ' ≈ ' + fmt$(ssMonthlyAt(i, cell.claimAge)) + '/mo.</p>')) +
     '<p>' + esc($('orderNote').textContent) + '</p>' +
     ($('rollNote').textContent ? '<p>' + esc($('rollNote').textContent) + '</p>' : '') +
-    '<h2>Information provided</h2><div class="pr-facts">' + facts.join('') + '</div>' +
-    '<h2>Every combination tested (age money lasts to)</h2>' + grid +
-    '<h2>Savings over time — selected plan</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
-    '<h2>Year-by-year projection — selected plan</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
-    ($('qcdTable') ? '<h2>Charitable giving from the IRA vs. from checking — year by year</h2><p>Same gift each year either way (' + fmt$(i.qcdYr) + ' in today\'s dollars, rising with inflation). The gift itself is never taxed; the tax columns are the whole tax bill for the year — "from checking" means the money to pay for it came out of ordinary, taxable withdrawals first; "from the IRA" is a qualified charitable distribution that never touches the return.</p>' + $('qcdTable').outerHTML.replace(/ id="qcdTable"/, '') : '') +
-    '<h2>Model assumptions</h2><ul>' + [...document.querySelectorAll('#assumpList li')].map(li => '<li>' + esc(li.textContent) + '</li>').join('') + '</ul>' +
+    '<h2>Quick check before you run it — what you entered</h2><div class="pr-facts">' + facts.join('') + '</div>' +
+    '<h2>Pick your combination — every one tested (age money lasts to)</h2>' + grid +
+    '<h2>Your savings over time</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
+    '<h2>Year-by-year numbers (table)</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
+    ($('qcdTable') ? '<h2>Year by year: giving from the IRA vs. from checking</h2><p>Same gift each year either way (' + fmt$(i.qcdYr) + ' in today\'s dollars, rising with inflation). The gift itself is never taxed; the tax columns are the whole tax bill for the year — "from checking" means the money to pay for it came out of ordinary, taxable withdrawals first; "from the IRA" is a qualified charitable distribution that never touches the return.</p>' + $('qcdTable').outerHTML.replace(/ id="qcdTable"/, '') : '') +
+    '<h2>What this plan assumes</h2><ul>' + [...document.querySelectorAll('#assumpList li')].map(li => '<li>' + esc(li.textContent) + '</li>').join('') + '</ul>' +
     '<p class="pr-fine">Educational estimate produced with self-reported data — not financial, tax, or investment advice, and not affiliated with USPS, OPM, or SSA. Figures should be verified against an official FERS annuity estimate (HR/OPM), TSP statements, and SSA records. Taxes' + (i.taxOn ? ' are rough estimates' : ' are not modeled') + '; healthcare, survivor scenarios, and market volatility deserve professional review.</p>';
 }
 const REPORT_CSS = ':root{--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf7a;--series-4:#eda100;--ink:#000;--ink-2:#333;--muted:#555;--grid:#ddd;--baseline:#999;--surface:#fff;--surface-2:#f3f3f3;--hairline:#bbb;--critical:#b00020;--good:#0ca30c;--warning:#fab219;--serious:#ec835a}' +
