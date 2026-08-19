@@ -193,6 +193,18 @@
     .purchgrid .debthead { display: none; }
     .purchgrid input[id$="What"] { grid-column: 1 / -1; }
   }
+  .invgrid { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,0.8fr); gap: 10px 10px; align-items: center; }
+  .invgrid:empty { display: none; }
+  .invgrid input { font-size: 16px; padding: 9px 8px; }
+  .invgrid .prefix { left: 8px; }
+  .invgrid .prefix + input { padding-left: 22px; }
+  .invgrid input.has-suffix { padding-right: 46px; }
+  .invgrid .suffix { right: 8px; font-size: 14px; }
+  @media (max-width: 640px) {
+    .invgrid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+    .invgrid .debthead { display: none; }
+    .invgrid input[id$="What"] { grid-column: 1 / -1; }
+  }
   h3.subhead { font-size: 18px; margin: 6px 0 8px; color: var(--ink-2); }
   .paths { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 4px 0 14px; }
   @media (max-width: 720px) { .paths { grid-template-columns: minmax(0,1fr); } }
@@ -620,6 +632,12 @@
         <label for="otherContrib" id="otherContribLabel">Outside TSP, how much did you actually put away last year?</label>
         <div class="inputrow"><span class="prefix">$</span><input id="otherContrib" type="text" inputmode="numeric" value="0"></div>
         <div class="help">Besides the Roth IRA amount above. Look at last year's bank or brokerage statements — what really went in, not what you hope to. We assume the same each year until you retire; after that, the plan works out on its own whether money is left over.</div>
+      </div>
+      <div class="field" style="grid-column:1 / -1">
+        <label>Accounts that grow at their own rate (optional)</label>
+        <div class="help" style="margin:0 0 8px">If some of your money grows differently from the rest — a brokerage account, a mutual fund, CDs, an annuity, rental savings — list each one here with the yearly growth you expect for it. Whatever you don't list stays in "Other savings" above at the default rate. When money is needed, the plan spends the slowest-growing account first.</div>
+        <div class="invgrid" id="invGrid"></div>
+        <div style="padding:6px 0 0"><button type="button" id="addInvRow" class="ghostbtn">＋ Add an account with its own growth rate</button></div>
       </div>
     </div>
     <p class="help" id="growthNote" style="font-size:14.5px;color:var(--muted);margin:-6px 0 16px">📈 Yes, growth is counted: we assume TSP earns <span id="gnWork"><b id="gnPre">7</b>%/yr while you work and </span><b id="gnPost">4</b>%/yr <span id="gnOnce">once </span>retired, and other savings earn <b id="gnOther">4</b>%/yr. <a href="#" id="gnLink">Change these</a> in the advanced settings.</p>
@@ -1346,6 +1364,35 @@ function readDebts() {
   return out;
 }
 
+// Extra investment accounts, each with its own growth rate (step 2). Row ids inv{n}What/Bal/Add/Ret.
+let invRows = 0;
+const INV_MAX = 8;
+function addInvRow() {
+  if (invRows >= INV_MAX) return 0;
+  const n = ++invRows;
+  const g = $('invGrid');
+  if (n === 1) g.insertAdjacentHTML('beforeend', '<div class="debthead">What</div><div class="debthead">Balance today</div><div class="debthead">Added per year<br><small>while working</small></div><div class="debthead">Growth<br><small>% per year</small></div>');
+  g.insertAdjacentHTML('beforeend',
+    '<input id="inv' + n + 'What" type="text" placeholder="' + (n === 1 ? 'Brokerage account' : 'Account ' + n) + '" class="debtwhat">' +
+    '<div class="inputrow"><span class="prefix">$</span><input id="inv' + n + 'Bal" type="text" inputmode="numeric" placeholder="0"></div>' +
+    '<div class="inputrow"><span class="prefix">$</span><input id="inv' + n + 'Add" type="text" inputmode="numeric" placeholder="0"></div>' +
+    '<div class="inputrow"><input id="inv' + n + 'Ret" type="text" inputmode="decimal" placeholder="6" class="has-suffix"><span class="suffix">%/yr</span></div>');
+  ['Bal', 'Add'].forEach(sfx => $('inv' + n + sfx).addEventListener('blur', e => fmtField(e.target)));
+  $('inv' + n + 'Add').addEventListener('input', () => { if (typeof syncSpendAnchor === 'function') syncSpendAnchor(); });
+  if (invRows >= INV_MAX) $('addInvRow').style.display = 'none';
+  return n;
+}
+function readInvest() {
+  const out = [];
+  for (let n = 1; n <= invRows; n++) {
+    const bal = numOr('inv' + n + 'Bal', 0), add = numOr('inv' + n + 'Add', 0);
+    if (bal <= 0 && add <= 0) continue;
+    const r = num('inv' + n + 'Ret');
+    out.push({ what: cleanLabel($('inv' + n + 'What').value, 'Account ' + n), bal, add, ret: isNaN(r) ? numOr('otherRet', 4) / 100 : Math.max(-0.5, Math.min(0.5, r / 100)) });
+  }
+  return out;
+}
+
 let purchRows = 4;
 const PURCH_MAX = 12;
 function addPurchaseRow() {
@@ -1396,7 +1443,7 @@ function readInputs() {
     high3: retired ? 0 : numOr('high3', num('salary')),
     tspBal: numOr('tspBal', 0), empPct: numOr('tspPct', 5) / 100,
     tspStart: numOr('tspStart', num('poStart') > CUR_YEAR ? num('poStart') : 0),   // year TSP contributions begin (blank = already, or career start if that's in the future)
-    otherBal: numOr('otherBal', 0), otherContrib: numOr('otherContrib', 0),
+    otherBal: numOr('otherBal', 0), otherContrib: numOr('otherContrib', 0), invest: readInvest(),
     rothBal: numOr('rothBal', 0), rothIRA: numOr('rothIRA', 0),   // Roth IRA balance + yearly addition while working
     rothStart: numOr('rothStart', CUR_YEAR),               // first contribution year → 5-year rule
     ssFRA: num('ssFRA'),
@@ -1450,7 +1497,8 @@ function readInputs() {
     drawOrder: $('drawOrder').value === 'other' ? 'other' : 'tsp'
   };
   out.spRothContrib = out.hasSpouse ? out.spRothContrib : 0;
-  out.saveYr = out.otherContrib + out.rothIRA + out.spRothContrib;   // total planned yearly savings while working (Roths first)
+  out.investAdd = out.invest.reduce((a, x) => a + x.add, 0);
+  out.saveYr = out.otherContrib + out.rothIRA + out.spRothContrib + out.investAdd;   // total planned yearly savings while working (Roths first)
   // Yearly take-home the working-year model runs on: what they entered, else our ballpark.
   out.takeHomeYr = (out.takeHome > 0 ? out.takeHome : Math.max(0, ballparkTakeHome(out))) * 12;
   return out;
@@ -1538,7 +1586,18 @@ function simulate(inp, retireAge, claimAge, order) {
   const pen = pensionInfo(inp, retireAge);
   const ssAnnualAtClaim = ssMonthlyAt(inp, claimAge) * 12;
   let tsp = inp.tspBal;
-  let rothMine = inp.rothBal, rothSp = inp.hasSpouse ? inp.spRoth : 0, taxb = inp.otherBal;
+  let rothMine = inp.rothBal, rothSp = inp.hasSpouse ? inp.spRoth : 0;
+  // Taxable savings live in buckets: [0] is the plain "other savings" (default rate; every deposit —
+  // surplus, windfall, leave payout — lands here), the rest are the accounts with their own growth rate.
+  const buckets = [{ bal: inp.otherBal, ret: inp.otherRet, add: inp.otherContrib }]
+    .concat((inp.invest || []).map(a => ({ bal: a.bal, ret: a.ret, add: a.add })));
+  const sumB = () => buckets.reduce((a, b) => a + b.bal, 0);
+  let taxb = sumB();
+  const putTaxb = (amt) => { buckets[0].bal += amt; taxb = sumB(); };
+  // spend the slowest-growing account first
+  const takeTaxb = (amt) => { let got = 0; for (const b of [...buckets].sort((x, y) => x.ret - y.ret)) { const a = Math.min(amt - got, b.bal); b.bal -= a; got += a; if (got >= amt) break; } taxb = sumB(); return got; };
+  const growTaxb = (adds) => { let interest = 0; buckets.forEach((b, i) => { interest += b.bal * b.ret; b.bal = b.bal * (1 + b.ret) + (adds ? (adds[i] || 0) : 0); }); taxb = sumB(); return interest; };
+  const taxbNext = () => buckets.reduce((a, b) => a + b.bal * (1 + b.ret), 0);
   let roth = rothMine + rothSp;
   let other = taxb + roth;
   // Roth 5-year rule: earnings aren't tax-free until 5 years after the first contribution — the
@@ -1552,7 +1611,7 @@ function simulate(inp, retireAge, claimAge, order) {
   const rows = [];
   // pull `amt` from taxable first, then Roth; returns what was actually taken
   const takeOther = (amt) => {
-    const a = Math.min(amt, taxb); taxb -= a; let got = a;
+    let got = takeTaxb(amt);
     if (rothOpen(inp.rothStart)) { const b = Math.min(amt - got, rothMine); rothMine -= b; got += b; }
     if (rothOpen(inp.spRothStart)) { const c = Math.min(amt - got, rothSp); rothSp -= c; got += c; }
     roth = rothMine + rothSp;
@@ -1598,7 +1657,7 @@ function simulate(inp, retireAge, claimAge, order) {
     // (checked against the account after this year's growth), else the loan just continues.
     let payoffDue = 0;
     if (inp.poLoan && inp.poAmt > 0 && year === inp.poYear) {
-      const otherNow = (taxb + roth) * (1 + inp.otherRet) + ((inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0);
+      const otherNow = taxbNext() + roth * (1 + inp.otherRet) + ((inp.wfAmt > 0 && year === inp.wfYear) ? inp.wfAmt : 0);
       const tspNow = tsp * (1 + inp.postRet);
       const canPay = (inp.poSource === 'tsp' && !working) ? tspNow >= inp.poAmt : otherNow >= inp.poAmt;
       if (canPay) { payoffDue = inp.poAmt; payoffFunded = true; }
@@ -1649,8 +1708,11 @@ function simulate(inp, retireAge, claimAge, order) {
       // Roth IRA amounts go in first (yours, then the spouse's while they work); the rest is "other" savings
       const rothMe = Math.min(contrib, inp.rothIRA);
       const rothTheirs = inp.hasSpouse ? Math.min(contrib - rothMe, inp.spRothContrib) : 0;   // spousal IRA: their paycheck not required while you work
-      const restPart = contrib - rothMe - rothTheirs;
-      taxb = taxb * (1 + inp.otherRet) + restPart + windfall;
+      // the rest goes to the taxable accounts in order: plain savings first, then each account's own yearly amount; any excess to plain savings
+      let restPart = contrib - rothMe - rothTheirs;
+      const adds = buckets.map(b => { const a = Math.min(restPart, b.add); restPart -= a; return a; });
+      adds[0] += restPart;
+      growTaxb(adds); putTaxb(windfall);
       rothMine = rothMine * (1 + inp.otherRet) + rothMe;
       rothSp = rothSp * (1 + inp.otherRet) + rothTheirs;
       roth = rothMine + rothSp;
@@ -1668,8 +1730,8 @@ function simulate(inp, retireAge, claimAge, order) {
       other = taxb + roth;
     } else {
       tspGrow = tsp * inp.postRet;
-      const taxInterest = taxb * inp.otherRet;    // growth on the taxable bucket is taxable income
-      taxb = taxb * (1 + inp.otherRet) + windfall;
+      const taxInterest = growTaxb();    // growth on the taxable accounts is taxable income
+      putTaxb(windfall);
       const spRothNow = spWorking ? Math.min(inp.spRothContrib, spWork) : 0;   // out of their paycheck, into their Roth
       spRothSaved = spRothNow;
       rothMine = rothMine * (1 + inp.otherRet);
@@ -1730,7 +1792,7 @@ function simulate(inp, retireAge, claimAge, order) {
       // (spouse take-home is after-tax money and isn't taxed again here; a second pension is taxed unless marked tax-free)
       // annual-leave lump sum in the first retirement year (taxable, lands in other savings)
       alLump = (!inp.retired && age === retireAge && inp.alPayout > 0) ? inp.alPayout * Math.pow(1 + inp.salGrowth, t) : 0;
-      if (alLump > 0) taxb += alLump;
+      if (alLump > 0) putTaxb(alLump);
       let ordBase = supp + pension + (inp.pen2Tax ? pen2 : 0) + spPen + spInc + payoffTsp + taxInterest + alLump;
       // ---- Roth conversion (TSP → Roth IRA) this year? Only in retirement, only in the chosen window,
       // never after required withdrawals begin at 73. The converted amount is ordinary income this year;
@@ -1775,7 +1837,7 @@ function simulate(inp, retireAge, claimAge, order) {
       takeOther(otherWd);
       const remaining = gap - preWd - otherWd;
       if (remaining > 0) shortfall = remaining;
-      else { otherIn = -remaining; taxb += otherIn; }   // surplus (incl. excess RMD) is saved
+      else { otherIn = -remaining; putTaxb(otherIn); }   // surplus (incl. excess RMD) is saved
       other = taxb + roth;
       if (shortfall > 50 && runout === null) runout = age;
     }
@@ -1789,7 +1851,7 @@ function simulate(inp, retireAge, claimAge, order) {
                 saved: working ? 0 : otherIn + spRothSaved + alLump,   // retired-year surplus reinvested (incl. spouse Roth, leave payout)
                 contribUsed, drawdown: drawdownUsed,   // working-year savings actually credited / pulled out (after the paycheck cap)
                 purchCash: purch.cash, purchPay: purch.pay, health, qcd, conv, alLump, taxOrd: taxOrdBase + tspWd + spWd, t,
-                tsp: tsp + sp401k, ownTsp: tsp, sp401k, other, roth, rothMine, rothSp,
+                tsp: tsp + sp401k, ownTsp: tsp, sp401k, other, roth, rothMine, rothSp, taxb, buckets: buckets.map(b => b.bal),
                 total: tsp + sp401k + other, netWorth: tsp + sp401k + other - debtLeft });
   }
   return { rows, runout, endBal: tsp + sp401k + other, pen, order, payoffSkipped,
@@ -2034,9 +2096,10 @@ function rothImpactHtml(best) {
   const i = INP;
   if (!best || i.retired) return '';
   if (i.rothIRA > 0) {
-    const without = simulate(Object.assign({}, i, { rothIRA: 0, saveYr: i.otherContrib + i.spRothContrib }), best.retireAge, best.claimAge, best.order);
-    const atRet = best.rows.find(r => !r.working), atRetW = without.rows.find(r => !r.working);
-    const rothAtRet = atRet ? atRet.rothMine : 0, rothW = atRetW ? atRetW.rothMine : 0;
+    const without = simulate(Object.assign({}, i, { rothIRA: 0, saveYr: i.otherContrib + i.spRothContrib + i.investAdd }), best.retireAge, best.claimAge, best.order);
+    const lastW = arr => [...arr].reverse().find(r => r.working);   // balance you retire with = end of the last working year
+    const atRet = lastW(best.rows), atRetW = lastW(without.rows);
+    const rothAtRet = atRet ? atRet.rothMine : i.rothBal, rothW = atRetW ? atRetW.rothMine : i.rothBal;
     let tail;
     if (best.ok && without.ok) tail = 'and leaves about <b>' + fmt$(Math.max(0, best.endBal - without.endBal)) + ' more</b> at ' + i.horizon + ' than skipping it.';
     else if (best.ok && !without.ok) tail = '— and <b>without it this plan would run out around age ' + without.lastsTo + '</b>.';
@@ -2123,8 +2186,9 @@ function selectScenario(cell) {
 function renderFBE(cell) {
   const i = INP, p = cell.pen;
   const retYr = CUR_YEAR + (cell.retireAge - i.curAge);
-  const atRet = cell.rows.find(r => !r.working);
-  const tspAtRet = atRet ? atRet.ownTsp : 0;
+  // balance you retire with = end of the last working year (the first retired row is already after that year's withdrawals)
+  const lastWork = [...cell.rows].reverse().find(r => r.working);
+  const tspAtRet = lastWork ? lastWork.ownTsp : i.tspBal;
   const yrs = cell.retireAge - i.curAge;
   const today = v => v / Math.pow(1 + i.inflation, Math.max(0, yrs));
   $('fbeBody').innerHTML =
@@ -2450,13 +2514,15 @@ function renderTable(cell) {
     const base = simulate(Object.assign({}, INP, { convMode: 'none' }), cell.retireAge, cell.claimAge, cell.order);
     baseTax = new Map(base.rows.map(r => [r.year, r.tax]));
   }
-  const cols = 7 + (showTax ? 1 : 0) + (showConv ? 1 : 0) + 2 + (showRoth ? 1 : 0) + (showSpRoth ? 1 : 0) + (showDebt ? 2 : 0);
+  const inv = INP.invest || [];   // extra accounts get their own balance columns; "Other savings" is then the plain bucket
+  const cols = 7 + (showTax ? 1 : 0) + (showConv ? 1 : 0) + 2 + inv.length + (showRoth ? 1 : 0) + (showSpRoth ? 1 : 0) + (showDebt ? 2 : 0);
   let html = '<thead><tr><th>Year</th><th>Age' + (hasSp ? ' (' + spName + ')' : '') + '</th><th>Pension' + ((INP.pen2Mo > 0 || (hasSp && INP.spPenMo > 0)) ? 's' : '') + '+Suppl.</th><th>Soc. Sec.' + (hasSp && (INP.spSS > 0 || INP.spSSFRA > 0) ? ' (you + ' + spName + ')' : '') + '</th><th>Other inc.</th><th>From savings</th><th>Spending</th>' +
     (showConv ? '<th>TSP → Roth<br><small>conversion</small></th>' : '') +
     (showTax ? '<th>Taxes (est.)</th>' : '') + '<th>TSP' + (hasSp && INP.sp401k > 0 ? ' + 401k' : '') + ' balance<br><small>end of year</small></th>' +
     (showRoth ? '<th>Roth IRA' + (showSpRoth ? ' (you)' : '') + '<br><small>end of year</small></th>' : '') +
     (showSpRoth ? '<th>Roth IRA (' + spName + ')<br><small>end of year</small></th>' : '') +
     '<th>Other savings<br><small>' + (anyRoth ? 'not Roth · ' : '') + 'end of year</small></th>' +
+    inv.map(a => '<th>' + a.what + '<br><small>' + (a.ret*100).toFixed(1) + '%/yr · end of year</small></th>').join('') +
     (showDebt ? '<th>Debt left</th><th>Net worth</th>' : '') + '</tr></thead><tbody>';
   const milestone = txt => '<tr class="milestone"><td colspan="' + cols + '">' + txt + '</td></tr>';
   let retMarked = false, spMarked = false, spRetYear = null;
@@ -2477,7 +2543,8 @@ function renderTable(cell) {
       fmt$(r.tsp) + '</td>' +
       (showRoth ? '<td>' + fmt$(r.rothMine) + '</td>' : '') +
       (showSpRoth ? '<td>' + fmt$(r.rothSp) + '</td>' : '') +
-      '<td>' + fmt$(anyRoth ? r.other - r.roth : r.other) + '</td>' +
+      '<td>' + fmt$(inv.length ? r.buckets[0] : (anyRoth ? r.other - r.roth : r.other)) + '</td>' +
+      inv.map((a, k) => '<td>' + fmt$(r.buckets[k + 1] || 0) + '</td>').join('') +
       (showDebt ? '<td>' + fmt$(r.debtLeft) + '</td><td>' + fmt$(r.netWorth) + '</td>' : '') + '</tr>';
   }
   t.innerHTML = html + '</tbody>';
@@ -2504,6 +2571,7 @@ function renderAssumptions(cell) {
         (paycheckLeft(i) < 0 ? ', and the shortfall (' + fmt$(-paycheckLeft(i)) + '/yr) comes out of savings' : '') + '. Take-home rises with pay raises; spending with inflation.'
       : 'While working, ' + fmt$(i.saveYr) + '/yr goes into savings' + (i.rothIRA > 0 ? ' (' + fmt$(i.rothIRA) + ' of it Roth IRA)' : '') + ' as entered, capped at what take-home leaves after loan payments (fill in spending now in step 4 and we\'ll check it against your spending too).'),
     'Other savings grow ' + (i.otherRet*100).toFixed(1) + '%/yr' +
+      (i.invest.length ? '; ' + i.invest.map(a => '"' + a.what + '" (' + fmt$(a.bal) + (a.add ? ', +' + fmt$(a.add) + '/yr while working' : '') + ') grows ' + (a.ret*100).toFixed(1) + '%/yr').join('; ') + ' — when money is needed, the slowest-growing account is spent first, and any surplus is saved back into plain other savings' : '') +
       (i.rothBal > 0 || i.rothIRA > 0 ? '. Your Roth IRA (' + fmt$(i.rothBal) + (i.rothIRA > 0 ? ', +' + fmt$(i.rothIRA) + '/yr while working' : '') + ') grows the same, is tax-free, drawn last, and not touched before ' + (Math.max(i.rothStart, CUR_YEAR) + 5) + ' (5-year rule)' : '') +
       '. Withdrawal order: ' + (cell.order === 'other' ? 'other savings first, then TSP' : 'TSP first, then other savings') +
       ' (required TSP withdrawals from 73 always happen). Any yearly surplus gets saved back into other savings.',
@@ -2606,12 +2674,14 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'psbRcd','psbPlan','psbGross','psbRet','psbHealth','psbTsp','psbSick','psbAL','psbEligDate','psbService'];
 function saveForm() {
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
-  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, path };
+  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, invRows, path };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
   for (let n = 5; n <= purchRows; n++)
     ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
   for (let n = 1; n <= debtRows; n++)
     ['What','Bal','Mo','Year'].forEach(s => o['d' + n + s] = $('d' + n + s).value);
+  for (let n = 1; n <= invRows; n++)
+    ['What','Bal','Add','Ret'].forEach(s => o['inv' + n + s] = $('inv' + n + s).value);
   if (!rememberEnabled()) return;
   try {
     const filled = obj => Object.keys(obj).filter(k => typeof obj[k] === 'string' && /\d/.test(obj[k])).length;
@@ -2649,6 +2719,8 @@ function loadForm() {
   safe(() => { while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow(); });
   safe(() => { while (debtRows < Math.min(o.debtRows || 0, DEBT_MAX)) addDebtRow(); });
   for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => safe(() => { if (o['d' + n + s]) $('d' + n + s).value = o['d' + n + s]; }));
+  safe(() => { while (invRows < Math.min(o.invRows || 0, INV_MAX)) addInvRow(); });
+  for (let n = 1; n <= invRows; n++) ['What','Bal','Add','Ret'].forEach(s => safe(() => { if (o['inv' + n + s]) $('inv' + n + s).value = o['inv' + n + s]; }));
   safe(syncPayoffOptions);
   let count = 0;
   SAVE_IDS.forEach(id => safe(() => { if (o[id] !== undefined && o[id] !== '') { $(id).value = o[id]; if (/\d/.test(o[id])) count++; } }));
@@ -2742,7 +2814,7 @@ function renderSummary() {
   const eff = left === null ? inp.saveYr : Math.min(inp.saveYr, left);
   if (inp.tspStart > CUR_YEAR) row('TSP starts', inp.tspStart + ' (not contributing yet)');
   if (inp.rothBal > 0 || inp.rothIRA > 0) row('Roth IRA', fmt$(inp.rothBal) + (inp.rothIRA > 0 ? ' · +' + fmt$(inp.rothIRA) + '/yr' : '') + ' · since ' + Math.max(inp.rothStart, 1990));
-  row('Other savings', fmt$(inp.otherBal));
+  row('Other savings', fmt$(inp.otherBal) + (inp.invest.length ? ' + ' + inp.invest.map(a => a.what + ' ' + fmt$(a.bal) + ' @ ' + (a.ret*100).toFixed(1) + '%').join(', ') : ''));
   if (!inp.retired && (inp.saveYr > 0 || (left !== null && left < 0)))
     row('Added while working', (left === null || eff >= inp.saveYr
       ? '+' + fmt$(inp.saveYr) + '/yr'
@@ -2789,10 +2861,11 @@ window.addEventListener('pagehide', () => { try { saveForm(); } catch (e) {} });
 function collectForm() {   // same object saveForm writes, without touching storage
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
   const o = { app: 'Route2Retirement', version: 1, saved: new Date().toISOString().slice(0, 10),
-    hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, path };
+    hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, invRows, path };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
   for (let n = 5; n <= purchRows; n++) ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
   for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => o['d' + n + s] = $('d' + n + s).value);
+  for (let n = 1; n <= invRows; n++) ['What','Bal','Add','Ret'].forEach(s => o['inv' + n + s] = $('inv' + n + s).value);
   return o;
 }
 function applyForm(o) {    // mirror of loadForm, from an object
@@ -2800,6 +2873,8 @@ function applyForm(o) {    // mirror of loadForm, from an object
   while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow();
   while (debtRows < Math.min(o.debtRows || 0, DEBT_MAX)) addDebtRow();
   for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => { $('d' + n + s).value = o['d' + n + s] || ''; });
+  while (invRows < Math.min(o.invRows || 0, INV_MAX)) addInvRow();
+  for (let n = 1; n <= invRows; n++) ['What','Bal','Add','Ret'].forEach(s => { $('inv' + n + s).value = o['inv' + n + s] || ''; });
   syncPayoffOptions();
   SAVE_IDS.forEach(id => { if (o[id] !== undefined) $(id).value = o[id]; });
   for (let n = 5; n <= purchRows; n++) ['What','Amt','Year','How'].forEach(s => { $('p' + n + s).value = o['p' + n + s] || ''; });
@@ -3179,7 +3254,7 @@ function liveOnNow() {
     ? ballparkTakeHome({ salary: sal, empPct: numOr('tspPct', 5) / 100, hasSpouse: $('hasSpouse').checked,
         curAge: numOr('curAge', 55), spAge: numOr('spAge', 0), inflation: 0, stateRate: numOr('stateRate', 0) / 100, fehbMo: numOr('fehbMo', 0) * ($('fehbUnit').value === 'pp' ? 26 / 12 : 1) })
     : th;
-  const saveMo = (numOr('otherContrib', 0) + numOr('rothIRA', 0) + ($('hasSpouse').checked ? numOr('spRothContrib', 0) : 0)) / 12;
+  const saveMo = (numOr('otherContrib', 0) + numOr('rothIRA', 0) + ($('hasSpouse').checked ? numOr('spRothContrib', 0) : 0) + readInvest().reduce((a, x) => a + x.add, 0)) / 12;
   const debtMo = readDebts().reduce((a, d) => a + d.mo, 0);
   let extraMo = 0;
   try { extraMo = householdExtraNow(readInputs()) / 12; } catch (e) {}
@@ -3286,6 +3361,7 @@ $('gnLink').addEventListener('click', e => {
 });
 $('addPurchRow').addEventListener('click', () => { const n = addPurchaseRow(); if (n) $('p' + n + 'What').focus(); });
 $('addDebtRow').addEventListener('click', () => { const n = addDebtRow(); if (n) $('d' + n + 'What').focus(); });
+$('addInvRow').addEventListener('click', () => { const n = addInvRow(); if (n) $('inv' + n + 'What').focus(); });
 
 $('goBtn').addEventListener('click', () => {
   const retiredMode = $('pathRetired').getAttribute('aria-pressed') === 'true';
@@ -3361,6 +3437,7 @@ function buildPrintReport() {
   if (i.tspStart > CUR_YEAR) add('TSP contributions start', i.tspStart);
   if (i.rothBal > 0 || i.rothIRA > 0) add('Roth IRA', fmt$(i.rothBal) + (i.rothIRA ? ' (+' + fmt$(i.rothIRA) + '/yr while working)' : '') + ', first funded ' + Math.max(i.rothStart, 1990));
   add('Other savings', fmt$(i.otherBal) + (i.otherContrib ? ' (+' + fmt$(i.otherContrib) + '/yr while working)' : ''));
+  i.invest.forEach(a => add(a.what, fmt$(a.bal) + (a.add ? ' (+' + fmt$(a.add) + '/yr while working)' : '') + ' at ' + (a.ret*100).toFixed(1) + '%/yr'));
   add('Withdrawal order', SEL && SEL.order === 'other' ? 'Other savings first, then TSP' : 'TSP first, then other savings');
   add('SS at 62 / 67 / 70 (monthly)', fmt$(i.ss62) + ' / ' + fmt$(i.ssFRA) + ' / ' + fmt$(i.ss70));
   add('Monthly spending (today’s $)', fmt$(i.spendMo) + ' → ' + fmt$(i.spend70s) + ' (70s) → ' + fmt$(i.spend80s) + ' (80s) → ' + fmt$(i.spend90s) + ' (90+)' + (i.taxOn ? ', before taxes' : ', incl. taxes'));
