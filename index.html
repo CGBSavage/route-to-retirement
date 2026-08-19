@@ -17,6 +17,7 @@
     --muted: #8a8f96;
     --accent: #1f4e79;
     --accent-ink: #ffffff;
+    --conv-bg: rgba(31,78,121,0.09);
     --hairline: rgba(22,32,43,0.12);
     --grid: #e3e2dc;
     --baseline: #c3c2b7;
@@ -45,6 +46,7 @@
       --muted: #8a8f96;
       --accent: #6ea8dc;
       --accent-ink: #0e1a26;
+      --conv-bg: rgba(110,168,220,0.16);
       --hairline: rgba(255,255,255,0.14);
       --grid: #2c2f33;
       --baseline: #43474c;
@@ -69,6 +71,7 @@
     --muted: #8a8f96;
     --accent: #6ea8dc;
     --accent-ink: #0e1a26;
+    --conv-bg: rgba(110,168,220,0.16);
     --hairline: rgba(255,255,255,0.14);
     --grid: #2c2f33;
     --baseline: #43474c;
@@ -330,6 +333,9 @@
   table.years th small { font-weight: 400; color: var(--muted); }
   table.years .saved { color: var(--good); font-weight: 600; white-space: nowrap; }
   table.years span.short { color: var(--critical); font-weight: 600; white-space: nowrap; }
+  table.years tr.conv td { background: var(--conv-bg); }
+  table.years .convamt { color: var(--accent); }
+  table.years .convtax { color: var(--ink-2); white-space: nowrap; }
   .qcdyrs { margin: 4px 0 14px; }
   .assumptions ul { font-size: 15.5px; color: var(--ink-2); line-height: 1.7; padding-left: 22px; }
 
@@ -361,6 +367,9 @@
   #reportView tr.milestone td { text-align: left; font-weight: 700; background: #eee; }
   #reportView .saved { color: #0ca30c; font-weight: 600; }
   #reportView tr.short td, #reportView span.short { color: #b00020; font-weight: 600; }
+  #reportView tr.conv td { background: #e8eef5; }
+  #reportView .convamt { color: #1f4e79; }
+  #reportView .convtax { color: #333; white-space: nowrap; }
   #reportView th:first-child, #reportView td:first-child { text-align: left; }
   #reportView .pr-facts { columns: 2; column-gap: 28px; font-size: 12.5px; }
   #reportView .pr-facts div { break-inside: avoid; display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted #ddd; padding: 2px 0; }
@@ -394,6 +403,9 @@
     #printReport .saved { color: #0ca30c; font-weight: 600; white-space: nowrap; }
     #printReport .muted { color: #777; }
     #printReport tr.work td { color: #444; }
+    #printReport tr.conv td { background: #e8eef5; }
+    #printReport .convamt { color: #1f4e79; }
+    #printReport .convtax { color: #333; white-space: nowrap; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     @page { size: landscape; margin: 12mm; }
     #printReport .pr-facts { columns: 2; column-gap: 28px; font-size: 11.5px; }
@@ -2177,8 +2189,8 @@ function qcdYearTable(cell, base) {
   if (!html) return '';
   const first = cell.rows.find(r => r.qcd > 1);
   return '<details class="yeartable qcdyrs"><summary>Year by year: giving from the IRA vs. from checking (from ' + first.year + ', age ' + first.age + ')</summary>' +
-    '<p class="help" style="font-size:14.5px;color:var(--muted);margin:0 0 8px">Same gift each year either way (' + fmt$(INP.qcdYr) + ' in today\'s dollars, rising with inflation). "From checking" means the money comes out of ordinary withdrawals and shows up on your tax return; "from the IRA" means a qualified charitable distribution that never does. Future dollars.</p>' +
-    '<div class="tablewrap"><table class="years" id="qcdTable"><thead><tr><th>Year</th><th>Age</th><th>Gift</th><th>Taxes if given<br><small>from checking</small></th><th>Taxes if given<br><small>from the IRA</small></th><th>Tax saved<br><small>this year</small></th><th>Saved so far</th><th>Savings, end of year<br><small>giving from checking</small></th><th>Savings, end of year<br><small>giving from the IRA</small></th></tr></thead><tbody>' + html + '</tbody></table></div>' +
+    '<p class="help" style="font-size:14.5px;color:var(--muted);margin:0 0 8px">Same gift each year either way (' + fmt$(INP.qcdYr) + ' in today\'s dollars, rising with inflation). The gift itself is never taxed either way. The tax columns are your <b>whole tax bill for the year</b>: giving "from checking" means the money to pay for it came out of ordinary, taxable withdrawals first, so that year\'s bill is higher; giving "from the IRA" (a qualified charitable distribution) never touches your return. Future dollars.</p>' +
+    '<div class="tablewrap"><table class="years" id="qcdTable"><thead><tr><th>Year</th><th>Age</th><th>Gift</th><th>Total taxes that year<br><small>giving from checking</small></th><th>Total taxes that year<br><small>giving from the IRA</small></th><th>Tax saved<br><small>this year</small></th><th>Saved so far</th><th>Savings, end of year<br><small>giving from checking</small></th><th>Savings, end of year<br><small>giving from the IRA</small></th></tr></thead><tbody>' + html + '</tbody></table></div>' +
     '<p class="help" style="font-size:13.5px;color:var(--muted);margin:6px 0 0">Total given ' + fmt$(cumGift) + ' · total tax saved ' + fmt$(cum) + '. Small year-to-year wobbles come from the tax brackets and how much of Social Security gets taxed. If the "from checking" version drains its TSP late in life, its taxes drop simply because there\'s less left to withdraw — the two savings columns tell the real story.</p></details>';
 }
 
@@ -2410,7 +2422,6 @@ function savedCell(r) {
   const parts = [];
   if (wd > 1 || !(r.saved > 1)) parts.push(fmt$(wd));
   if (r.qcd > 1) parts.push('<span class="muted">+' + fmt$(r.qcd) + ' to charity, tax-free</span>');
-  if (r.conv > 1) parts.push('<span class="muted">' + fmt$(r.conv) + ' TSP → Roth</span>');
   if (r.saved > 1) parts.push('<span class="saved">+' + fmt$(r.saved) + ' saved</span>');
   return parts.join('<br>');
 }
@@ -2425,8 +2436,16 @@ function renderTable(cell) {
   const showRoth = INP.rothBal > 0 || INP.rothIRA > 0 || INP.convMode !== 'none';
   const showSpRoth = hasSp && (INP.spRoth > 0 || INP.spRothContrib > 0);
   const anyRoth = showRoth || showSpRoth;
-  const cols = 7 + (showTax ? 1 : 0) + 2 + (showRoth ? 1 : 0) + (showSpRoth ? 1 : 0) + (showDebt ? 2 : 0);
+  // Roth conversions get their own column; in those years the tax cell also says how much of it the conversion caused.
+  const showConv = INP.convMode !== 'none' && cell.rows.some(r => r.conv > 1);
+  let baseTax = null;
+  if (showConv && showTax) {
+    const base = simulate(Object.assign({}, INP, { convMode: 'none' }), cell.retireAge, cell.claimAge, cell.order);
+    baseTax = new Map(base.rows.map(r => [r.year, r.tax]));
+  }
+  const cols = 7 + (showTax ? 1 : 0) + (showConv ? 1 : 0) + 2 + (showRoth ? 1 : 0) + (showSpRoth ? 1 : 0) + (showDebt ? 2 : 0);
   let html = '<thead><tr><th>Year</th><th>Age' + (hasSp ? ' (' + spName + ')' : '') + '</th><th>Pension' + ((INP.pen2Mo > 0 || (hasSp && INP.spPenMo > 0)) ? 's' : '') + '+Suppl.</th><th>Soc. Sec.' + (hasSp && (INP.spSS > 0 || INP.spSSFRA > 0) ? ' (you + ' + spName + ')' : '') + '</th><th>Other inc.</th><th>From savings</th><th>Spending</th>' +
+    (showConv ? '<th>TSP → Roth<br><small>conversion</small></th>' : '') +
     (showTax ? '<th>Taxes (est.)</th>' : '') + '<th>TSP' + (hasSp && INP.sp401k > 0 ? ' + 401k' : '') + ' balance<br><small>end of year</small></th>' +
     (showRoth ? '<th>Roth IRA' + (showSpRoth ? ' (you)' : '') + '<br><small>end of year</small></th>' : '') +
     (showSpRoth ? '<th>Roth IRA (' + spName + ')<br><small>end of year</small></th>' : '') +
@@ -2441,10 +2460,13 @@ function renderTable(cell) {
       ? '▶ Already retired — the plan starts ' + r.year + ', age ' + r.age + (INP.ssNow > 0 ? ' · Social Security already started' : cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')
       : '▶ You retire — ' + r.year + ', age ' + r.age + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')); }
     const spAgeTxt = hasSp ? ' <small>(' + (INP.spAge + r.age - INP.curAge) + ')</small>' : '';
-    html += '<tr class="' + (r.working ? 'work' : '') + (r.shortfall > 1 ? ' short' : '') + '"><td>' + r.year + '</td><td>' + r.age + spAgeTxt + '</td><td>' +
+    const isConv = showConv && r.conv > 1;
+    const convTax = (isConv && baseTax && baseTax.has(r.year)) ? Math.max(0, r.tax - baseTax.get(r.year)) : null;
+    html += '<tr class="' + (r.working ? 'work' : '') + (r.shortfall > 1 ? ' short' : '') + (isConv ? ' conv' : '') + '"><td>' + r.year + '</td><td>' + r.age + spAgeTxt + '</td><td>' +
       fmt$(r.pension + r.supp) + '</td><td>' + fmt$(r.mySS + r.spSS) + '</td><td>' + fmt$(r.spInc) + '</td><td>' +
       savedCell(r) + '</td><td>' + (r.working ? '<span class="muted">paycheck</span>' : fmt$(r.spending)) + (r.shortfall > 1 ? ' ⚠' : '') + '</td>' +
-      (showTax ? '<td>' + (r.working ? '<span class="muted">in paycheck</span>' : fmt$(r.tax)) + '</td>' : '') + '<td>' +
+      (showConv ? '<td>' + (isConv ? '<b class="convamt">' + fmt$(r.conv) + '</b>' : '<span class="muted">—</span>') + '</td>' : '') +
+      (showTax ? '<td>' + (r.working ? '<span class="muted">in paycheck</span>' : (isConv ? '<b>' + fmt$(r.tax) + '</b>' + (convTax !== null ? '<br><small class="convtax">' + fmt$(convTax) + ' of it from the conversion</small>' : '') : fmt$(r.tax))) + '</td>' : '') + '<td>' +
       fmt$(r.tsp) + '</td>' +
       (showRoth ? '<td>' + fmt$(r.rothMine) + '</td>' : '') +
       (showSpRoth ? '<td>' + fmt$(r.rothSp) + '</td>' : '') +
@@ -3380,7 +3402,7 @@ function buildPrintReport() {
     '<h2>Every combination tested (age money lasts to)</h2>' + grid +
     '<h2>Savings over time — selected plan</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
     '<h2>Year-by-year projection — selected plan</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
-    ($('qcdTable') ? '<h2>Charitable giving from the IRA vs. from checking — year by year</h2><p>Same gift each year either way (' + fmt$(i.qcdYr) + ' in today\'s dollars, rising with inflation); "from checking" is paid out of ordinary, taxable withdrawals, "from the IRA" is a qualified charitable distribution.</p>' + $('qcdTable').outerHTML.replace(/ id="qcdTable"/, '') : '') +
+    ($('qcdTable') ? '<h2>Charitable giving from the IRA vs. from checking — year by year</h2><p>Same gift each year either way (' + fmt$(i.qcdYr) + ' in today\'s dollars, rising with inflation). The gift itself is never taxed; the tax columns are the whole tax bill for the year — "from checking" means the money to pay for it came out of ordinary, taxable withdrawals first; "from the IRA" is a qualified charitable distribution that never touches the return.</p>' + $('qcdTable').outerHTML.replace(/ id="qcdTable"/, '') : '') +
     '<h2>Model assumptions</h2><ul>' + [...document.querySelectorAll('#assumpList li')].map(li => '<li>' + esc(li.textContent) + '</li>').join('') + '</ul>' +
     '<p class="pr-fine">Educational estimate produced with self-reported data — not financial, tax, or investment advice, and not affiliated with USPS, OPM, or SSA. Figures should be verified against an official FERS annuity estimate (HR/OPM), TSP statements, and SSA records. Taxes' + (i.taxOn ? ' are rough estimates' : ' are not modeled') + '; healthcare, survivor scenarios, and market volatility deserve professional review.</p>';
 }
@@ -3389,7 +3411,7 @@ const REPORT_CSS = ':root{--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf
   'h1{font-family:Georgia,serif;font-size:24px;margin:0}.pr-sub{color:#444;margin:2px 0 14px;font-size:12px}' +
   'h2{font-family:Georgia,serif;font-size:16px;margin:18px 0 6px;padding-bottom:2px;border-bottom:1.5px solid #999;page-break-after:avoid}' +
   'p{margin:4px 0}table{border-collapse:collapse;width:100%;font-size:11px;font-variant-numeric:tabular-nums}' +
-  'th,td{border:1px solid #666;padding:3px 5px;text-align:right;vertical-align:top}th{background:#eee;font-weight:700;vertical-align:bottom}thead{display:table-header-group}th small{font-weight:400;color:#444}tr.short td{color:#b00020;font-weight:600}.saved{color:#0ca30c;font-weight:600;white-space:nowrap}span.short{color:#b00020;font-weight:600;white-space:nowrap}tr.milestone td{text-align:left;font-weight:700;background:#eee;border-top:2px solid #333}tr.work td{color:#444}.muted{color:#777}th:first-child,td:first-child{text-align:left}tr{page-break-inside:avoid}' +
+  'th,td{border:1px solid #666;padding:3px 5px;text-align:right;vertical-align:top}th{background:#eee;font-weight:700;vertical-align:bottom}thead{display:table-header-group}th small{font-weight:400;color:#444}tr.short td{color:#b00020;font-weight:600}.saved{color:#0ca30c;font-weight:600;white-space:nowrap}span.short{color:#b00020;font-weight:600;white-space:nowrap}tr.milestone td{text-align:left;font-weight:700;background:#eee;border-top:2px solid #333}tr.work td{color:#444}.muted{color:#777}tr.conv td{background:#e8eef5}.convamt{color:#1f4e79}.convtax{color:#333;white-space:nowrap}th:first-child,td:first-child{text-align:left}tr{page-break-inside:avoid}' +
   '@page{size:landscape;margin:12mm}' +
   '.pr-facts{columns:2;column-gap:28px;font-size:12px}.pr-facts div{break-inside:avoid;padding:2px 0;display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted #ddd}' +
   '.pr-facts b{font-variant-numeric:tabular-nums;white-space:nowrap}ul{font-size:11.5px;margin:4px 0;padding-left:18px}li{margin-bottom:2px}' +
