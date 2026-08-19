@@ -3397,6 +3397,7 @@ function buildPrintReport() {
   grid += '</table><p style="font-size:10.5px;color:#444">✓ = lasts past ' + i.horizon + ' with a cushion · ✓~ = lasts, but thin (close call) · number = age money runs out (within a few years of ' + i.horizon + ' is also a close call) · — = not eligible or not advised · boxed = the plan shown below</p>';
 
   const last = cell.rows[cell.rows.length - 1];
+  const planTag = (i.retired ? 'already retired' : 'retiring at ' + cell.retireAge) + (i.retired && i.ssNow > 0 ? ', Social Security already started' : ', drawing Social Security at ' + cell.claimAge);
   $('printReport').innerHTML =
     '<h1>Route2Retirement — Planning Snapshot</h1>' +
     '<p class="pr-sub">Prepared ' + today + ' · self-reported figures · all amounts are future (nominal) dollars unless noted</p>' +
@@ -3411,9 +3412,9 @@ function buildPrintReport() {
     '<p>' + esc($('orderNote').textContent) + '</p>' +
     ($('rollNote').textContent ? '<p>' + esc($('rollNote').textContent) + '</p>' : '') +
     '<h2>Information provided</h2><div class="pr-facts">' + facts.join('') + '</div>' +
-    '<h2>Pick your combination — every one tested (age money lasts to)</h2>' + grid +
-    '<h2>Your savings over time</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
-    '<h2>Year-by-year numbers (table)</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
+    '<h2>Every combination tested (age money lasts to)</h2>' + grid +
+    '<h2>Your savings over time — ' + planTag + '</h2>' + $('balChart').outerHTML.replace(/ id="balChart"/, '') +
+    '<h2>Year-by-year projection — ' + planTag + '</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
     ($('qcdTable') ? '<h2>Year by year: giving from the IRA vs. from checking</h2><p>Same gift each year either way (' + fmt$(i.qcdYr) + ' in today\'s dollars, rising with inflation). The gift itself is never taxed; the tax columns are the whole tax bill for the year — "from checking" means the money to pay for it came out of ordinary, taxable withdrawals first; "from the IRA" is a qualified charitable distribution that never touches the return.</p>' + $('qcdTable').outerHTML.replace(/ id="qcdTable"/, '') : '') +
     '<h2>What this plan assumes</h2><ul>' + [...document.querySelectorAll('#assumpList li')].map(li => '<li>' + esc(li.textContent) + '</li>').join('') + '</ul>' +
     '<h2>How this compares with OPM\'s Federal Ballpark Estimator (a good cross-check)</h2>' +
