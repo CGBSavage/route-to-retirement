@@ -1170,6 +1170,7 @@
 
       <details class="yeartable">
         <summary>Year-by-year numbers (table)</summary>
+        <p style="margin:0 0 8px"><button type="button" class="ghostbtn" id="printTableBtn">🖨️ Print this table</button> <span class="help" id="printTableNote" style="font-size:14px;color:var(--muted)"></span></p>
         <p class="help" style="font-size:14.5px;color:var(--muted);margin:0 0 8px">Starts this year and runs to the end of the plan. Rows before you retire show your paycheck covering the bills, with what goes into (or comes out of) savings. Balances are what's left at the end of each year, in future dollars.</p>
         <div class="tablewrap"><table class="years" id="yearTable"></table></div>
       </details>
@@ -3514,24 +3515,43 @@ const REPORT_CSS = ':root{--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf
   '.toolbar button{font-size:17px;padding:10px 20px;border-radius:8px;border:1.5px solid #1f4e79;background:#1f4e79;color:#fff;cursor:pointer}' +
   '@media print{.toolbar{display:none}body{margin:0;max-width:none}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
 
-function reportDocHTML() {
+function reportDocHTML(bodyHtml) {
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>Route2Retirement — Report</title><style>' + REPORT_CSS + '</style></head><body>' +
     '<div class="toolbar"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>' +
-    $('printReport').innerHTML +
+    (bodyHtml || $('printReport').innerHTML) +
     '<' + 'script>setTimeout(function(){ try { window.print(); } catch (e) {} }, 500);<' + '/script></body></html>';
 }
+
+// Just the year-by-year table(s) for the selected plan — same headings as the full report.
+function tableOnlyHTML(cell) {
+  const i = INP;
+  const planTag = (i.retired ? 'already retired' : 'retiring at ' + cell.retireAge) + (i.retired && i.ssNow > 0 ? ', Social Security already started' : ', drawing Social Security at ' + cell.claimAge);
+  const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  return '<h1>Route2Retirement — Year-by-year projection</h1>' +
+    '<p class="pr-sub">Prepared ' + today + ' · ' + planTag + ' · self-reported figures · future (nominal) dollars unless noted</p>' +
+    '<h2>Year-by-year projection — ' + planTag + '</h2>' + $('yearTable').outerHTML.replace(/ id="yearTable"/, '') +
+    ($('qcdTable') ? '<h2>Year by year: giving from the IRA vs. from checking</h2>' + $('qcdTable').outerHTML.replace(/ id="qcdTable"/, '') : '') +
+    '<p class="pr-fine">Educational estimate produced with self-reported data — not financial, tax, or investment advice, and not affiliated with USPS, OPM, or SSA. See the full report for the assumptions behind these numbers.</p>';
+}
+
+$('printTableBtn').addEventListener('click', () => { if (SEL) printHtml(tableOnlyHTML(SEL), 'route-to-retirement-year-by-year.html', $('printTableNote')); });
 
 $('printBtn').addEventListener('click', async () => {
   if (!SEL) return;
   buildPrintReport();
-  const note = m => { $('printNote').textContent = m; };
+  printHtml($('printReport').innerHTML, 'route-to-retirement-report.html', $('printNote'));
+});
+
+// Print fallback chain: new tab → downloads capability → window.print (top-level) → on-screen report view.
+async function printHtml(html, filename, noteEl) {
+  const note = m => { if (noteEl) noteEl.textContent = m; };
   // 1) best: open the report in its own tab and print from there
   try {
     const w = window.open('', '_blank');
     const d = w && w.document;             // may throw in a sandboxed frame
     if (d) {
-      d.open(); d.write(reportDocHTML()); d.close();
+      d.open(); d.write(reportDocHTML(html)); d.close();
       note('The report opened in a new tab — print there, or choose "Save as PDF."');
       return;
     }
@@ -3540,7 +3560,7 @@ $('printBtn').addEventListener('click', async () => {
   try {
     const dl = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null;
     if (dl) {
-      await dl.save({ filename: 'route-to-retirement-report.html', data: reportDocHTML() });
+      await dl.save({ filename, data: reportDocHTML(html) });
       note('Report saved to your downloads — open that file, then print it or save as PDF.');
       return;
     }
@@ -3548,12 +3568,12 @@ $('printBtn').addEventListener('click', async () => {
   // 3) opened directly (file copy): the print dialog works — use it
   let embedded = true;
   try { embedded = window.self !== window.top; } catch (e) {}
-  if (!embedded) { window.print(); note(''); return; }
+  if (!embedded) { $('printReport').innerHTML = html; window.print(); note(''); return; }
   // 4) embedded shared page: show the report full-screen instead
-  $('rvBody').innerHTML = $('printReport').innerHTML;
+  $('rvBody').innerHTML = html;
   $('reportView').classList.add('open');
   note('');
-});
+}
 $('rvClose').addEventListener('click', () => { $('reportView').classList.remove('open'); });
 
 loadForm();
