@@ -506,7 +506,7 @@
       <summary>📄 Have your yearly Personal Statement of Benefits? Enter it here — it's the best source for several of these</summary>
       <p class="help" style="margin:4px 0 10px">USPS mails this each year (also on LiteBlue). Type the figures with the labels the statement uses. Blank is fine for anything you don't see.</p>
       <div class="fields" style="padding-bottom:6px">
-        <div class="field"><label for="psbRcd">Retirement computation date (year)</label><div class="inputrow"><input id="psbRcd" type="text" inputmode="numeric" placeholder="2004"></div><div class="help">Front page. This is your career date for FERS.</div></div>
+        <div class="field"><label for="psbRcd">Retirement computation date (year)</label><div class="inputrow"><input id="psbRcd" type="text" inputmode="numeric" placeholder="2004"></div><div class="help">Front page. This is your career date for FERS — it already includes any military or other time you bought back, so leave "years bought back" at 0 when you use it.</div></div>
         <div class="field"><label for="psbPlan">Retirement plan</label><select id="psbPlan"><option value="0.044" selected>FERS-FRAE (hired 2014 or later — you pay 4.4%)</option><option value="0.031">FERS-RAE (hired 2013 — 3.1%)</option><option value="0.008">FERS (hired before 2013 — 0.8%)</option></select></div>
         <div class="field"><label for="psbGross">Gross pay (for the year)</label><div class="inputrow"><span class="prefix">$</span><input id="psbGross" type="text" inputmode="decimal" placeholder="102,273"></div><div class="help">Page 2. Includes overtime — the real annual figure.</div></div>
         <div class="field"><label for="psbRet">Retirement (your contribution, for the year)</label><div class="inputrow"><span class="prefix">$</span><input id="psbRet" type="text" inputmode="decimal" placeholder="3,377"></div><div class="help">Page 2 "Retirement" line — your FERS pension contribution. From it we work out your basic pay for High-3.</div></div>
@@ -549,7 +549,12 @@
       <div class="field work-only">
         <label for="poStart" id="poStartLabel">The year you became a <b>career</b> USPS employee</label>
         <div class="inputrow"><input id="poStart" type="text" inputmode="numeric" placeholder="1998"></div>
-        <div class="help" id="poStartHelp">Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn't add to your years. It's on your SF-50 or in LiteBlue. If you bought back military time, move the year back by those years.</div>
+        <div class="help" id="poStartHelp">Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn't add to your years. It's on your SF-50 or in LiteBlue. Bought-back military or other time goes in the next box, not here.</div>
+      </div>
+      <div class="field work-only">
+        <label for="boughtYrs">Years of service you bought back (military, or other time with a deposit paid)</label>
+        <div class="inputrow"><input id="boughtYrs" type="text" inputmode="decimal" value="0" placeholder="0"><span class="suffix">years</span></div>
+        <div class="help">Only time you've actually made (or will finish making) the deposit for — usually military service, paid through HRSSC (form SF-3108; about 3% of your military base pay, plus interest if you waited). It counts toward eligibility and the pension formula, but not toward the FERS supplement, which is based on civilian years only. If you receive military retired pay, ask HR — you normally have to waive it for the time to count.</div>
       </div>
       <div class="field work-only">
         <label for="salary">Current annual pay (before taxes)</label>
@@ -1385,6 +1390,7 @@ function readInputs() {
     retYear: numOr('retYear', CUR_YEAR), penNow: numOr('penNow', 0), suppNow: numOr('suppNow', 0), ssNow: num('ssNow'),
     curAge: num('curAge'),
     yos: retired ? Math.max(0, numOr('retYear', CUR_YEAR) - numOr('poStart', numOr('retYear', CUR_YEAR) - 20)) + (CUR_YEAR - numOr('retYear', CUR_YEAR)) : CUR_YEAR - num('poStart'),
+    boughtYrs: retired ? 0 : numOr('boughtYrs', 0),
     salary: retired ? 0 : num('salary'),
     takeHome: $('takeHomeUnit').value === 'pp' ? num('takeHome') * 26 / 12 : num('takeHome'),   // NaN when blank; per-paycheck → monthly
     high3: retired ? 0 : numOr('high3', num('salary')),
@@ -1510,14 +1516,15 @@ function pensionInfo(inp, retireAge) {
     return { yosR: inp.yos, high3R: 0, mult: 0, gross: inp.penNow * 12, net: inp.penNow * 12, eligible: true,
              suppEligible: inp.suppNow > 0, suppMo: inp.suppNow, retired: true };
   }
-  const yosR = inp.yos + (retireAge - inp.curAge);
+  const yosR = inp.yos + (inp.boughtYrs || 0) + (retireAge - inp.curAge);   // bought-back time counts for eligibility and the formula
+  const suppYrs = yosR - (inp.boughtYrs || 0);                          // ...but the supplement uses civilian FERS years only
   const high3R = inp.high3 * Math.pow(1 + inp.salGrowth, Math.max(0, retireAge - inp.curAge));
   const mult = (retireAge >= 62 && yosR >= 20) ? 0.011 : 0.01;
   const yosCalc = yosR + (inp.sickHrs || 0) / 2087;          // sick leave counts for the computation, not eligibility
   const gross = mult * high3R * yosCalc;
   const eligible = (retireAge >= 62 && yosR >= 5) || (retireAge >= 60 && yosR >= 20) || (retireAge >= 57 && yosR >= 30);
   const suppEligible = retireAge < 62 && ((retireAge >= 57 && yosR >= 30) || (retireAge >= 60 && yosR >= 20));
-  const suppMo = isNaN(inp.suppOverride) ? inp.ss62 * Math.min(yosR, 40) / 40 : inp.suppOverride;
+  const suppMo = isNaN(inp.suppOverride) ? inp.ss62 * Math.min(suppYrs, 40) / 40 : inp.suppOverride;
   return { yosR, yosCalc, high3R, mult, gross, net: gross * (1 - inp.survivor), eligible, suppEligible, suppMo };
 }
 
@@ -2479,6 +2486,7 @@ function renderTable(cell) {
 function renderAssumptions(cell) {
   const p = cell.pen, i = INP;
   const items = [
+    (i.boughtYrs > 0 && !p.retired) ? 'Bought-back service (' + i.boughtYrs + ' years, deposit paid) is added to your career years for eligibility and the pension formula, but not for the FERS supplement (civilian FERS years only).' : null,
     (i.sickHrs > 0 && !p.retired) ? 'Unused sick leave (' + Math.round(i.sickHrs).toLocaleString() + ' hours ≈ ' + (i.sickHrs / 2087).toFixed(2) + ' years) is added to your service for the pension computation (not for eligibility).' : null,
     (i.alPayout > 0 && !p.retired) ? 'Your unused annual leave (' + fmt$(i.alPayout) + ' today) is paid out as a taxable lump sum in the year you retire and lands in other savings.' : null,
     p.retired ? 'FERS pension as entered: ' + fmt$(p.net) + '/yr' + (p.suppEligible ? ' plus the supplement of ' + fmt$(p.suppMo) + '/mo until 62' : '') + '. COLA ' + (i.fersCola*100).toFixed(1) + '%/yr from here on (from 62 if you\'re younger).' :
@@ -2594,7 +2602,7 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spRothContrib','spRothStart','spPenMo','spPenWhen','spPenAge','spPenCola',
                   'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
-                  'drawOrder','fehbMo','partB','qcdYr','convMode','convBracket','convAmt','convWhen','convFrom','convTo','sickHrs','alPayout','partBCredit',
+                  'drawOrder','fehbMo','partB','qcdYr','convMode','convBracket','convAmt','convWhen','convFrom','convTo','sickHrs','alPayout','partBCredit','boughtYrs',
                   'psbRcd','psbPlan','psbGross','psbRet','psbHealth','psbTsp','psbSick','psbAL','psbEligDate','psbService'];
 function saveForm() {
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
@@ -2725,7 +2733,7 @@ function renderSummary() {
   const careerYr = CUR_YEAR - inp.yos;
   const yosOk = !isNaN(inp.yos) && inp.yos < 60 && inp.yos > -16;
   if (!inp.retired) {
-    row('Career service', yosOk ? (inp.yos > 0 ? inp.yos + ' yrs (career since ' + careerYr + ')' : inp.yos === 0 ? 'starts this year' : 'starts ' + careerYr + ' (not career yet)') : need, !yosOk);
+    row('Career service', yosOk ? (inp.yos > 0 ? inp.yos + ' yrs (career since ' + careerYr + ')' + (inp.boughtYrs > 0 ? ' + ' + inp.boughtYrs + ' bought back' : '') : inp.yos === 0 ? 'starts this year' : 'starts ' + careerYr + ' (not career yet)') : need, !yosOk);
     row('Current pay', ok(inp.salary) ? fmt$(inp.salary) + '/yr' + (inp.takeHome > 0 ? ' · take-home ' + fmt$(inp.takeHome) + '/mo' : '') : need, !ok(inp.salary));
     row('High-3 salary', ok(inp.high3) ? fmt$(inp.high3) : need, !ok(inp.high3));
   }
@@ -3058,7 +3066,7 @@ function setPath(which) {
   $('poStartLabel').innerHTML = notCareer ? 'The year you <b>expect to become</b> a career USPS employee' : 'The year you became a <b>career</b> USPS employee';
   $('poStartHelp').textContent = notCareer
     ? 'Your best guess for the conversion year. FERS years and TSP contributions both start then (time as a CCA, RCA, or PSE before that doesn\'t count toward the pension).'
-    : 'Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn\'t add to your years. It\'s on your SF-50 or in LiteBlue. If you bought back military time, move the year back by those years.';
+    : 'Career is the date that counts for the FERS pension and TSP — time as a CCA, RCA, or PSE before conversion doesn\'t add to your years. It\'s on your SF-50 or in LiteBlue. Bought-back military or other time goes in the next box, not here.';
   $('poStart').placeholder = notCareer ? String(CUR_YEAR + 1) : '1998';
   // step 2 reads as a plan for people not yet in TSP
   $('tspBalLabel').textContent = notCareer ? 'TSP balance today (0 until you\'re career)' : 'TSP balance today';
@@ -3223,7 +3231,11 @@ $('psbApply').addEventListener('click', () => {
   const fire = id => { $(id).dispatchEvent(new Event('input', { bubbles: true })); $(id).dispatchEvent(new Event('change', { bubbles: true })); };
   const done = [], checks = [];
   const rcd = num('psbRcd'), rate = parseFloat($('psbPlan').value), gross = numOr('psbGross', 0), ret = numOr('psbRet', 0), health = numOr('psbHealth', 0), tsp = num('psbTsp'), sick = numOr('psbSick', 0), al = numOr('psbAL', 0), elig = num('psbEligDate'), svc = num('psbService');
-  if (rcd >= 1950 && rcd <= CUR_YEAR) { $('poStart').value = String(rcd); fire('poStart'); done.push('career year ' + rcd); }
+  if (rcd >= 1950 && rcd <= CUR_YEAR) {
+    $('poStart').value = String(rcd); fire('poStart'); done.push('career year ' + rcd);
+    // The RCD already has any deposit-paid military/temp time folded in — don't count it twice.
+    if (numOr('boughtYrs', 0) > 0) { $('boughtYrs').value = '0'; fire('boughtYrs'); done.push('years bought back set to 0 (your RCD already includes that time; note the tool will then count it toward the supplement too — a small overstatement)'); }
+  }
   if (gross > 0) { $('salary').value = Math.round(gross).toLocaleString('en-US'); fire('salary'); done.push('annual pay ' + fmt$(Math.round(gross))); }
   if (ret > 0 && rate > 0) { const basic = Math.round(ret / rate); if (basic > 0 && (gross === 0 || basic <= gross * 1.05)) { $('high3').value = basic.toLocaleString('en-US'); fire('high3'); done.push('basic pay ≈ ' + fmt$(basic) + '/yr (from your ' + (rate * 100).toFixed(1) + '% FERS contribution) → High-3'); } }
   if (health > 0) { $('fehbUnit').value = 'mo'; $('fehbMo').value = Math.round(health / 12).toLocaleString('en-US'); fire('fehbUnit'); fire('fehbMo'); done.push('health premium ' + fmt$(Math.round(health / 12)) + '/mo'); }
@@ -3233,7 +3245,7 @@ $('psbApply').addEventListener('click', () => {
   // cross-checks
   try {
     const inp = readInputs();
-    if (!isNaN(svc) && !isNaN(inp.yos)) checks.push('creditable service: statement ' + svc.toFixed(1) + ' yrs vs. this tool ' + inp.yos.toFixed(1) + ' yrs' + (Math.abs(svc - inp.yos) > 1.2 ? ' — <b>they differ; check the career year</b>' : ' ✓'));
+    if (!isNaN(svc) && !isNaN(inp.yos)) checks.push('creditable service: statement ' + svc.toFixed(1) + ' yrs vs. this tool ' + (inp.yos + inp.boughtYrs).toFixed(1) + ' yrs' + (Math.abs(svc - inp.yos - inp.boughtYrs) > 1.2 ? ' — <b>they differ; check the career year</b>' : ' ✓'));
     if (!isNaN(elig)) {
       let firstAge = null;
       for (let a = inp.curAge; a <= 70; a++) { if (pensionInfo(inp, a).eligible) { firstAge = a; break; } }
@@ -3340,7 +3352,7 @@ function buildPrintReport() {
   const add = (l, v) => facts.push('<div><span>' + esc(l) + '</span><b>' + esc(v) + '</b></div>');
   add('Age today', i.curAge);
   if (i.retired) { add('Retired in', i.retYear); add('FERS pension now', fmt$(i.penNow) + '/mo' + (i.suppNow > 0 ? ' + supplement ' + fmt$(i.suppNow) + '/mo' : '')); if (i.ssNow > 0) add('Social Security now', fmt$(i.ssNow) + '/mo'); }
-  if (!i.retired) add('Career USPS since', (CUR_YEAR - i.yos) + (i.yos > 0 ? ' (' + i.yos + ' yrs so far)' : ' (not career yet)'));
+  if (!i.retired) add('Career USPS since', (CUR_YEAR - i.yos) + (i.yos > 0 ? ' (' + i.yos + ' yrs so far)' : ' (not career yet)') + (i.boughtYrs > 0 ? ' + ' + i.boughtYrs + ' yrs bought back' : ''));
   if (!i.retired) add('Current annual pay', fmt$(i.salary) + (i.takeHome > 0 ? ' (take-home ' + fmt$(i.takeHome) + '/mo)' : ''));
   if (i.spendNow > 0) add('Spending now (while working)', fmt$(i.spendNow) + '/mo');
   add('High-3 average salary', fmt$(i.high3));
