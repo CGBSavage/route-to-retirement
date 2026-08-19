@@ -2526,12 +2526,14 @@ function renderTable(cell) {
     (showDebt ? '<th>Debt left</th><th>Net worth</th>' : '') + '</tr></thead><tbody>';
   const milestone = txt => '<tr class="milestone"><td colspan="' + cols + '">' + txt + '</td></tr>';
   let retMarked = false, spMarked = false, spRetYear = null;
+  const lastWorkRow = [...cell.rows].reverse().find(r => r.working) || null;   // balances you retire with
   if (hasSp && INP.spTakeHome > 0 && INP.spRetireAge > INP.spAge) spRetYear = CUR_YEAR + (INP.spRetireAge - INP.spAge);
   for (const r of cell.rows) {
     if (spRetYear !== null && !spMarked && r.year >= spRetYear) { spMarked = true; html += milestone('▶ Your ' + spName + ' stops working (' + spRetYear + ', their age ' + INP.spRetireAge + ')'); }
     if (!r.working && !retMarked) { retMarked = true; html += milestone(INP.retired
       ? '▶ Already retired — the plan starts ' + r.year + ', age ' + r.age + (INP.ssNow > 0 ? ' · Social Security already started' : cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')
-      : '▶ You retire — ' + r.year + ', age ' + r.age + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')); }
+      : '▶ You retire — ' + r.year + ', age ' + r.age + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now') +
+        (lastWorkRow ? ' · going in with TSP ' + fmt$(lastWorkRow.ownTsp) + (lastWorkRow.other > 0 ? ' and other savings ' + fmt$(lastWorkRow.other) : '') + ' (before this year\'s withdrawals)' : '')); }
     const spAgeTxt = hasSp ? ' <small>(' + (INP.spAge + r.age - INP.curAge) + ')</small>' : '';
     const isConv = showConv && r.conv > 1;
     const convTax = (isConv && baseTax && baseTax.has(r.year)) ? Math.max(0, r.tax - baseTax.get(r.year)) : null;
