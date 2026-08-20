@@ -2151,6 +2151,19 @@ function rothMax(age) { return age >= 50 ? 8600 : 7500; }   // 2026 IRS limits �
 function todayDollars(amt) { const yrs = INP.horizon - INP.curAge; return amt / Math.pow(1 + INP.inflation, yrs); }
 function endBalText(amt) { return fmt$(amt) + ' (about ' + fmt$(todayDollars(amt)) + ' in today\'s dollars)'; }
 // Knife-edge note: the earliest passing plan is one working year away from a failing one.
+// For young planners: a 30- or 40-year forecast is a compass, not a map — say so plainly,
+// then hand them one concrete, encouraging number to hold onto.
+function distanceNote(best) {
+  const yrs = best.retireAge - INP.curAge;
+  if (INP.retired || yrs < 25) return '';
+  let milestone = '';
+  for (const target of [1000000, 500000]) {
+    const hit = best.rows.find(r => r.total / Math.pow(1 + INP.inflation, r.t) >= target);
+    if (hit) { milestone = ' But just for the record: with this plan you could have <b>' + (target === 1000000 ? '$1 million' : '$500,000') + ' in today\'s dollars by ' + hit.year + '</b> (age ' + hit.age + ').'; break; }
+  }
+  return '<p class="compare">📏 <b>A word about distance:</b> this plan looks ' + yrs + ' years ahead. Numbers that far out are our best effort at a forecast, not a prediction — small differences in raises, returns, inflation, and Social Security law compound over decades, and our assumptions deliberately lean conservative (your Social Security estimate is used as-is, with no growth between now and claiming, which understates it for someone your age). What holds up at this distance is the <i>habits</i>: the saving rate, the Roth start, the spending level. Come back and re-run this every year or two as real numbers replace estimates.' + milestone + '</p>';
+}
+
 function knifeEdgeHtml(best) {
   if (!best || !best.ok || INP.retired) return '';
   const row = GRID.rows.find(r => r.retireAge === best.retireAge - 1);
@@ -2172,7 +2185,7 @@ function renderVerdict(best) {
         ? '<p class="big">With your pension as it is' + (INP.ssNow > 0 ? ' and Social Security already started' : ', <b>starting Social Security at ' + best.claimAge + '</b> works best') + '. Your money lasts past age '
         : '<p class="big">The earliest plan that holds up: <b>' + (best.deferred ? 'stop working at USPS at ' + best.retireAge + '</b> (savings carry you; the FERS pension starts at 62)' : 'retire at ' + best.retireAge + '</b>') +
       ' and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ') +
-      INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings (about ' + fmt$(todayDollars(best.endBal)) + ' in today\'s dollars).</p>' + knifeEdgeHtml(best) +
+      INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings (about ' + fmt$(todayDollars(best.endBal)) + ' in today\'s dollars).</p>' + knifeEdgeHtml(best) + distanceNote(best) +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
       '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
       rothImpactHtml(best) + hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) + checkHtml;
@@ -2583,6 +2596,7 @@ function renderTable(cell) {
 function renderAssumptions(cell) {
   const p = cell.pen, i = INP;
   const items = [
+    (!i.retired && cell.retireAge - i.curAge >= 25) ? 'This plan looks ' + (cell.retireAge - i.curAge) + ' years ahead. At that distance these numbers are a best-effort forecast, not a prediction — treat them as a compass for comparing habits and choices, re-check yearly, and know the assumptions here deliberately lean conservative (your Social Security estimate gets no growth between now and claiming, which understates it for a young planner).' : null,
     (i.boughtYrs > 0 && !p.retired) ? 'Bought-back service (' + i.boughtYrs + ' years, deposit paid) is added to your career years for eligibility and the pension formula, but not for the FERS supplement (civilian FERS years only).' : null,
     (i.sickHrs > 0 && !p.retired) ? 'Unused sick leave (' + Math.round(i.sickHrs).toLocaleString() + ' hours ≈ ' + (i.sickHrs / 2087).toFixed(2) + ' years) is added to your service for the pension computation (not for eligibility).' : null,
     (i.alPayout > 0 && !p.retired) ? 'Your unused annual leave (' + fmt$(i.alPayout) + ' today) is paid out as a taxable lump sum in the year you retire and lands in other savings.' : null,
