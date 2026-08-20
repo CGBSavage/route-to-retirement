@@ -3626,7 +3626,7 @@ function demoLoad(kind) {
   $('demoBanner').innerHTML = '🧪 <b>This is a made-up example:</b> ' + d.who + '. Every number is fictional — change anything above and press the button again to see what it does.' +
     (stashed ? ' Your own entries were tucked away safely — bring them back under <a href="#privacy">Privacy &amp; terms</a>.' : '');
   $('goBtn').click();
-  setTimeout(() => { try { $('verdict').scrollIntoView({ behavior: 'smooth' }); } catch (e) {} }, 350);
+  setTimeout(() => { try { $('preSummary').scrollIntoView({ behavior: 'smooth' }); } catch (e) {} }, 350);
 }
 $('demoNotCareer').addEventListener('click', () => demoLoad('casey'));
 $('demoCarrier').addEventListener('click', () => demoLoad('pat'));
