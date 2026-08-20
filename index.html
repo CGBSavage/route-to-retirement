@@ -2188,7 +2188,7 @@ function renderVerdict(best) {
       INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings (about ' + fmt$(todayDollars(best.endBal)) + ' in today\'s dollars).</p>' + knifeEdgeHtml(best) + distanceNote(best) +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
       '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
-      rothImpactHtml(best) + hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) + checkHtml;
+      rothImpactHtml(best) + (best.retireAge >= 63 ? hustleHtml(INP, earlierPlan(GRID, best), 'Want out a year sooner? Everyone has a side hustle these days:', false) : '') + checkHtml;
   } else if (best) {
     const preRet = best.lastsTo < best.retireAge;
     v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
@@ -2196,7 +2196,7 @@ function renderVerdict(best) {
       '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>' +
       (preRet ? ' — <b>before you even retire</b>. Your take-home doesn\'t cover today\'s spending, loan payments, and cash purchases, and other savings run dry making up the difference (nothing comes out of TSP before retirement).' : '.') + '</p>' +
       '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>' +
-      rothImpactHtml(best) + hustleHtml(INP, cheapestFix(INP, GRID.rows.find(r => r.retireAge === best.retireAge)), 'Everyone has a side hustle these days —', true) + checkHtml;
+      rothImpactHtml(best) + (best.retireAge >= 63 ? hustleHtml(INP, cheapestFix(INP, GRID.rows.find(r => r.retireAge === best.retireAge)), 'Everyone has a side hustle these days —', true) : '') + checkHtml;
   } else {
     v.innerHTML = '<h2>No eligible combinations found.</h2><p>Check your age and years of service — FERS immediate retirement needs age 62 with 5 years, 60 with 20, or 57 with 30; leaving earlier on savings is modeled from age 55 with 5 years of service.</p>';
   }
