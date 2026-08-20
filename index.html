@@ -3593,10 +3593,10 @@ SAVE_IDS.forEach(id => { const el = $(id); FORM_DEFAULTS[id] = el ? el.value : '
 const DEMOS = {
   casey: {
     path: 'notcareer', taxOn: false, fehbOn: true,
-    who: 'Casey, 28 — a postal support employee (clerk craft) already working about 36 hours a week at $24/hr (≈ $45,000/yr — a deliberately conservative figure, with raises growing it 2%/yr), expecting to convert to career in ' + (CUR_YEAR + 4) + '. Casey puts 10% into TSP from the first career day, has always put the IRS maximum into a Roth IRA ($7,500 in 2026), carries a self-only health plan (estimated $180/mo as his share) all the way into retirement with Medicare Part B added at 65, and — thanks to some unusual circumstances — lives on about $2,000 a month (try raising the later stage-of-life spending boxes in step 4 to see what happens when that changes)',
+    who: 'Casey, 28 — a postal support employee (clerk craft) already working about 36 hours a week at $24/hr (≈ $45,000/yr — a deliberately conservative figure, with raises growing it 2%/yr), expecting to convert to career in ' + (CUR_YEAR + 4) + '. Casey puts 10% into TSP from the first career day, has always put the IRS maximum into a Roth IRA ($7,500 in 2026), and carries a self-only health plan (estimated $180/mo as his share) all the way into retirement, with Medicare Part B added at 65',
     fields: { curAge: '28', poStart: String(CUR_YEAR + 4), tspStart: String(CUR_YEAR + 4), salary: '45,000', tspPct: '10',
               rothBal: '15,000', rothIRA: '7,500', rothStart: String(CUR_YEAR - 2), otherBal: '2,000', otherContrib: '500',
-              ssFRA: '2,200', ss62: '1,540', ss70: '2,730', spendMo: '2,000', debtCarBal: '9,000', debtCarMo: '250',
+              ssFRA: '2,200', ss62: '1,540', ss70: '2,730', spendMo: '3,000', debtCarBal: '9,000', debtCarMo: '250',
               fehbMo: '180' }
   },
   pat: {
