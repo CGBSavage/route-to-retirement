@@ -495,7 +495,7 @@
     <div class="anchor" id="dpCard" hidden></div>
     <div style="padding:2px 0 8px">
       <span class="help" style="display:block;margin:0 0 8px">Just looking? Load a <b>made-up example</b> and watch the whole tool work — anything you've typed is kept safe and can be brought back:</span>
-      <button type="button" class="ghostbtn" id="demoNotCareer">🧪 Example: CCA, 4 years from career</button>
+      <button type="button" class="ghostbtn" id="demoNotCareer">🧪 Example: PSE clerk, 4 years from career</button>
       <button type="button" class="ghostbtn" id="demoCarrier" style="margin-left:8px">🧪 Example: letter carrier, 25 years in</button>
     </div>
   </section>
@@ -3593,10 +3593,10 @@ SAVE_IDS.forEach(id => { const el = $(id); FORM_DEFAULTS[id] = el ? el.value : '
 const DEMOS = {
   casey: {
     path: 'notcareer', taxOn: false,
-    who: 'Casey, 28 — a city carrier assistant working close to full time, expecting to convert to career in ' + (CUR_YEAR + 4) + ', already putting a little into a Roth IRA',
-    fields: { curAge: '28', poStart: String(CUR_YEAR + 4), tspStart: String(CUR_YEAR + 4), salary: '42,000', tspPct: '5',
-              rothBal: '500', rothIRA: '1,000', rothStart: String(CUR_YEAR), otherBal: '2,000', otherContrib: '500',
-              ssFRA: '2,000', ss62: '1,400', ss70: '2,480', spendMo: '3,200', debtCarBal: '9,000', debtCarMo: '250' }
+    who: 'Casey, 28 — a postal support employee (clerk craft) already working 40 hours a week, expecting to convert to career in ' + (CUR_YEAR + 4) + '. The pay entered is career clerk pay (raises grow it 2%/yr from there). Casey puts 10% into TSP from the first career day and has always put the IRS maximum into a Roth IRA ($7,500 in 2026)',
+    fields: { curAge: '28', poStart: String(CUR_YEAR + 4), tspStart: String(CUR_YEAR + 4), salary: '48,000', tspPct: '10',
+              rothBal: '15,000', rothIRA: '7,500', rothStart: String(CUR_YEAR - 2), otherBal: '2,000', otherContrib: '500',
+              ssFRA: '2,200', ss62: '1,540', ss70: '2,730', spendMo: '3,200', debtCarBal: '9,000', debtCarMo: '250' }
   },
   pat: {
     path: 'working', taxOn: true,
