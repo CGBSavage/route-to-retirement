@@ -3633,8 +3633,9 @@ const DEMOS = {
     path: 'notcareer', taxOn: false, fehbOn: true,
     fields: { curAge: '26', poStart: String(CUR_YEAR + 4), tspStart: String(CUR_YEAR + 4), salary: '45,000', tspPct: '10',
               rothBal: '0', rothIRA: '7,500', rothStart: String(CUR_YEAR), otherBal: '2,000', otherContrib: '500',
-              ssFRA: '2,200', ss62: '1,540', ss70: '2,730', spendMo: '3,000',
-              otherRet: '7', fehbMo: '180' }
+              spendMo: '3,000',
+              otherRet: '7', fehbMo: '180' },
+    estimateSS: true
   },
   pat: {
     path: 'working', taxOn: true,
@@ -3658,6 +3659,8 @@ function demoLoad(kind) {
     { path: d.path, demo: kind, purchRows: 4, debtRows: 0, invRows: 0,
       hasSpouse: false, taxOn: d.taxOn, pen2TaxFree: false, fehbOn: !!d.fehbOn, qcdInSpend: true });
   try { applyForm(o); } catch (e) {}
+  // young demo: no invented Social Security numbers — use the tool's own estimate-from-pay button
+  if (d.estimateSS) { try { $('estSS').click(); } catch (e) {} }
   $('demoBanner').hidden = false;
   $('demoBanner').innerHTML = '🧪 <b>This is a made-up example.</b> Every number is fictional — look through the steps above to see what was entered, change anything, and press the button again to see what it does.' +
     (stashed ? ' Your own entries were tucked away safely — bring them back under <a href="#privacy">Privacy &amp; terms</a>.' : '');
