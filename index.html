@@ -299,6 +299,7 @@
   }
   .cell.sel { outline: 3px solid var(--accent); outline-offset: 0; }
   .cell.na { background: var(--surface-2); color: var(--muted); cursor: help; font-weight: 400; }
+  .cell.defer { background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(127,127,127,0.22) 6px 8px); }
   .cell.ok { background: var(--good-wash); }
   .cell.warn { background: var(--warning-wash); }
   .cell.serious { background: var(--serious-wash); }
@@ -1054,6 +1055,11 @@
           <option value="no">No — I'm exempt (64+ on Jan 1, 2025 / retired by then), or still working at 65</option>
         </select>
       </div>
+      <div class="field fehb-dep">
+        <label for="ownInsMo">If you leave USPS before pension age: your own insurance, per month</label>
+        <div class="inputrow"><span class="prefix">$</span><input id="ownInsMo" type="text" inputmode="numeric" value="700"></div>
+        <div class="help">Only used in "stop working early" plans (striped boxes in the grid). Leaving before an immediate pension means FEHB/PSHB can't continue into retirement, so from then until Medicare at 65 the plan charges this instead (today's dollars, rising with medical inflation). $700/mo is a rough single-person marketplace figure — put in a real quote if you have one.</div>
+      </div>
       <div class="field" style="grid-column:1 / -1">
         <h3 class="subhead" style="margin-top:6px">Roth conversions &amp; IRA rollovers <button type="button" class="infobtn" data-info="rollover" aria-label="Where to find more information" title="Where to go for more">i</button></h3>
         <div class="help">Two moves worth understanding, especially in the <b>low-income years between retiring and starting Social Security</b>: (1) a <b>Roth conversion</b> — move some TSP money into a Roth IRA, pay tax on it now at a low bracket, and it (and everything it earns) is tax-free forever, with no required withdrawals; (2) a plain <b>rollover to a traditional IRA</b>, which is tax-free and is what makes charitable giving straight from retirement money possible (TSP can't do that; an IRA can). The plan below compares each with and without, in dollars.</div>
@@ -1149,6 +1155,7 @@
         <span><span class="chip" style="background:var(--serious-wash)"></span>Runs out in your 80s or early 90s</span>
         <span><span class="chip" style="background:var(--critical-wash)"></span>Runs out before 80</span>
         <span><span class="chip" style="background:var(--surface-2);border:1px solid var(--hairline)"></span>— Not eligible / not advised</span>
+        <span id="defLegend" hidden><span class="chip" style="background:var(--good-wash);background-image:repeating-linear-gradient(45deg,transparent 0 4px,var(--hairline) 4px 6px)"></span>Striped = stop working at USPS early — savings carry you, the FERS pension waits until 62, and health insurance doesn't come along (details below the grid)</span>
       </div>
     </section>
 
@@ -1496,7 +1503,7 @@ function readInputs() {
     taxOn: $('taxOn').checked,
     stateRate: numOr('stateRate', 0) / 100,
     rothPct: 0,   // (retired input — Roth balances are entered directly now)
-    fehbOn: $('fehbOn').checked, fehbMo: $('fehbUnit').value === 'pp' ? numOr('fehbMo', 0) * 26 / 12 : numOr('fehbMo', 0), partB: $('partB').value !== 'no', medInfl: 0.05,
+    fehbOn: $('fehbOn').checked, fehbMo: $('fehbUnit').value === 'pp' ? numOr('fehbMo', 0) * 26 / 12 : numOr('fehbMo', 0), partB: $('partB').value !== 'no', medInfl: 0.05, ownInsMo: numOr('ownInsMo', 700),
     partBCredit: numOr('partBCredit', 0),
     qcdYr: numOr('qcdYr', 0), qcdInSpend: $('qcdInSpend').checked,
     convMode: $('convMode').value, convAmt: numOr('convAmt', 0), convBracket: parseFloat($('convBracket').value) || 0.12,
@@ -1580,6 +1587,15 @@ function pensionInfo(inp, retireAge) {
   const eligible = (retireAge >= 62 && yosR >= 5) || (retireAge >= 60 && yosR >= 20) || (retireAge >= 57 && yosR >= 30);
   const suppEligible = retireAge < 62 && ((retireAge >= 57 && yosR >= 30) || (retireAge >= 60 && yosR >= 20));
   const suppMo = isNaN(inp.suppOverride) ? inp.ss62 * Math.min(suppYrs, 40) / 40 : inp.suppOverride;
+  // Leaving USPS before an immediate pension (from 55, with 5+ years): the pension is DEFERRED —
+  // frozen at separation (no sick-leave credit), starts at 62 (1.1% applies there with 20+ yrs),
+  // no FERS supplement, and FEHB/PSHB does not continue into retirement. Savings bridge the gap.
+  if (!eligible && retireAge >= 55 && yosR >= 5) {
+    const multD = yosR >= 20 ? 0.011 : 0.01;
+    const grossD = multD * high3R * yosR;
+    return { yosR, yosCalc: yosR, high3R, mult: multD, gross: grossD, net: grossD * (1 - inp.survivor),
+             eligible: false, deferred: true, suppEligible: false, suppMo: 0 };
+  }
   return { yosR, yosCalc, high3R, mult, gross, net: gross * (1 - inp.survivor), eligible, suppEligible, suppMo };
 }
 
@@ -1640,7 +1656,7 @@ function simulate(inp, retireAge, claimAge, order) {
     let earnCut = (!working && age < FRA && spInc > earnLimit) ? (spInc - earnLimit) / 2 : 0;
     let supp = (!working && pen.suppEligible && age < 62) ? pen.suppMo * 12 : 0;
     // (already retired: pension already reflects past COLAs, so raises count only from now, and only from 62)
-    const pension = !working ? pen.net * Math.pow(1 + inp.fersCola, Math.max(0, age - Math.max(62, inp.retired ? inp.curAge : 0))) : 0;
+    const pension = (!working && (!pen.deferred || age >= 62)) ? pen.net * Math.pow(1 + inp.fersCola, Math.max(0, age - Math.max(62, inp.retired ? inp.curAge : 0))) : 0;
     let mySS = (inp.retired && inp.ssNow > 0) ? inp.ssNow * 12 * Math.pow(1 + inp.ssCola, t)
              : age >= claimAge ? ssAnnualAtClaim * Math.pow(1 + inp.ssCola, age - claimAge) : 0;
     if (earnCut > 0) { const c1 = Math.min(supp, earnCut); supp -= c1; earnCut -= c1; const c2 = Math.min(mySS, earnCut); mySS -= c2; earnCut -= c2; }
@@ -1679,7 +1695,9 @@ function simulate(inp, retireAge, claimAge, order) {
     let health = 0;
     if (!working && inp.fehbOn) {
       const med = Math.pow(1 + inp.medInfl, t);
-      health = inp.fehbMo * 12 * med;
+      // left before an immediate pension: FEHB/PSHB can't come along — own insurance until Medicare,
+      // then Part B plus a supplement costed like the entered premium share
+      health = (pen.deferred && age < 65 ? inp.ownInsMo : inp.fehbMo) * 12 * med;
       if (inp.partB) {
         const partBNet = Math.max(0, 203 * 12 - inp.partBCredit) * med;   // Part B less any plan credit, per person
         if (age >= 65) health += partBNet;
@@ -1861,7 +1879,7 @@ function simulate(inp, retireAge, claimAge, order) {
                 tsp: tsp + sp401k, ownTsp: tsp, sp401k, other, roth, rothMine, rothSp, taxb, buckets: buckets.map(b => b.bal),
                 total: tsp + sp401k + other, netWorth: tsp + sp401k + other - debtLeft });
   }
-  return { rows, runout, endBal: tsp + sp401k + other, pen, order, payoffSkipped,
+  return { rows, runout, endBal: tsp + sp401k + other, pen, order, payoffSkipped, deferred: !!pen.deferred,
            lastsTo: runout === null ? inp.horizon : runout,
            ok: runout === null, retireAge, claimAge };
 }
@@ -1880,7 +1898,7 @@ function buildGrid(inp) {
   for (let r = retStart; r <= retEnd; r++) {
     const pen = pensionInfo(inp, r);
     const cols = claimAges.map(c => {
-      if (!pen.eligible) return { na: 'At ' + r + ' you would not yet qualify for an immediate unreduced FERS pension (needs 62 with 5 yrs, 60 with 20 yrs, or 57 with 30 yrs). Ask HR about MRA+10 options.' };
+      if (!pen.eligible && !pen.deferred) return { na: 'At ' + r + ' you would not yet qualify for an immediate unreduced FERS pension (needs 62 with 5 yrs, 60 with 20 yrs, or 57 with 30 yrs)' + (r < 55 ? ', and this tool models leaving USPS on savings only from 55 (that is when TSP can be tapped penalty-free after separating). Ask HR about MRA+10 options.' : '. Ask HR about MRA+10 options.') };
       if (c < r && c < FRA) return { na: 'Claiming at ' + c + ' while still working usually backfires — the Social Security earnings test withholds most of the benefit until age 67.' };
       return simulate(inp, r, c);
     });
@@ -1943,8 +1961,9 @@ function renderGrid(grid) {
       } else {
         const tier = cellTier(cell);
         b.classList.add(tier);
+        if (cell.deferred) b.classList.add('defer');
         b.textContent = cell.ok ? (tier === 'ok' ? '✓ ' + INP.horizon + '+' : '✓ close') : String(cell.lastsTo);
-        b.title = 'Retire at ' + cell.retireAge + ', claim at ' + cell.claimAge +
+        b.title = (cell.deferred ? 'Stop working at USPS at ' + cell.retireAge + ' (savings carry you; FERS pension starts at 62), claim at ' : 'Retire at ' + cell.retireAge + ', claim at ') + cell.claimAge +
                   (cell.ok ? (tier === 'ok' ? ' — lasts past ' + INP.horizon + ' with a cushion' : ' — lasts past ' + INP.horizon + ', but with only a thin cushion (' + fmt$(todayDollars(cell.endBal)) + ' in today\'s dollars): a close call')
                            : (tier === 'warn' ? ' — runs out at ' + cell.lastsTo + ', within a few years of ' + INP.horizon + ': a close call' : ' — money runs out at ' + cell.lastsTo));
         b.addEventListener('click', () => selectScenario(cell));
@@ -1954,6 +1973,8 @@ function renderGrid(grid) {
     });
   }
   const wrap = $('gridwrap'); wrap.innerHTML = ''; wrap.appendChild(t);
+  const anyDef = grid.rows.some(r => r.cols.some(c => c.deferred));
+  const dl = $('defLegend'); if (dl) dl.hidden = !anyDef;
 }
 
 // Rough monthly take-home from the pay figures: gross − employee TSP − FICA − federal/state
@@ -2149,8 +2170,8 @@ function renderVerdict(best) {
     v.innerHTML = '<h2>Good news — the numbers can work. ✓</h2>' +
       (INP.retired
         ? '<p class="big">With your pension as it is' + (INP.ssNow > 0 ? ' and Social Security already started' : ', <b>starting Social Security at ' + best.claimAge + '</b> works best') + '. Your money lasts past age '
-        : '<p class="big">The earliest plan that holds up: <b>retire at ' + best.retireAge +
-      '</b> and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ') +
+        : '<p class="big">The earliest plan that holds up: <b>' + (best.deferred ? 'stop working at USPS at ' + best.retireAge + '</b> (savings carry you; the FERS pension starts at 62)' : 'retire at ' + best.retireAge + '</b>') +
+      ' and <b>start Social Security at ' + best.claimAge + '</b>. Your money lasts past age ') +
       INP.horizon + ' with about <b>' + fmt$(best.endBal) + '</b> still in savings (about ' + fmt$(todayDollars(best.endBal)) + ' in today\'s dollars).</p>' + knifeEdgeHtml(best) +
       '<p>That\'s not the only combination that works — green boxes below all pass. Tap around and see what feels right.</p>' +
       '<p>Curious how much your choices matter? Try a modest change to your spending, savings, or income above — a little less per month, a bit more into savings, a big purchase moved a year or two — and press the button again to see how the whole picture shifts.</p>' +
@@ -2158,13 +2179,13 @@ function renderVerdict(best) {
   } else if (best) {
     const preRet = best.lastsTo < best.retireAge;
     v.innerHTML = '<h2>Not there yet — but here\'s the picture.</h2>' +
-      '<p class="big">Even the strongest combination (<b>retire at ' + best.retireAge + '</b>, <b>claim at ' + best.claimAge +
+      '<p class="big">Even the strongest combination (<b>' + (best.deferred ? 'stop USPS work at ' : 'retire at ') + best.retireAge + '</b>, <b>claim at ' + best.claimAge +
       '</b>) sees savings run out around age <b>' + best.lastsTo + '</b>' +
       (preRet ? ' — <b>before you even retire</b>. Your take-home doesn\'t cover today\'s spending, loan payments, and cash purchases, and other savings run dry making up the difference (nothing comes out of TSP before retirement).' : '.') + '</p>' +
       '<p>Levers that help most: work a little longer (every year adds pension, TSP, and Social Security), trim monthly spending, or double-check your Social Security numbers. Adjust above and press the button again.</p>' +
       rothImpactHtml(best) + hustleHtml(INP, cheapestFix(INP, GRID.rows.find(r => r.retireAge === best.retireAge)), 'Everyone has a side hustle these days —', true) + checkHtml;
   } else {
-    v.innerHTML = '<h2>No eligible combinations found.</h2><p>Check your age and years of service — FERS immediate retirement needs age 62 with 5 years, 60 with 20, or 57 with 30.</p>';
+    v.innerHTML = '<h2>No eligible combinations found.</h2><p>Check your age and years of service — FERS immediate retirement needs age 62 with 5 years, 60 with 20, or 57 with 30; leaving earlier on savings is modeled from age 55 with 5 years of service.</p>';
   }
 }
 
@@ -2175,9 +2196,9 @@ function selectScenario(cell) {
   cell._btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   $('scnTitle').textContent = INP.retired
     ? 'Already retired' + (INP.ssNow > 0 ? ' · Social Security started' : ' · Social Security at ' + cell.claimAge)
-    : 'Retire at ' + cell.retireAge + ' · Social Security at ' + cell.claimAge;
+    : (cell.deferred ? 'Stop working at USPS at ' + cell.retireAge : 'Retire at ' + cell.retireAge) + ' · Social Security at ' + cell.claimAge;
   const pen = cell.pen;
-  const bits = ['Pension ' + fmt$(pen.net) + '/yr' + (pen.mult === 0.011 ? ' (1.1% bonus rate ✓)' : ''),
+  const bits = [(pen.deferred ? 'Deferred FERS pension ' + fmt$(pen.net) + '/yr starting at 62 (frozen at separation)' : 'Pension ' + fmt$(pen.net) + '/yr' + (pen.mult === 0.011 ? ' (1.1% bonus rate ✓)' : '')),
                 'Social Security ' + fmt$(ssMonthlyAt(INP, cell.claimAge)) + '/mo at ' + cell.claimAge];
   if (pen.suppEligible) bits.push('FERS supplement ' + fmt$(pen.suppMo) + '/mo until 62');
   $('scnSub').textContent = cell.ok
@@ -2200,7 +2221,7 @@ function renderFBE(cell) {
   const today = v => v / Math.pow(1 + i.inflation, Math.max(0, yrs));
   $('fbeBody').innerHTML =
     '<p>The <a href="https://www.opm.gov/retirement-center/calculators/federal-ball-park-estimator/" target="_blank" rel="noopener noreferrer">Federal Ballpark Estimator ↗</a> (linked on your benefits statement) is OPM\'s own quick calculator. It\'s a fair cross-check for the two things it computes carefully — <b>your FERS annuity</b> and <b>your TSP balance at retirement</b>. If you enter the same age, salary, High-3, service and TSP figures there, those two should land close to ours:</p>' +
-    '<ul><li>This plan\'s FERS pension if you retire at ' + cell.retireAge + ' (' + retYr + '): <b>' + fmt$(p.gross) + '/yr</b> before the survivor reduction' + (i.survivor > 0 ? ' (' + fmt$(p.net) + '/yr after)' : '') + ' — that\'s ' + (p.mult*100).toFixed(1) + '% × High-3 ' + fmt$(p.high3R) + ' × ' + p.yosCalc.toFixed(1) + ' years' + (i.sickHrs > 0 ? ' (incl. sick leave)' : '') + '. In today\'s dollars: about <b>' + fmt$(today(p.gross)) + '/yr</b>.</li>' +
+    '<ul><li>This plan\'s FERS pension if you retire at ' + cell.retireAge + ' (' + retYr + '): <b>' + fmt$(p.gross) + '/yr</b> before the survivor reduction' + (i.survivor > 0 ? ' (' + fmt$(p.net) + '/yr after)' : '') + ' — that\'s ' + (p.mult*100).toFixed(1) + '% × High-3 ' + fmt$(p.high3R) + ' × ' + p.yosCalc.toFixed(1) + ' years' + (p.deferred ? ' (deferred — starts at 62)' : (i.sickHrs > 0 ? ' (incl. sick leave)' : '')) + '. In today\'s dollars: about <b>' + fmt$(today(p.gross)) + '/yr</b>.</li>' +
     (i.retired ? '' : '<li>TSP at retirement in this plan: <b>' + fmt$(tspAtRet) + '</b> (about ' + fmt$(today(tspAtRet)) + ' in today\'s dollars), assuming ' + (i.preRet*100).toFixed(1) + '%/yr growth and your ' + (i.empPct*100).toFixed(0) + '% + USPS match until then. The Ballpark asks for a rate of return — use ' + (i.preRet*100).toFixed(1) + '% (or its default) and expect the numbers to differ by that choice.</li>') +
     '</ul>' +
     '<p><b>Where the answers will differ, and why ours is stricter:</b> the Ballpark asks what percentage of pre-retirement income you want to replace and tells you the savings gap to reach it. This plan works from your actual spending instead, year by year, and also counts things the Ballpark doesn\'t: ' +
@@ -2539,7 +2560,7 @@ function renderTable(cell) {
     if (spRetYear !== null && !spMarked && r.year >= spRetYear) { spMarked = true; html += milestone('▶ Your ' + spName + ' stops working (' + spRetYear + ', their age ' + INP.spRetireAge + ')'); }
     if (!r.working && !retMarked) { retMarked = true; html += milestone(INP.retired
       ? '▶ Already retired — the plan starts ' + r.year + ', age ' + r.age + (INP.ssNow > 0 ? ' · Social Security already started' : cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now')
-      : '▶ You retire — ' + r.year + ', age ' + r.age + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now') +
+      : '▶ ' + (cell.deferred ? 'You stop working at USPS' : 'You retire') + ' — ' + r.year + ', age ' + r.age + (cell.deferred ? ' · FERS pension starts at 62 (' + (r.year + 62 - r.age) + ')' : '') + (cell.claimAge > r.age ? ' · Social Security starts ' + (r.year + cell.claimAge - r.age) : ' · Social Security starts now') +
         (lastWorkRow ? ' · going in with TSP ' + fmt$(lastWorkRow.ownTsp) + (lastWorkRow.other > 0 ? ' and other savings ' + fmt$(lastWorkRow.other) : '') + ' (before this year\'s withdrawals)' : '')); }
     const spAgeTxt = hasSp ? ' <small>(' + (INP.spAge + r.age - INP.curAge) + ')</small>' : '';
     const isConv = showConv && r.conv > 1;
@@ -2565,6 +2586,7 @@ function renderAssumptions(cell) {
     (i.boughtYrs > 0 && !p.retired) ? 'Bought-back service (' + i.boughtYrs + ' years, deposit paid) is added to your career years for eligibility and the pension formula, but not for the FERS supplement (civilian FERS years only).' : null,
     (i.sickHrs > 0 && !p.retired) ? 'Unused sick leave (' + Math.round(i.sickHrs).toLocaleString() + ' hours ≈ ' + (i.sickHrs / 2087).toFixed(2) + ' years) is added to your service for the pension computation (not for eligibility).' : null,
     (i.alPayout > 0 && !p.retired) ? 'Your unused annual leave (' + fmt$(i.alPayout) + ' today) is paid out as a taxable lump sum in the year you retire and lands in other savings.' : null,
+    p.deferred ? 'You leave USPS at ' + cell.retireAge + ', before immediate-pension age, so the FERS pension is deferred: frozen at separation at ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' (High-3 at separation) × ' + p.yosR.toFixed(1) + ' years = ' + fmt$(p.gross) + '/yr gross (' + fmt$(p.net) + '/yr after the survivor choice), starting at age 62 with COLAs only from then. No FERS supplement, and unused sick leave doesn\'t count on a deferred pension. Savings carry you until 62.' :
     p.retired ? 'FERS pension as entered: ' + fmt$(p.net) + '/yr' + (p.suppEligible ? ' plus the supplement of ' + fmt$(p.suppMo) + '/mo until 62' : '') + '. COLA ' + (i.fersCola*100).toFixed(1) + '%/yr from here on (from 62 if you\'re younger).' :
     'FERS pension: ' + (p.mult*100).toFixed(1) + '% × ' + fmt$(p.high3R) + ' (High-3 at retirement) × ' + p.yosCalc.toFixed(1) +
       ' years = ' + fmt$(p.gross) + '/yr gross; ' + fmt$(p.net) + '/yr after the survivor benefit you chose. COLA ' + (i.fersCola*100).toFixed(1) + '%/yr starting at 62.',
@@ -2649,6 +2671,8 @@ function renderAssumptions(cell) {
     })() : null,
     (i.sideInc > 0 ? 'Extra income counts as earned income for the Social Security earnings test: before 67, anything over about ' + fmt$(23400) + '/yr (rising with inflation) trims the FERS supplement and any Social Security check by $1 for every $2 over.' : null),
     'Nothing comes out of TSP before you retire. Anything that has to be paid from savings while working — a cash purchase, an early payoff, or overspending — comes from other savings only; if other savings can\'t cover it, the model doesn\'t invent the money (that gap isn\'t shown).',
+    (i.fehbOn && p.deferred)
+      ? 'Health insurance: leaving before an immediate pension means FEHB/PSHB does NOT continue into retirement. Until 65 the plan charges your own insurance at ' + fmt$(i.ownInsMo) + '/mo (today\'s dollars, rising 5%/yr); from 65, Medicare Part B plus a supplement costed like your premium share.' :
     i.fehbOn
       ? 'Health insurance kept into retirement: your ' + fmt$(i.fehbMo) + '/mo premium share continues (deducted from the pension, rising 5%/yr)' + (i.partB ? ', plus Medicare Part B from 65 — or from retirement if you retire later than 65 (about $203/mo per person in 2026, rising' + (i.partBCredit > 0 ? ', less the ' + fmt$(i.partBCredit) + '/yr per person your plan gives back' : '') + ')' + (i.hasSpouse ? ' for each of you' : '') : ', no Part B') + '. Keep it out of your monthly spending number.'
       : 'Health insurance (FEHB/PSHB) and Medicare premiums should be inside your spending number (or turn on the health-insurance option in advanced settings).',
@@ -2665,7 +2689,7 @@ function fmtField(input) {
   if (v !== '' && !isNaN(parseFloat(v)) && Math.abs(parseFloat(v)) >= 1000)
     input.value = parseFloat(v).toLocaleString('en-US');
 }
-const MONEY_IDS = ['salary','takeHome','high3','spendNow','penNow','suppNow','ssNow','stubGross','stubNet','stubHealth','stubTspAmt','rothIRA','rothBal','spRothContrib','fehbMo','qcdYr','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
+const MONEY_IDS = ['salary','takeHome','high3','spendNow','penNow','suppNow','ssNow','stubGross','stubNet','stubHealth','stubTspAmt','rothIRA','rothBal','spRothContrib','fehbMo','ownInsMo','qcdYr','pen2Mo','spTakeHome','spSS62','spSS70','sp401k','sp401kContrib','spRoth','spPenMo','tspBal','otherBal','otherContrib','ssFRA','ss62','ss70','spendMo','spend70s','spend80s','spend90s','spSS','sideInc','suppOverride',
                    'p1Amt','p2Amt','p3Amt','p4Amt',
                    'debtHomeBal','debtHomeMo','debtCarBal','debtCarMo','debtOtherBal','debtOtherMo','wfAmt','poAmt'];
 MONEY_IDS.forEach(id => $(id).addEventListener('blur', e => fmtField(e.target)));
@@ -2679,7 +2703,7 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'spAge','spSS','spNow','spSSStart','spSS62','spSS70','spTakeHome','spRetireAge','sp401k','sp401kContrib','spRoth','spRothContrib','spRothStart','spPenMo','spPenWhen','spPenAge','spPenCola',
                   'pen2Mo','pen2When','pen2Age','pen2Cola',
                   'preRet','postRet','otherRet','inflation','ssCola','fersCola','salGrowth','survivor','horizon','suppOverride','stateRate',
-                  'drawOrder','fehbMo','partB','qcdYr','convMode','convBracket','convAmt','convWhen','convFrom','convTo','sickHrs','alPayout','partBCredit','boughtYrs',
+                  'drawOrder','fehbMo','partB','qcdYr','convMode','convBracket','convAmt','convWhen','convFrom','convTo','sickHrs','alPayout','partBCredit','boughtYrs','ownInsMo',
                   'psbRcd','psbPlan','psbGross','psbRet','psbHealth','psbTsp','psbSick','psbAL','psbEligDate','psbService'];
 function saveForm() {
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
@@ -3479,18 +3503,18 @@ function buildPrintReport() {
     grid += '<tr><td>' + row.retireAge + '</td>' + row.cols.map(c => {
       if (c.na) return '<td>—</td>';
       const sel = c === cell ? ' style="outline:2px solid #000;font-weight:700"' : '';
-      return '<td' + sel + '>' + (c.ok ? (cellTier(c) === 'ok' ? '✓' : '✓~') : c.lastsTo) + '</td>';
+      return '<td' + sel + '>' + (c.deferred ? '*' : '') + (c.ok ? (cellTier(c) === 'ok' ? '✓' : '✓~') : c.lastsTo) + '</td>';
     }).join('') + '</tr>';
   }
-  grid += '</table><p style="font-size:10.5px;color:#444">✓ = lasts past ' + i.horizon + ' with a cushion · ✓~ = lasts, but thin (close call) · number = age money runs out (within a few years of ' + i.horizon + ' is also a close call) · — = not eligible or not advised · boxed = the plan shown below</p>';
+  grid += '</table><p style="font-size:10.5px;color:#444">✓ = lasts past ' + i.horizon + ' with a cushion · ✓~ = lasts, but thin (close call) · number = age money runs out (within a few years of ' + i.horizon + ' is also a close call) · — = not eligible or not advised · boxed = the plan shown below' + (GRID.rows.some(r => r.cols.some(c => c.deferred)) ? ' · * = leave USPS early: savings carry you, pension deferred to 62, FEHB/PSHB does not continue' : '') + '</p>';
 
   const last = cell.rows[cell.rows.length - 1];
-  const planTag = (i.retired ? 'already retired' : 'retiring at ' + cell.retireAge) + (i.retired && i.ssNow > 0 ? ', Social Security already started' : ', drawing Social Security at ' + cell.claimAge);
+  const planTag = (i.retired ? 'already retired' : (cell.deferred ? 'leaving USPS at ' + cell.retireAge + ' (pension from 62)' : 'retiring at ' + cell.retireAge)) + (i.retired && i.ssNow > 0 ? ', Social Security already started' : ', drawing Social Security at ' + cell.claimAge);
   $('printReport').innerHTML =
     '<h1>Route2Retirement — Planning Snapshot</h1>' +
     '<p class="pr-sub">Prepared ' + today + ' · self-reported figures · all amounts are future (nominal) dollars unless noted</p>' +
     '<h2>How this plan plays out</h2>' +
-    '<p><b>' + (i.retired ? 'Already retired (' + i.retYear + ')' + (i.ssNow > 0 ? ' · Social Security started' : ' · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') : 'Retire at ' + cell.retireAge + ' (' + retYear + ') · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') + '.</b> ' +
+    '<p><b>' + (i.retired ? 'Already retired (' + i.retYear + ')' + (i.ssNow > 0 ? ' · Social Security started' : ' · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') : (cell.deferred ? 'Stop working at USPS at ' + cell.retireAge + ' (' + retYear + '; FERS pension deferred to 62)' : 'Retire at ' + cell.retireAge + ' (' + retYear + ')') + ' · start Social Security at ' + cell.claimAge + ' (' + claimYear + ')') + '.</b> ' +
     (cell.ok ? 'Projected to last past age ' + i.horizon + ' with about ' + endBalText(cell.endBal) + ' remaining' +
        (last.netWorth !== last.total ? ' (net worth ' + fmt$(last.netWorth) + ')' : '') + '.'
              : 'Projected to run short around age ' + cell.lastsTo + '.') + '</p>' +
@@ -3534,7 +3558,7 @@ function reportDocHTML(bodyHtml) {
 // Just the year-by-year table(s) for the selected plan — same headings as the full report.
 function tableOnlyHTML(cell) {
   const i = INP;
-  const planTag = (i.retired ? 'already retired' : 'retiring at ' + cell.retireAge) + (i.retired && i.ssNow > 0 ? ', Social Security already started' : ', drawing Social Security at ' + cell.claimAge);
+  const planTag = (i.retired ? 'already retired' : (cell.deferred ? 'leaving USPS at ' + cell.retireAge + ' (pension from 62)' : 'retiring at ' + cell.retireAge)) + (i.retired && i.ssNow > 0 ? ', Social Security already started' : ', drawing Social Security at ' + cell.claimAge);
   const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
   return '<h1>Route2Retirement — Year-by-year projection</h1>' +
     '<p class="pr-sub">Prepared ' + today + ' · ' + planTag + ' · self-reported figures · future (nominal) dollars unless noted</p>' +
