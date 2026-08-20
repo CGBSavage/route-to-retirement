@@ -3630,18 +3630,20 @@ const FORM_DEFAULTS = {};
 SAVE_IDS.forEach(id => { const el = $(id); FORM_DEFAULTS[id] = el ? el.value : ''; });
 const DEMOS = {
   casey: {
-    path: 'notcareer', taxOn: false, fehbOn: true,
+    path: 'notcareer', taxOn: true, fehbOn: true,
     fields: { curAge: '26', poStart: String(CUR_YEAR + 4), tspStart: String(CUR_YEAR + 4), salary: '45,000', tspPct: '10',
               rothBal: '0', rothIRA: '7,500', rothStart: String(CUR_YEAR), otherBal: '2,000', otherContrib: '500',
               spendMo: '3,000',
-              otherRet: '7', salGrowth: '4', fehbMo: '180' },
+              otherRet: '7', salGrowth: '4', fehbMo: '180',
+              convMode: 'bracket', convBracket: '0.12', convWhen: 'gap' },
     estimateSS: true
   },
   pat: {
     path: 'working', taxOn: true,
     fields: { curAge: '60', poStart: String(CUR_YEAR - 25), salary: '75,000', tspBal: '280,000', tspPct: '5',
               otherBal: '25,000', otherContrib: '1,200', ssFRA: '2,700', ss62: '1,900', ss70: '3,350', spendMo: '4,800',
-              debtHomeBal: '62,000', debtHomeMo: '900', debtCarBal: '14,000', debtCarMo: '380' }
+              debtHomeBal: '62,000', debtHomeMo: '900', debtCarBal: '14,000', debtCarMo: '380',
+              drawOrder: 'other' }
   }
 };
 function demoLoad(kind) {
