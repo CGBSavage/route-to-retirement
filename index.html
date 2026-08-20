@@ -493,6 +493,11 @@
     </div>
     <button type="button" class="dpbtn" id="dpBtn" aria-expanded="false" aria-controls="dpCard">🧭 Decision points for this path — what to set up now, and what comes next</button>
     <div class="anchor" id="dpCard" hidden></div>
+    <div style="padding:2px 0 8px">
+      <span class="help" style="display:block;margin:0 0 8px">Just looking? Load a <b>made-up example</b> and watch the whole tool work — anything you've typed is kept safe and can be brought back:</span>
+      <button type="button" class="ghostbtn" id="demoNotCareer">🧪 Example: CCA, 4 years from career</button>
+      <button type="button" class="ghostbtn" id="demoCarrier" style="margin-left:8px">🧪 Example: letter carrier, 25 years in</button>
+    </div>
   </section>
 
   <section class="card" id="step1">
@@ -1131,6 +1136,7 @@
   </div>
 
   <div id="results">
+    <div class="anchor" id="demoBanner" hidden></div>
     <div class="verdict" id="verdict"></div>
 
     <section class="card">
@@ -2677,7 +2683,7 @@ const SAVE_IDS = ['curAge','poStart','salary','takeHome','high3','spendNow','tsp
                   'psbRcd','psbPlan','psbGross','psbRet','psbHealth','psbTsp','psbSick','psbAL','psbEligDate','psbService'];
 function saveForm() {
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
-  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, invRows, path };
+  const o = { hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, invRows, path, demo: DEMO_KIND || undefined };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
   for (let n = 5; n <= purchRows; n++)
     ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
@@ -2719,6 +2725,7 @@ function loadForm() {
   showRestoreOffer();
   if (!o) { setSaveStatus('Nothing saved on this device yet.'); return; }
   const safe = fn => { try { fn(); } catch (e) {} };   // one bad field must never stop the rest
+  safe(() => { DEMO_KIND = o.demo || null; });
   safe(() => { while (purchRows < Math.min(o.purchRows || 4, PURCH_MAX)) addPurchaseRow(); });
   safe(() => { while (debtRows < Math.min(o.debtRows || 0, DEBT_MAX)) addDebtRow(); });
   for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => safe(() => { if (o['d' + n + s]) $('d' + n + s).value = o['d' + n + s]; }));
@@ -2864,7 +2871,7 @@ window.addEventListener('pagehide', () => { try { saveForm(); } catch (e) {} });
 function collectForm() {   // same object saveForm writes, without touching storage
   const path = $('pathRetired').getAttribute('aria-pressed') === 'true' ? 'retired' : $('pathNotCareer').getAttribute('aria-pressed') === 'true' ? 'notcareer' : 'working';
   const o = { app: 'Route2Retirement', version: 1, saved: new Date().toISOString().slice(0, 10),
-    hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, invRows, path };
+    hasSpouse: $('hasSpouse').checked, taxOn: $('taxOn').checked, pen2TaxFree: $('pen2TaxFree').checked, fehbOn: $('fehbOn').checked, qcdInSpend: $('qcdInSpend').checked, purchRows, debtRows, invRows, path, demo: DEMO_KIND || undefined };
   SAVE_IDS.forEach(id => o[id] = $(id).value);
   for (let n = 5; n <= purchRows; n++) ['What','Amt','Year','How'].forEach(s => o['p' + n + s] = $('p' + n + s).value);
   for (let n = 1; n <= debtRows; n++) ['What','Bal','Mo','Year'].forEach(s => o['d' + n + s] = $('d' + n + s).value);
@@ -2887,6 +2894,7 @@ function applyForm(o) {    // mirror of loadForm, from an object
   $('fehbOn').checked = !!o.fehbOn; document.querySelectorAll('.fehb-dep').forEach(d => d.style.display = o.fehbOn ? '' : 'none');
   if (o.qcdInSpend !== undefined) $('qcdInSpend').checked = !!o.qcdInSpend;
   setPath(o.path || 'working');
+  DEMO_KIND = o.demo || null;
   syncSpouseSS(); syncPayoff(); syncGrowthNote(); syncTakeHomeHint(); syncSpendAnchor(); syncConv(); renderSummary();
   try { saveForm(); } catch (e) {}
 }
@@ -3575,6 +3583,54 @@ async function printHtml(html, filename, noteEl) {
   note('');
 }
 $('rvClose').addEventListener('click', () => { $('reportView').classList.remove('open'); });
+
+/* ---- made-up examples (demo buttons in the Start-here card) ---- */
+let DEMO_KIND = null;
+// Snapshot of the untouched form, taken before saved entries load — a demo starts from this
+// so every field (selects included) is back at its default first.
+const FORM_DEFAULTS = {};
+SAVE_IDS.forEach(id => { const el = $(id); FORM_DEFAULTS[id] = el ? el.value : ''; });
+const DEMOS = {
+  casey: {
+    path: 'notcareer', taxOn: false,
+    who: 'Casey, 28 — a city carrier assistant working close to full time, expecting to convert to career in ' + (CUR_YEAR + 4) + ', already putting a little into a Roth IRA',
+    fields: { curAge: '28', poStart: String(CUR_YEAR + 4), tspStart: String(CUR_YEAR + 4), salary: '42,000', tspPct: '5',
+              rothBal: '500', rothIRA: '1,000', rothStart: String(CUR_YEAR), otherBal: '2,000', otherContrib: '500',
+              ssFRA: '2,000', ss62: '1,400', ss70: '2,480', spendMo: '3,200', debtCarBal: '9,000', debtCarMo: '250' }
+  },
+  pat: {
+    path: 'working', taxOn: true,
+    who: 'Pat, 60 — a letter carrier since ' + (CUR_YEAR - 25) + ' who has always put 5% into TSP, with a mortgage and a car loan still running',
+    fields: { curAge: '60', poStart: String(CUR_YEAR - 25), salary: '75,000', tspBal: '280,000', tspPct: '5',
+              otherBal: '25,000', otherContrib: '1,200', ssFRA: '2,700', ss62: '1,900', ss70: '3,350', spendMo: '4,800',
+              debtHomeBal: '62,000', debtHomeMo: '900', debtCarBal: '14,000', debtCarMo: '380' }
+  }
+};
+function demoLoad(kind) {
+  const d = DEMOS[kind]; if (!d) return;
+  // Anything real typed in? Park it as the recoverable backup first (never when a demo is already loaded).
+  let stashed = false;
+  if (!DEMO_KIND) {
+    try {
+      const changed = SAVE_IDS.filter(id => $(id) && $(id).value !== FORM_DEFAULTS[id]).length;
+      if (changed >= 3) { localStorage.setItem('routeToRetirement.backup', JSON.stringify(collectForm())); showRestoreOffer(); stashed = true; }
+    } catch (e) {}
+  }
+  DEMO_KIND = kind;
+  const o = Object.assign({}, FORM_DEFAULTS, d.fields,
+    { path: d.path, demo: kind, purchRows: 4, debtRows: 0, invRows: 0,
+      hasSpouse: false, taxOn: d.taxOn, pen2TaxFree: false, fehbOn: false, qcdInSpend: true });
+  try { applyForm(o); } catch (e) {}
+  $('demoBanner').hidden = false;
+  $('demoBanner').innerHTML = '🧪 <b>This is a made-up example:</b> ' + d.who + '. Every number is fictional — change anything above and press the button again to see what it does.' +
+    (stashed ? ' Your own entries were tucked away safely — bring them back under <a href="#privacy">Privacy &amp; terms</a>.' : '');
+  $('goBtn').click();
+  setTimeout(() => { try { $('verdict').scrollIntoView({ behavior: 'smooth' }); } catch (e) {} }, 350);
+}
+$('demoNotCareer').addEventListener('click', () => demoLoad('casey'));
+$('demoCarrier').addEventListener('click', () => demoLoad('pat'));
+// the banner stays only while demo data is what's loaded
+$('goBtn').addEventListener('click', () => { $('demoBanner').hidden = !DEMO_KIND; });
 
 loadForm();
 syncGrowthNote();
