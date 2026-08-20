@@ -3593,7 +3593,6 @@ SAVE_IDS.forEach(id => { const el = $(id); FORM_DEFAULTS[id] = el ? el.value : '
 const DEMOS = {
   casey: {
     path: 'notcareer', taxOn: false, fehbOn: true,
-    who: 'Casey, 26 — a postal support employee (clerk craft) working about 36 hours a week at $24/hr (≈ $45,000/yr — a deliberately conservative figure, with raises growing it 2%/yr), expecting to convert to career in ' + (CUR_YEAR + 4) + '. Casey puts 10% into TSP from the first career day, starts putting the IRS maximum into a Roth IRA this year ($7,500 in 2026), and carries a self-only health plan (estimated $180/mo as his share) all the way into retirement, with Medicare Part B added at 65',
     fields: { curAge: '26', poStart: String(CUR_YEAR + 4), tspStart: String(CUR_YEAR + 4), salary: '45,000', tspPct: '10',
               rothBal: '0', rothIRA: '7,500', rothStart: String(CUR_YEAR), otherBal: '2,000', otherContrib: '500',
               ssFRA: '2,200', ss62: '1,540', ss70: '2,730', spendMo: '3,000', debtCarBal: '9,000', debtCarMo: '250',
@@ -3601,7 +3600,6 @@ const DEMOS = {
   },
   pat: {
     path: 'working', taxOn: true,
-    who: 'Pat, 60 — a letter carrier since ' + (CUR_YEAR - 25) + ' who has always put 5% into TSP, with a mortgage and a car loan still running',
     fields: { curAge: '60', poStart: String(CUR_YEAR - 25), salary: '75,000', tspBal: '280,000', tspPct: '5',
               otherBal: '25,000', otherContrib: '1,200', ssFRA: '2,700', ss62: '1,900', ss70: '3,350', spendMo: '4,800',
               debtHomeBal: '62,000', debtHomeMo: '900', debtCarBal: '14,000', debtCarMo: '380' }
@@ -3623,7 +3621,7 @@ function demoLoad(kind) {
       hasSpouse: false, taxOn: d.taxOn, pen2TaxFree: false, fehbOn: !!d.fehbOn, qcdInSpend: true });
   try { applyForm(o); } catch (e) {}
   $('demoBanner').hidden = false;
-  $('demoBanner').innerHTML = '🧪 <b>This is a made-up example:</b> ' + d.who + '. Every number is fictional — change anything above and press the button again to see what it does.' +
+  $('demoBanner').innerHTML = '🧪 <b>This is a made-up example.</b> Every number is fictional — look through the steps above to see what was entered, change anything, and press the button again to see what it does.' +
     (stashed ? ' Your own entries were tucked away safely — bring them back under <a href="#privacy">Privacy &amp; terms</a>.' : '');
   $('goBtn').click();
   setTimeout(() => { try { $('preSummary').scrollIntoView({ behavior: 'smooth' }); } catch (e) {} }, 350);
