@@ -1219,6 +1219,11 @@
       <div id="pasteArea" hidden style="margin-top:8px"><textarea id="pasteBox" rows="4" style="width:100%;font-size:14px;padding:8px;border-radius:8px;border:1.5px solid var(--hairline);background:var(--surface-2);color:var(--ink)" placeholder="Paste the saved text here"></textarea><button type="button" class="ghostbtn" id="pasteApply" style="margin-top:6px">Load it</button></div>
       <span class="help" id="backupMsg" style="display:block;margin-top:8px">You can also drag a saved file anywhere onto this page.</span>
     </div>
+    <div class="anchor" id="keepToolBox" hidden>
+      <b>Keep a copy of the whole tool.</b> This entire planner is one file — save it to your computer or phone and it works offline, in any browser, for as long as you keep it, even if this website ever goes away. Your typed entries don't ride along (save those separately above).
+      <div style="margin-top:10px"><button type="button" class="ghostbtn" id="downloadAppBtn">⬇️ Save this whole tool as a file</button></div>
+      <span class="help" style="display:block;margin-top:8px"><b>One thing to know:</b> a saved copy never updates itself. Tax brackets, Social Security figures, and Medicare premiums here are refreshed every year — so when you sit down to work on your plan, it's worth downloading a fresh copy from route2retirement.com first and using that one.</span>
+    </div>
     <p class="help" id="saveStatus" style="margin:0 0 6px"></p>
     <div class="anchor" id="restoreOffer" hidden>A fuller set of entries from <b id="restoreWhen"></b> is still on this device. <button type="button" class="ghostbtn" id="restoreBtn">Restore those entries</button></div>
     <label class="spouse-toggle"><input type="checkbox" id="rememberOn" checked><span>Remember my entries on this device</span></label>
@@ -2936,6 +2941,22 @@ function applyForm(o) {    // mirror of loadForm, from an object
   syncSpouseSS(); syncPayoff(); syncGrowthNote(); syncTakeHomeHint(); syncSpendAnchor(); syncConv(); renderSummary();
   try { saveForm(); } catch (e) {}
 }
+// "Keep the whole tool" download: only offered on the real website (the artifact sandbox blocks
+// downloads, and a local copy already IS the file). The link hands over this page's own HTML.
+(function () {
+  let topLevel = true;
+  try { topLevel = window.self === window.top; } catch (e) { topLevel = false; }
+  if (topLevel && /^https?:$/.test(location.protocol)) {
+    $('keepToolBox').hidden = false;
+    $('downloadAppBtn').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = location.href;
+      a.download = 'route2retirement.html';
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+  }
+})();
+
 function backupMsg(t) { $('backupMsg').textContent = t; setTimeout(() => { $('backupMsg').textContent = 'You can also drag a saved file anywhere onto this page.'; }, 6000); }
 $('saveFileBtn').addEventListener('click', () => {
   const text = JSON.stringify(collectForm(), null, 1);
